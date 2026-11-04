@@ -1176,6 +1176,240 @@
           ]
         }
       ]
+    },
+    {
+      "id": "cosmos",
+      "emoji": "⚛️",
+      "name": "Cosmos",
+      "summary": "Cosmos SDK chains: addresses across chains, IBC, keys, transactions and signatures.",
+      "lead": "Tools for Cosmos SDK chains that run entirely in your browser. Keys you enter never leave your device.",
+      "categories": [
+        {
+          "name": "Units",
+          "tools": [
+            {
+              "slug": "unit-converter",
+              "emoji": "💰",
+              "name": "Unit Converter",
+              "description": "Convert between base denoms and display units",
+              "keywords": "uatom atom denom exponent"
+            }
+          ]
+        },
+        {
+          "name": "Addresses",
+          "tools": [
+            {
+              "slug": "address-converter",
+              "emoji": "🔄",
+              "name": "Address Converter",
+              "description": "Convert an address between chain prefixes",
+              "keywords": "bech32 prefix cosmos1 osmo1 celestia1"
+            },
+            {
+              "slug": "address-from-key",
+              "emoji": "🗝️",
+              "name": "Address from Key",
+              "description": "Derive an address from a public key (secp256k1 or ethsecp256k1)",
+              "keywords": "pubkey evmos injective"
+            },
+            {
+              "slug": "validator-address",
+              "emoji": "🏛️",
+              "name": "Validator Address",
+              "description": "Convert between account and validator operator addresses",
+              "keywords": "valoper valcons"
+            },
+            {
+              "slug": "module-address",
+              "emoji": "🏦",
+              "name": "Module Address",
+              "description": "Derive a module account address",
+              "keywords": "module account"
+            },
+            {
+              "slug": "ibc-escrow-address",
+              "emoji": "🔒",
+              "name": "IBC Escrow Address",
+              "description": "Derive the ICS-20 escrow address of a channel",
+              "keywords": "ics20 transfer channel escrow"
+            }
+          ]
+        },
+        {
+          "name": "Wallets",
+          "tools": [
+            {
+              "slug": "mnemonic-accounts",
+              "emoji": "🌱",
+              "name": "Mnemonic Accounts",
+              "description": "Derive accounts from a mnemonic (m/44'/118')",
+              "keywords": "seed phrase keplr leap bip39"
+            }
+          ]
+        },
+        {
+          "name": "IBC",
+          "tools": [
+            {
+              "slug": "ibc-denom",
+              "emoji": "#️⃣",
+              "name": "IBC Denom",
+              "description": "Convert between an IBC denom hash and its trace",
+              "keywords": "ibc/ denom trace hash"
+            }
+          ]
+        },
+        {
+          "name": "Transactions",
+          "tools": [
+            {
+              "slug": "tx-decoder",
+              "emoji": "📦",
+              "name": "Transaction Decoder",
+              "description": "Decode a transaction (TxRaw protobuf)",
+              "keywords": "txraw protobuf amino"
+            }
+          ]
+        },
+        {
+          "name": "Signatures",
+          "tools": [
+            {
+              "slug": "sign-message",
+              "emoji": "✍️",
+              "name": "Sign Message",
+              "description": "Sign arbitrary data (ADR-36)",
+              "keywords": "adr36 signarbitrary keplr"
+            },
+            {
+              "slug": "verify-message",
+              "emoji": "✔️",
+              "name": "Verify Message",
+              "description": "Verify an ADR-36 signature",
+              "keywords": "adr36 verifyarbitrary"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "polkadot",
+      "emoji": "🟣",
+      "name": "Polkadot",
+      "summary": "Polkadot and Substrate chains: SS58 addresses, SCALE, storage keys, keys and signatures.",
+      "lead": "Tools for Polkadot and Substrate chains (Kusama, Bittensor and more) that run entirely in your browser. Keys you enter never leave your device.",
+      "categories": [
+        {
+          "name": "Units",
+          "tools": [
+            {
+              "slug": "unit-converter",
+              "emoji": "💰",
+              "name": "Unit Converter",
+              "description": "Convert between Planck and DOT, KSM or TAO",
+              "keywords": "planck dot ksm tao rao decimals"
+            }
+          ]
+        },
+        {
+          "name": "Addresses",
+          "tools": [
+            {
+              "slug": "ss58-converter",
+              "emoji": "🔄",
+              "name": "SS58 Converter",
+              "description": "Convert an address between network prefixes",
+              "keywords": "ss58 prefix kusama bittensor substrate"
+            },
+            {
+              "slug": "address-from-key",
+              "emoji": "🗝️",
+              "name": "Address from Key",
+              "description": "Derive an address from an sr25519, ed25519 or ECDSA public key",
+              "keywords": "public key accountid"
+            },
+            {
+              "slug": "multisig-address",
+              "emoji": "👥",
+              "name": "Multisig Address",
+              "description": "Derive a multisig address from signatories and a threshold",
+              "keywords": "multisig threshold"
+            },
+            {
+              "slug": "pure-proxy",
+              "emoji": "🎭",
+              "name": "Pure Proxy",
+              "description": "Derive a pure proxy address",
+              "keywords": "anonymous proxy createPure"
+            },
+            {
+              "slug": "sovereign-account",
+              "emoji": "🏛️",
+              "name": "Sovereign Account",
+              "description": "Derive a parachain's sovereign account",
+              "keywords": "parachain para sibling xcm"
+            }
+          ]
+        },
+        {
+          "name": "Wallets",
+          "tools": [
+            {
+              "slug": "mnemonic-accounts",
+              "emoji": "🌱",
+              "name": "Mnemonic Accounts",
+              "description": "Derive accounts from a mnemonic and derivation path",
+              "keywords": "seed phrase //hard /soft sr25519 polkadot.js talisman subwallet"
+            }
+          ]
+        },
+        {
+          "name": "Data",
+          "tools": [
+            {
+              "slug": "scale-codec",
+              "emoji": "🧩",
+              "name": "SCALE Codec",
+              "description": "Encode and decode SCALE data",
+              "keywords": "scale codec compact"
+            },
+            {
+              "slug": "storage-key",
+              "emoji": "🗄️",
+              "name": "Storage Key",
+              "description": "Build a storage key from pallet, item and keys",
+              "keywords": "twox128 blake2 storage map"
+            },
+            {
+              "slug": "hasher",
+              "emoji": "🌀",
+              "name": "Hasher",
+              "description": "Hash with Blake2 and xxHash (Twox)",
+              "keywords": "blake2b xxhash twox64 twox128 twox256"
+            }
+          ]
+        },
+        {
+          "name": "Signatures",
+          "tools": [
+            {
+              "slug": "sign-message",
+              "emoji": "✍️",
+              "name": "Sign Message",
+              "description": "Sign a message with an sr25519, ed25519 or ECDSA key",
+              "keywords": "signRaw <Bytes>"
+            },
+            {
+              "slug": "verify-message",
+              "emoji": "✔️",
+              "name": "Verify Message",
+              "description": "Verify a message signature",
+              "keywords": "signature verify"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

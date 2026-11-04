@@ -8,16 +8,65 @@
   "background_color": "#f7f7f5",
   "theme_color": "#f7f7f5",
   "icons": [
-    { "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/assets/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "Utilities", "url": "/toolbox/" },
-    { "name": "Developer", "url": "/dev/" },
-    { "name": "Bitcoin", "url": "/bitcoin/" },
-    { "name": "EVM", "url": "/evm/" },
-    { "name": "Solana", "url": "/solana/" },
-    { "name": "TON", "url": "/ton/" }
+    {
+      "name": "Utilities",
+      "url": "/toolbox/"
+    },
+    {
+      "name": "Developer",
+      "url": "/dev/"
+    },
+    {
+      "name": "Bitcoin",
+      "url": "/bitcoin/"
+    },
+    {
+      "name": "EVM",
+      "url": "/evm/"
+    },
+    {
+      "name": "Solana",
+      "url": "/solana/"
+    },
+    {
+      "name": "TON",
+      "url": "/ton/"
+    },
+    {
+      "name": "Cardano",
+      "url": "/cardano/"
+    },
+    {
+      "name": "Sui",
+      "url": "/sui/"
+    },
+    {
+      "name": "Cosmos",
+      "url": "/cosmos/"
+    },
+    {
+      "name": "Polkadot",
+      "url": "/polkadot/"
+    }
   ]
 }

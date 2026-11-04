@@ -1,6 +1,6 @@
 // Service worker template. scripts/generate.py fills in VERSION and PRECACHE
 // and writes the result to /sw.js. Edit this file, not sw.js.
-const VERSION = '33484723516d';
+const VERSION = '225cc7d301b1';
 const SITE_CACHE = 'site-' + VERSION;
 // Heavy, version-pinned files that tools download on first use (the ffmpeg core,
 // the OCR engine and its language data). Cached once and kept across site updates.
@@ -102,6 +102,18 @@ const PRECACHE = [
   "/cardano/tx-decoder/",
   "/cardano/unit-converter/",
   "/cardano/verify-message/",
+  "/cosmos/",
+  "/cosmos/address-converter/",
+  "/cosmos/address-from-key/",
+  "/cosmos/ibc-denom/",
+  "/cosmos/ibc-escrow-address/",
+  "/cosmos/mnemonic-accounts/",
+  "/cosmos/module-address/",
+  "/cosmos/sign-message/",
+  "/cosmos/tx-decoder/",
+  "/cosmos/unit-converter/",
+  "/cosmos/validator-address/",
+  "/cosmos/verify-message/",
   "/dev/",
   "/dev/base64/",
   "/dev/bit/",
@@ -147,6 +159,19 @@ const PRECACHE = [
   "/evm/typed-data/",
   "/evm/unit-converter/",
   "/evm/verify-message/",
+  "/polkadot/",
+  "/polkadot/address-from-key/",
+  "/polkadot/hasher/",
+  "/polkadot/mnemonic-accounts/",
+  "/polkadot/multisig-address/",
+  "/polkadot/pure-proxy/",
+  "/polkadot/scale-codec/",
+  "/polkadot/sign-message/",
+  "/polkadot/sovereign-account/",
+  "/polkadot/ss58-converter/",
+  "/polkadot/storage-key/",
+  "/polkadot/unit-converter/",
+  "/polkadot/verify-message/",
   "/solana/",
   "/solana/address-validator/",
   "/solana/anchor-discriminator/",

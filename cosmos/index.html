@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cosmos</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%9B%EF%B8%8F</text></svg>">
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
+  <script src="/assets/pwa.js" defer></script>
+</head>
+<body>
+<main>
+  <a class="back" href="../">← Home</a>
+  <h1>⚛️ Cosmos</h1>
+  <p class="lead">Tools for Cosmos SDK chains that run entirely in your browser. Keys you enter never leave your device.</p>
+  <h2>Units</h2>
+  <div class="grid">
+    <a class="card soon" href="unit-converter/"><strong>💰 Unit Converter</strong><span>Convert between base denoms and display units</span></a>
+  </div>
+  <h2>Addresses</h2>
+  <div class="grid">
+    <a class="card soon" href="address-converter/"><strong>🔄 Address Converter</strong><span>Convert an address between chain prefixes</span></a>
+    <a class="card soon" href="address-from-key/"><strong>🗝️ Address from Key</strong><span>Derive an address from a public key (secp256k1 or ethsecp256k1)</span></a>
+    <a class="card soon" href="validator-address/"><strong>🏛️ Validator Address</strong><span>Convert between account and validator operator addresses</span></a>
+    <a class="card soon" href="module-address/"><strong>🏦 Module Address</strong><span>Derive a module account address</span></a>
+    <a class="card soon" href="ibc-escrow-address/"><strong>🔒 IBC Escrow Address</strong><span>Derive the ICS-20 escrow address of a channel</span></a>
+  </div>
+  <h2>Wallets</h2>
+  <div class="grid">
+    <a class="card soon" href="mnemonic-accounts/"><strong>🌱 Mnemonic Accounts</strong><span>Derive accounts from a mnemonic (m/44&#x27;/118&#x27;)</span></a>
+  </div>
+  <h2>IBC</h2>
+  <div class="grid">
+    <a class="card soon" href="ibc-denom/"><strong>#️⃣ IBC Denom</strong><span>Convert between an IBC denom hash and its trace</span></a>
+  </div>
+  <h2>Transactions</h2>
+  <div class="grid">
+    <a class="card soon" href="tx-decoder/"><strong>📦 Transaction Decoder</strong><span>Decode a transaction (TxRaw protobuf)</span></a>
+  </div>
+  <h2>Signatures</h2>
+  <div class="grid">
+    <a class="card soon" href="sign-message/"><strong>✍️ Sign Message</strong><span>Sign arbitrary data (ADR-36)</span></a>
+    <a class="card soon" href="verify-message/"><strong>✔️ Verify Message</strong><span>Verify an ADR-36 signature</span></a>
+  </div>
+</main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+</body>
+</html>
