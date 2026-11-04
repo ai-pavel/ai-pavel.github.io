@@ -57,12 +57,22 @@ def head(title, emoji, css):
 """
 
 
-FOOTER = """<footer class="site-footer">
-  <span>Runs entirely in your browser and works offline.</span>
+TAGLINE = "Local-first browser tools — everyday, dev & crypto. Nothing leaves your device."
+ON_DEMAND_NOTE = "Not counting the video converter and OCR engines, which download on first use."
+
+
+def set_footer(size_label):
+    """Build the footer shown on every page; it includes the size of the whole site."""
+    global FOOTER, FOOT
+    FOOTER = f"""<footer class="site-footer">
+  <span>Runs entirely in your browser and works offline · <span title="{ON_DEMAND_NOTE}">Whole site: {size_label}</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 """
-FOOT = "</main>\n" + FOOTER + "</body>\n</html>\n"
+    FOOT = "</main>\n" + FOOTER + "</body>\n</html>\n"
+
+
+set_footer("…")
 
 
 def write(rel, content):
@@ -125,7 +135,7 @@ def count_label(tools):
 
 def home_page(toolboxes, total):
     out = head("AI Pavel", "🤖", "assets/style.css") + f"""  <h1>🤖 AI Pavel</h1>
-  <p class="lead">Experiments and tools.</p>
+  <p class="lead">{esc(TAGLINE)}</p>
 
   <div class="search" id="search">
     <input id="search-input" type="search" placeholder="Search {total} tools…" autocomplete="off" spellcheck="false"
@@ -192,8 +202,8 @@ PRECACHE_SKIP_DIRS = (".git", "scripts")
 PRECACHE_SKIP_FILES = {"README.md", "sw.js", ".gitignore", ".nojekyll", "VENDOR.md", "LICENSE", "LICENSE.md"}
 
 
-def service_worker():
-    """Write sw.js with the list of site files to precache and a content-based version."""
+def site_files():
+    """Every file the site serves (and the service worker precaches), relative to ROOT."""
     files = []
     for d, dirs, names in os.walk(ROOT):
         rel_dir = os.path.relpath(d, ROOT)
@@ -205,6 +215,17 @@ def service_worker():
             if name in PRECACHE_SKIP_FILES or name.startswith(".") or name.endswith(".md"):
                 continue
             files.append(os.path.normpath(os.path.join(rel_dir, name)).replace(os.sep, "/"))
+    return files
+
+
+def size_label(files):
+    total = sum(os.path.getsize(path(r)) for r in files)
+    return f"{total / 1e6:.1f} MB"
+
+
+def service_worker():
+    """Write sw.js with the list of site files to precache and a content-based version."""
+    files = site_files()
     digest = hashlib.sha256()
     urls = []
     for rel in files:
@@ -218,13 +239,10 @@ def service_worker():
     sw = (template.replace("__VERSION__", digest.hexdigest()[:12])
                   .replace("__PRECACHE__", json.dumps(urls, indent=2)))
     write("sw.js", sw)
-    total = sum(os.path.getsize(path(r)) for r in files)
-    print(f"sw.js: {len(urls)} files precached, {total / 1e6:.1f} MB")
+    print(f"sw.js: {len(urls)} files precached, {size_label(files)}")
 
 
-def main():
-    with open(path("assets", "tools.json"), encoding="utf-8") as f:
-        toolboxes = json.load(f)["toolboxes"]
+def build_pages(toolboxes):
     for tb in toolboxes:
         os.makedirs(path(tb["id"]), exist_ok=True)
         for cat in tb["categories"]:
@@ -237,6 +255,21 @@ def main():
     home_page(toolboxes, total)
     search_index(toolboxes)
     readme_table(toolboxes)
+
+
+def main():
+    with open(path("assets", "tools.json"), encoding="utf-8") as f:
+        toolboxes = json.load(f)["toolboxes"]
+    # The footer shows the site's size, and the footer is part of every page, so
+    # rebuild until the rounded size stops changing (normally one extra pass).
+    label = size_label(site_files())
+    for _ in range(5):
+        set_footer(label)
+        build_pages(toolboxes)
+        new_label = size_label(site_files())
+        if new_label == label:
+            break
+        label = new_label
     service_worker()
     for tb in toolboxes:
         tools = [t for c in tb["categories"] for t in c["tools"]]
