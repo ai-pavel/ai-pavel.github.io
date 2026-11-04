@@ -1,8 +1,8 @@
 // Shared helpers for the Solana tools. Pinned, audited libraries only.
-import { ed25519 } from 'https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/ed25519.js/+esm';
-import { sha256, sha512 } from 'https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/sha2.js/+esm';
-import { hmac } from 'https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/hmac.js/+esm';
-import { base58, base64, hex } from 'https://cdn.jsdelivr.net/npm/@scure/base@2.4.0/index.js/+esm';
+import { ed25519 } from '../../assets/vendor/@noble/curves@2.4.0/ed25519.esm.js';
+import { sha256, sha512 } from '../../assets/vendor/@noble/hashes@2.4.0/sha2.esm.js';
+import { hmac } from '../../assets/vendor/@noble/hashes@2.4.0/hmac.esm.js';
+import { base58, base64, hex } from '../../assets/vendor/@scure/base@2.4.0/index.esm.js';
 
 export { ed25519, sha256, sha512, hmac, base58, base64, hex };
 

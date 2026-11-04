@@ -18,10 +18,13 @@ Personal GitHub Pages site: https://ai-pavel.github.io/
 <!-- toolboxes:end -->
 
 Everything runs client-side in the browser: files and keys never leave the device.
+The site is an installable app (PWA) and works offline once it has been opened.
 
 ## Structure
 
 - Each tool is a self-contained page at `<toolbox>/<tool>/index.html`.
 - All pages share `assets/style.css`.
 - The list of toolboxes and tools lives in `assets/tools.json`. After changing it (or finishing a tool page), run `python3 scripts/generate.py` to rebuild the home page, toolbox pages, search index and the table above. New tools get a placeholder page.
+- Third-party libraries are vendored in `assets/vendor/` (see `assets/vendor/VENDOR.md`). To add or upgrade one, edit the list in `scripts/vendor.py` and run `python3 scripts/vendor.py`; it downloads the files and points pages at the local copies.
+- `sw.js` is the service worker. It is generated from `scripts/sw.template.js` by `generate.py`, which precaches every site file and bumps the cache version whenever a file changes. Heavy assets loaded on demand (the ffmpeg core, the OCR engine and its language data) are cached on first use.
 - There is no build step on deploy: push to `master` and GitHub Pages serves the files as-is.

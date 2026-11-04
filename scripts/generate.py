@@ -8,6 +8,7 @@ ready once its page no longer contains the placeholder marker.
 
 Run from anywhere: python3 scripts/generate.py
 """
+import hashlib
 import html
 import json
 import os
@@ -32,6 +33,15 @@ def favicon(emoji):
     return "data:image/svg+xml," + urllib.parse.quote(svg, safe=" =:/'<>")
 
 
+# Tags every page needs for the installable, offline-capable app (PWA).
+PWA_HEAD = """  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
+  <script src="/assets/pwa.js" defer></script>
+"""
+
+
 def head(title, emoji, css):
     return f"""<!doctype html>
 <html lang="en">
@@ -41,14 +51,14 @@ def head(title, emoji, css):
   <title>{esc(title)}</title>
   <link rel="icon" href="{favicon(emoji)}">
   <link rel="stylesheet" href="{css}">
-</head>
+{PWA_HEAD}</head>
 <body>
 <main>
 """
 
 
 FOOTER = """<footer class="site-footer">
-  <span>Runs entirely in your browser.</span>
+  <span>Runs entirely in your browser and works offline.</span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 """
@@ -60,13 +70,17 @@ def write(rel, content):
         f.write(content)
 
 
-def ensure_footer(rel):
-    """Add the site footer to a hand-written tool page that doesn't have one yet."""
+def ensure_page_chrome(rel):
+    """Give a hand-written tool page the shared footer and PWA tags if it lacks them."""
     with open(path(rel), encoding="utf-8") as f:
         page = f.read()
-    if 'class="site-footer"' in page or "</main>" not in page:
-        return
-    write(rel, page.replace("</main>\n", "</main>\n" + FOOTER, 1))
+    new = re.sub(r'<footer class="site-footer">.*?</footer>\n', FOOTER, page, count=1, flags=re.S)
+    if 'class="site-footer"' not in new and "</main>\n" in new:
+        new = new.replace("</main>\n", "</main>\n" + FOOTER, 1)
+    if 'rel="manifest"' not in new:
+        new = new.replace("</head>", PWA_HEAD + "</head>", 1)
+    if new != page:
+        write(rel, new)
 
 
 def is_ready(toolbox_id, slug):
@@ -81,7 +95,7 @@ def ensure_placeholder(tb, tool):
         return
     os.makedirs(os.path.dirname(page), exist_ok=True)
     title = f'{tool["emoji"]} {tool["name"]}'
-    write(os.path.relpath(page, ROOT), head(title, tool["emoji"], "../../assets/style.css") + f"""  <a class="back" href="../">← {esc(tb["name"])}</a>
+    write(os.path.relpath(page, ROOT), head(tool["name"], tool["emoji"], "../../assets/style.css") + f"""  <a class="back" href="../">← {esc(tb["name"])}</a>
   <h1>{esc(title)}</h1>
   <p class="lead">{esc(tool["description"])}.</p>
   <p {PLACEHOLDER_MARKER}>Coming soon.</p>
@@ -90,7 +104,7 @@ def ensure_placeholder(tb, tool):
 
 def toolbox_page(tb):
     title = f'{tb["emoji"]} {tb["name"]}'
-    out = head(title, tb["emoji"], "../assets/style.css") + f"""  <a class="back" href="../">← Home</a>
+    out = head(tb["name"], tb["emoji"], "../assets/style.css") + f"""  <a class="back" href="../">← Home</a>
   <h1>{esc(title)}</h1>
   <p class="lead">{esc(tb["lead"])}</p>
 """
@@ -110,7 +124,7 @@ def count_label(tools):
 
 
 def home_page(toolboxes, total):
-    out = head("🤖 AI Pavel", "🤖", "assets/style.css") + f"""  <h1>🤖 AI Pavel</h1>
+    out = head("AI Pavel", "🤖", "assets/style.css") + f"""  <h1>🤖 AI Pavel</h1>
   <p class="lead">Experiments and tools.</p>
 
   <div class="search" id="search">
@@ -173,6 +187,41 @@ def readme_table(toolboxes):
     write("README.md", new)
 
 
+# Files the service worker should not precache.
+PRECACHE_SKIP_DIRS = (".git", "scripts")
+PRECACHE_SKIP_FILES = {"README.md", "sw.js", ".gitignore", ".nojekyll", "VENDOR.md", "LICENSE", "LICENSE.md"}
+
+
+def service_worker():
+    """Write sw.js with the list of site files to precache and a content-based version."""
+    files = []
+    for d, dirs, names in os.walk(ROOT):
+        rel_dir = os.path.relpath(d, ROOT)
+        if rel_dir.split(os.sep)[0] in PRECACHE_SKIP_DIRS:
+            dirs[:] = []
+            continue
+        dirs.sort()
+        for name in sorted(names):
+            if name in PRECACHE_SKIP_FILES or name.startswith(".") or name.endswith(".md"):
+                continue
+            files.append(os.path.normpath(os.path.join(rel_dir, name)).replace(os.sep, "/"))
+    digest = hashlib.sha256()
+    urls = []
+    for rel in files:
+        with open(path(rel), "rb") as f:
+            digest.update(rel.encode() + b"\0" + f.read())
+        # Pages are linked as directories ("evm/"), so cache them under that URL.
+        url = "/" + (rel[: -len("index.html")] if rel.endswith("index.html") else rel)
+        urls.append(url)
+    with open(path("scripts", "sw.template.js"), encoding="utf-8") as f:
+        template = f.read()
+    sw = (template.replace("__VERSION__", digest.hexdigest()[:12])
+                  .replace("__PRECACHE__", json.dumps(urls, indent=2)))
+    write("sw.js", sw)
+    total = sum(os.path.getsize(path(r)) for r in files)
+    print(f"sw.js: {len(urls)} files precached, {total / 1e6:.1f} MB")
+
+
 def main():
     with open(path("assets", "tools.json"), encoding="utf-8") as f:
         toolboxes = json.load(f)["toolboxes"]
@@ -181,13 +230,14 @@ def main():
         for cat in tb["categories"]:
             for t in cat["tools"]:
                 ensure_placeholder(tb, t)
-                ensure_footer(os.path.join(tb["id"], t["slug"], "index.html"))
+                ensure_page_chrome(os.path.join(tb["id"], t["slug"], "index.html"))
                 t["ready"] = is_ready(tb["id"], t["slug"])
         toolbox_page(tb)
     total = sum(len(c["tools"]) for tb in toolboxes for c in tb["categories"])
     home_page(toolboxes, total)
     search_index(toolboxes)
     readme_table(toolboxes)
+    service_worker()
     for tb in toolboxes:
         tools = [t for c in tb["categories"] for t in c["tools"]]
         print(f'{tb["id"]}: {count_label(tools)}')

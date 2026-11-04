@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>📲 Barcode Reader</title>
+  <title>Barcode Reader</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%B2</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
   <style>
@@ -28,6 +28,11 @@
     a.btn:hover { border-color: var(--accent); }
     [hidden] { display: none !important; }
   </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
+  <script src="/assets/pwa.js" defer></script>
 </head>
 <body>
 <main>
@@ -57,7 +62,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser.</span>
+  <span>Runs entirely in your browser and works offline.</span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script>
@@ -67,7 +72,7 @@ const FORMAT_NAMES = {
   code_39: 'Code 39', code_93: 'Code 93', codabar: 'Codabar', itf: 'ITF', data_matrix: 'Data Matrix',
   aztec: 'Aztec', pdf417: 'PDF417', micro_qr_code: 'Micro QR', databar: 'DataBar',
 };
-const PONYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.3/dist/iife/ponyfill.js';
+const PONYFILL = '../../assets/vendor/barcode-detector@3.2.3/dist/iife/ponyfill.js';
 
 let detectorPromise = null;
 function loadScript(src) {
@@ -86,6 +91,9 @@ function getDetector() {
       } catch {}
     }
     await loadScript(PONYFILL);
+    // Load the ZXing engine from our own copy instead of the library's default CDN.
+    BarcodeDetectionAPI.setZXingModuleOverrides({ locateFile: (file, prefix) =>
+      file.endsWith('.wasm') ? new URL('../../assets/vendor/zxing-wasm@3.1.6/dist/reader/' + file, location.href).href : prefix + file });
     const D = BarcodeDetectionAPI.BarcodeDetector;
     $('engine').textContent = 'Using the ZXing barcode library.';
     return new D({ formats: await D.getSupportedFormats() });

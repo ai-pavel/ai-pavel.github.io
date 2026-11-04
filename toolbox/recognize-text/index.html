@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>🔍 Recognize Text</title>
+  <title>Recognize Text</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%8D</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
   <style>
@@ -21,6 +21,11 @@
     .error { color: #d14343; font-size: 14px; }
     [hidden] { display: none !important; }
   </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
+  <script src="/assets/pwa.js" defer></script>
 </head>
 <body>
 <main>
@@ -56,10 +61,10 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser.</span>
+  <span>Runs entirely in your browser and works offline.</span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="../../assets/vendor/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const LANGS = [
@@ -116,7 +121,7 @@ async function getWorker(langs) {
   if (worker && workerLangs === key) return worker;
   if (worker) { await worker.terminate(); worker = null; }
   worker = await Tesseract.createWorker(langs, 1, {
-    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+    workerPath: '../../assets/vendor/tesseract.js@5.1.1/dist/worker.min.js',
     corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
     logger: onProgress,
   });

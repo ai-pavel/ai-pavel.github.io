@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>🏷️ Barcode Generator</title>
+  <title>Barcode Generator</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%B7%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
   <style>
@@ -23,6 +23,11 @@
     .error { color: #d14343; font-size: 14px; margin: 8px 0 0; }
     [hidden] { display: none !important; }
   </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
+  <script src="/assets/pwa.js" defer></script>
 </head>
 <body>
 <main>
@@ -111,11 +116,11 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser.</span>
+  <span>Runs entirely in your browser and works offline.</span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="../../assets/vendor/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="../../assets/vendor/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];

@@ -1,9 +1,9 @@
 // Small TON toolkit for the TON tools: bytes, cells, BOC, addresses,
 // wallet contracts and the TON mnemonic scheme. Mirrors @ton/core and
 // @ton/crypto behaviour; cross-checked against them in the test suite.
-import { sha256 } from 'https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/sha2/+esm';
-import { ed25519 } from 'https://cdn.jsdelivr.net/npm/@noble/curves@1.9.7/ed25519/+esm';
-import { wordlist } from 'https://cdn.jsdelivr.net/npm/@scure/bip39@1.6.0/wordlists/english/+esm';
+import { sha256 } from '../../assets/vendor/@noble/hashes@1.8.0/sha2.esm.js';
+import { ed25519 } from '../../assets/vendor/@noble/curves@1.9.7/ed25519.esm.js';
+import { wordlist } from '../../assets/vendor/@scure/bip39@1.6.0/wordlists/english.esm.js';
 import { WALLET_CODE } from './wallet-code.js';
 
 export { sha256, ed25519, wordlist };

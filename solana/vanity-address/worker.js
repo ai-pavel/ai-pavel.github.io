@@ -1,6 +1,6 @@
 // Vanity address search worker: tries random keypairs until the address matches.
-import { ed25519 } from 'https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/ed25519.js/+esm';
-import { base58 } from 'https://cdn.jsdelivr.net/npm/@scure/base@2.4.0/index.js/+esm';
+import { ed25519 } from '../../assets/vendor/@noble/curves@2.4.0/ed25519.esm.js';
+import { base58 } from '../../assets/vendor/@scure/base@2.4.0/index.esm.js';
 
 const BATCH = 256;
 let running = false;

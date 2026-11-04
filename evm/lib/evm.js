@@ -1,7 +1,7 @@
 // Shared EVM helpers: hex, RLP, ABI, EIP-55, EIP-191, EIP-712, transaction decoding.
 // Primitives (Keccak-256, secp256k1) come from audited @noble libraries.
-import { keccak_256 } from 'https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/sha3/+esm';
-import { secp256k1 } from 'https://cdn.jsdelivr.net/npm/@noble/curves@1.9.7/secp256k1/+esm';
+import { keccak_256 } from '../../assets/vendor/@noble/hashes@1.8.0/sha3.esm.js';
+import { secp256k1 } from '../../assets/vendor/@noble/curves@1.9.7/secp256k1.esm.js';
 
 export { keccak_256, secp256k1 };
 
