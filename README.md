@@ -2,8 +2,8 @@
 
 Personal GitHub Pages site: https://ai-pavel.github.io/
 
-## Toolbox
+## Toolboxes
 
-`toolbox/` holds browser-only utilities, served at https://ai-pavel.github.io/toolbox/.
-Each tool lives in its own folder (`toolbox/<tool>/index.html`) and shares `toolbox/assets/style.css`.
+`toolbox/` holds everyday browser utilities (https://ai-pavel.github.io/toolbox/), `crypto/` holds Bitcoin and cryptography tools (https://ai-pavel.github.io/crypto/).
+Each tool lives in its own folder (`<toolbox>/<tool>/index.html`) and shares `assets/style.css`.
 Everything runs client-side; there is no build step.
