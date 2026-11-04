@@ -2,7 +2,7 @@
   "toolboxes": [
     {
       "id": "toolbox",
-      "emoji": "🧰",
+      "emoji": "🪄",
       "name": "Utilities",
       "summary": "Everyday utilities: time, text, files and media.",
       "lead": "Utilities that run entirely in your browser. Your files never leave your device.",
