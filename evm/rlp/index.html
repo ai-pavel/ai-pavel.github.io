@@ -6,13 +6,97 @@
   <title>🪆 RLP</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%AA%86</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/evm.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← EVM</a>
   <h1>🪆 RLP</h1>
-  <p class="lead">Encode and decode RLP.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Encode data to RLP, Ethereum's serialization format, or decode RLP hex into its nested structure.</p>
+
+  <div class="panel">
+    <div class="seg" id="mode">
+      <button data-mode="encode" aria-pressed="true">Encode</button>
+      <button data-mode="decode" aria-pressed="false">Decode</button>
+    </div>
+    <div class="field">
+      <textarea id="input" class="mono" rows="5" spellcheck="false"></textarea>
+    </div>
+    <p class="muted" id="hint"></p>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+    <div id="tree-box" hidden>
+      <div class="row" style="justify-content:space-between;margin:16px 0 6px"><span class="muted">Decoded (hex)</span><button class="icon-btn" data-copy-from="tree">Copy</button></div>
+      <pre class="json" id="tree"></pre>
+      <p class="muted" style="margin:16px 0 6px">Readable: byte strings shown as text or numbers where possible</p>
+      <pre class="json" id="readable"></pre>
+    </div>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { rlpEncode, rlpDecode, hexToBytes, bytesToHex, bigIntToBytes, bytesToBigInt, utf8, InputError } from '../lib/evm.js';
+import { $, renderRows, showError, segmented } from '../lib/ui.js';
+
+const EXAMPLES = { encode: '["cat", "dog", 1024, "0xdeadbeef", [[], [[]]]]', decode: '0xc88363617483646f67' };
+const HINTS = {
+  encode: 'Input is JSON. Strings starting with 0x are hex bytes, other strings are UTF-8 text, numbers are integers, arrays are lists.',
+  decode: 'Input is RLP as hex.',
+};
+const mode = segmented($('mode'), m => { $('input').value = EXAMPLES[m]; render(); });
+
+function toItem(v, path = 'value') {
+  if (Array.isArray(v)) return v.map((x, i) => toItem(x, `${path}[${i}]`));
+  if (typeof v === 'string') return /^0x/i.test(v) ? hexToBytes(v, path) : utf8(v);
+  if (typeof v === 'number') {
+    if (!Number.isSafeInteger(v) || v < 0) throw new InputError(`${path}: only non-negative integers up to 2^53 (use 0x hex for bigger numbers)`);
+    return bigIntToBytes(BigInt(v));
+  }
+  throw new InputError(`${path}: use strings, numbers or arrays (got ${v === null ? 'null' : typeof v})`);
+}
+
+function toHexTree(item) {
+  return Array.isArray(item) ? item.map(toHexTree) : bytesToHex(item);
+}
+
+function readable(item) {
+  if (Array.isArray(item)) return item.map(readable);
+  if (item.length === 0) return '';
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(item);
+  if (/^[\x20-\x7e]+$/.test(text)) return text;
+  if (item.length <= 8 && item[0] !== 0) return Number(bytesToBigInt(item));
+  return bytesToHex(item);
+}
+
+function render() {
+  $('hint').textContent = HINTS[mode()];
+  showError($('err'), null);
+  $('out').innerHTML = '';
+  $('tree-box').hidden = true;
+  const raw = $('input').value.trim();
+  if (!raw) return;
+  try {
+    if (mode() === 'encode') {
+      let json;
+      try { json = JSON.parse(raw); } catch { throw new InputError('Input is not valid JSON. Text must be in double quotes, e.g. "dog"'); }
+      const enc = rlpEncode(toItem(json));
+      renderRows($('out'), [{ label: 'RLP', value: bytesToHex(enc), cls: 'ok' }, { label: 'Size', value: `${enc.length} bytes`, copy: false }]);
+    } else {
+      const item = rlpDecode(hexToBytes(raw, 'RLP'));
+      $('tree').textContent = JSON.stringify(toHexTree(item), null, 2);
+      $('readable').textContent = JSON.stringify(readable(item), null, 2);
+      $('tree-box').hidden = false;
+    }
+  } catch (e) {
+    showError($('err'), e);
+  }
+}
+$('input').addEventListener('input', render);
+$('input').value = EXAMPLES.encode;
+render();
+</script>
 </body>
 </html>

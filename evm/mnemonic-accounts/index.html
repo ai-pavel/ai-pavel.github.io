@@ -6,13 +6,148 @@
   <title>🌱 Mnemonic Accounts</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8C%B1</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/evm.css">
+  <style>
+    .acct td { vertical-align: top; }
+    .acct td.mono { word-break: break-all; font-size: 13px; }
+    .acct td:first-child { width: 1%; white-space: nowrap; color: var(--muted); }
+    .acct .path { display: block; color: var(--muted); font-size: 12px; }
+    .acct .key { display: block; margin-top: 4px; color: var(--muted); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+    @media (max-width: 560px) { .grid-3 { grid-template-columns: 1fr 1fr; } .grid-3 .field:first-child { grid-column: 1 / -1; } }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← EVM</a>
   <h1>🌱 Mnemonic Accounts</h1>
-  <p class="lead">Derive accounts from a mnemonic (BIP-44).</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive Ethereum accounts from a BIP-39 mnemonic, the way MetaMask, Ledger and other wallets do. You can also generate a new mnemonic.</p>
+
+  <div class="panel">
+    <p class="warning">Runs locally in your browser. Don't paste a mnemonic that holds real funds.</p>
+    <div class="field">
+      <label for="mnemonic" class="muted">Mnemonic</label>
+      <textarea id="mnemonic" class="mono" rows="3" spellcheck="false" autocomplete="off">test test test test test test test test test test test junk</textarea>
+    </div>
+    <div class="row" style="margin-bottom:14px">
+      <button id="gen12">New 12 words</button>
+      <button id="gen24">New 24 words</button>
+    </div>
+    <p class="status" id="status" hidden></p>
+    <div class="field">
+      <label for="passphrase" class="muted">Passphrase (optional, “25th word”)</label>
+      <input id="passphrase" spellcheck="false" autocomplete="off">
+    </div>
+    <div class="grid-3">
+      <div class="field">
+        <label for="preset" class="muted">Derivation path</label>
+        <select id="preset">
+          <option value="m/44'/60'/0'/0/{i}">Standard (MetaMask, Trezor)</option>
+          <option value="m/44'/60'/{i}'/0/0">Ledger Live</option>
+          <option value="m/44'/60'/0'/{i}">Ledger legacy (MEW)</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="start" class="muted">From index</label>
+        <input id="start" type="number" min="0" value="0">
+      </div>
+      <div class="field">
+        <label for="count" class="muted">Accounts</label>
+        <input id="count" type="number" min="1" max="100" value="5">
+      </div>
+    </div>
+    <div class="field">
+      <label for="path" class="muted">Path template ({i} is the account index)</label>
+      <input id="path" class="mono" spellcheck="false" value="m/44'/60'/0'/0/{i}">
+    </div>
+    <label class="field inline-check"><input type="checkbox" id="show-keys"> Show private keys</label>
+    <p class="error" id="err" hidden></p>
+    <table class="acct" id="table" hidden><tbody></tbody></table>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { generateMnemonic, validateMnemonic, mnemonicToSeed } from 'https://cdn.jsdelivr.net/npm/@scure/bip39@1.6.0/+esm';
+import { wordlist } from 'https://cdn.jsdelivr.net/npm/@scure/bip39@1.6.0/wordlists/english/+esm';
+import { HDKey } from 'https://cdn.jsdelivr.net/npm/@scure/bip32@1.7.0/+esm';
+import { addressFromPrivateKey, bytesToHex, InputError } from '../lib/evm.js';
+import { $, esc, showError } from '../lib/ui.js';
+
+const normalize = s => s.normalize('NFKD').trim().toLowerCase().split(/\s+/).filter(Boolean).join(' ');
+let token = 0;
+
+function checkMnemonic(m) {
+  const words = m ? m.split(' ') : [];
+  if (![12, 15, 18, 21, 24].includes(words.length)) return `A mnemonic has 12, 15, 18, 21 or 24 words; this one has ${words.length}`;
+  const unknown = words.filter(w => !wordlist.includes(w));
+  if (unknown.length) return `Not in the BIP-39 English word list: ${unknown.join(', ')}`;
+  if (!validateMnemonic(m, wordlist)) return 'The checksum is wrong: one of the words is probably mistyped or out of order';
+  return null;
+}
+
+function setStatus(cls, text) {
+  $('status').className = 'status ' + cls;
+  $('status').textContent = text;
+  $('status').hidden = false;
+}
+
+async function render() {
+  const my = ++token;
+  showError($('err'), null);
+  const m = normalize($('mnemonic').value);
+  const problem = checkMnemonic(m);
+  if (problem) {
+    setStatus('bad', '❌ ' + problem);
+    $('table').hidden = true;
+    return;
+  }
+  setStatus('ok', `✅ Valid ${m.split(' ').length}-word mnemonic`);
+  try {
+    const template = $('path').value.trim();
+    if (!/^m(\/(\d+|\{i\})'?)+$/.test(template)) throw new InputError("Path must look like m/44'/60'/0'/0/{i}");
+    const start = Number($('start').value), count = Number($('count').value);
+    if (!Number.isInteger(start) || start < 0 || start >= 2 ** 31) throw new InputError('Start index must be a whole number from 0');
+    if (!Number.isInteger(count) || count < 1 || count > 100) throw new InputError('Accounts must be between 1 and 100');
+    const seed = await mnemonicToSeed(m, $('passphrase').value.normalize('NFKD'));
+    if (my !== token) return;
+    const root = HDKey.fromMasterSeed(seed);
+    const show = $('show-keys').checked;
+    const rows = [];
+    for (let i = start; i < start + count; i++) {
+      const path = template.replaceAll('{i}', String(i));
+      const node = root.derive(path);
+      const address = addressFromPrivateKey(node.privateKey);
+      rows.push(`<tr><td>${i}</td><td class="mono">${address}
+        <span class="path">${esc(path)}</span>
+        ${show ? `<span class="key">${bytesToHex(node.privateKey)}</span>` : ''}</td>
+        <td><button class="icon-btn" data-copy="${address}">Copy</button></td></tr>`);
+    }
+    $('table').tBodies[0].innerHTML = rows.join('');
+    $('table').hidden = false;
+  } catch (e) {
+    $('table').hidden = true;
+    showError($('err'), e);
+  }
+}
+
+$('preset').addEventListener('change', () => {
+  if ($('preset').value !== 'custom') $('path').value = $('preset').value;
+  else $('path').focus();
+  render();
+});
+$('path').addEventListener('input', () => {
+  const match = [...$('preset').options].find(o => o.value === $('path').value.trim());
+  $('preset').value = match ? match.value : 'custom';
+  render();
+});
+for (const el of [$('mnemonic'), $('passphrase'), $('start'), $('count'), $('show-keys')]) el.addEventListener('input', render);
+$('gen12').onclick = () => { $('mnemonic').value = generateMnemonic(wordlist, 128); render(); };
+$('gen24').onclick = () => { $('mnemonic').value = generateMnemonic(wordlist, 256); render(); };
+render();
+</script>
 </body>
 </html>

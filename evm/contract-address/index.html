@@ -6,13 +6,98 @@
   <title>🏭 Contract Address</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%AD</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/evm.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← EVM</a>
   <h1>🏭 Contract Address</h1>
-  <p class="lead">Predict CREATE and CREATE2 addresses.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Predict the address of a contract deployed with CREATE (from the deployer and its nonce) or CREATE2 (from the deployer, a salt and the init code).</p>
+
+  <div class="panel">
+    <div class="seg" id="mode">
+      <button data-mode="create" aria-pressed="true">CREATE</button>
+      <button data-mode="create2" aria-pressed="false">CREATE2</button>
+    </div>
+    <div class="field">
+      <label for="deployer" class="muted">Deployer address</label>
+      <input id="deployer" class="mono" spellcheck="false" autocomplete="off" placeholder="0x…" value="0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0">
+    </div>
+    <div id="create-fields">
+      <div class="field">
+        <label for="nonce" class="muted">Nonce</label>
+        <input id="nonce" class="mono" inputmode="numeric" autocomplete="off" value="0">
+      </div>
+    </div>
+    <div id="create2-fields" hidden>
+      <div class="field">
+        <label for="salt" class="muted">Salt (bytes32, or a number)</label>
+        <input id="salt" class="mono" spellcheck="false" autocomplete="off" value="0x0000000000000000000000000000000000000000000000000000000000000000">
+      </div>
+      <div class="seg" id="code-mode">
+        <button data-mode="code" aria-pressed="true">Init code</button>
+        <button data-mode="hash" aria-pressed="false">Init code hash</button>
+      </div>
+      <div class="field">
+        <textarea id="code" class="mono" rows="3" spellcheck="false" placeholder="0x…">0x00</textarea>
+      </div>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { parseAddress, parseBigInt, hexToBytes, bytesToHex, bigIntToBytes, keccak, rlpEncode, concat, toChecksumAddress, InputError } from '../lib/evm.js';
+import { $, renderRows, live, segmented } from '../lib/ui.js';
+
+let run;
+const mode = segmented($('mode'), m => {
+  $('create-fields').hidden = m !== 'create';
+  $('create2-fields').hidden = m !== 'create2';
+  run();
+});
+const codeMode = segmented($('code-mode'), m => {
+  $('code').placeholder = m === 'hash' ? '0x… (32 bytes)' : '0x…';
+  run();
+});
+
+function parseSalt(s) {
+  s = s.trim();
+  if (/^\d+$/.test(s)) return bigIntToBytes(BigInt(s), 32);
+  const b = hexToBytes(s, 'Salt');
+  if (b.length > 32) throw new InputError('Salt must be at most 32 bytes');
+  return concat(new Uint8Array(32 - b.length), b);
+}
+
+run = live([$('deployer'), $('nonce'), $('salt'), $('code')], () => {
+  const deployer = parseAddress($('deployer').value, 'Deployer');
+  const from = hexToBytes(deployer);
+  if (mode() === 'create') {
+    const nonce = parseBigInt($('nonce').value, 'Nonce');
+    if (nonce < 0n) throw new InputError('Nonce cannot be negative');
+    const addr = toChecksumAddress(bytesToHex(keccak(rlpEncode([from, bigIntToBytes(nonce)])).slice(12)));
+    renderRows($('out'), [
+      { label: 'Contract address', value: addr },
+      { label: 'Formula', value: 'keccak256(rlp([deployer, nonce]))[12:]', copy: false },
+    ]);
+  } else {
+    const salt = parseSalt($('salt').value);
+    const code = hexToBytes($('code').value, codeMode() === 'hash' ? 'Init code hash' : 'Init code');
+    if (codeMode() === 'hash' && code.length !== 32) throw new InputError('Init code hash must be 32 bytes');
+    const codeHash = codeMode() === 'hash' ? code : keccak(code);
+    const addr = toChecksumAddress(bytesToHex(keccak(concat(Uint8Array.of(0xff), from, salt, codeHash)).slice(12)));
+    renderRows($('out'), [
+      { label: 'Contract address', value: addr },
+      { label: 'Salt', value: bytesToHex(salt) },
+      { label: 'Init code hash', value: bytesToHex(codeHash) },
+      { label: 'Formula', value: 'keccak256(0xff ‖ deployer ‖ salt ‖ keccak256(init_code))[12:]', copy: false },
+    ]);
+  }
+}, { errEl: $('err'), outEl: $('out') });
+</script>
 </body>
 </html>

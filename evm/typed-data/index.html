@@ -6,13 +6,135 @@
   <title>🧾 Typed Data</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A7%BE</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/evm.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← EVM</a>
   <h1>🧾 Typed Data</h1>
-  <p class="lead">Hash and sign EIP-712 typed data.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Hash EIP-712 typed data (the JSON wallets receive in <code>eth_signTypedData_v4</code>), and optionally sign it or recover a signer.</p>
+
+  <div class="panel">
+    <div class="field">
+      <div class="row" style="justify-content:space-between">
+        <label for="json" class="muted">Typed data JSON</label>
+        <button id="example" class="icon-btn">Load example</button>
+      </div>
+      <textarea id="json" class="mono" rows="14" spellcheck="false"></textarea>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Sign</h2>
+    <p class="warning">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="field">
+      <label for="key" class="muted">Private key</label>
+      <input id="key" class="mono" spellcheck="false" autocomplete="off" placeholder="0x…">
+    </div>
+    <p class="error" id="sign-err" hidden></p>
+    <div class="out" id="sign-out"></div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Recover signer</h2>
+    <div class="field">
+      <label for="sig" class="muted">Signature</label>
+      <textarea id="sig" class="mono" rows="2" spellcheck="false" placeholder="0x…"></textarea>
+    </div>
+    <p class="error" id="rec-err" hidden></p>
+    <div class="out" id="rec-out"></div>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { hashTypedData, bytesToHex, parsePrivateKey, signHash, addressFromPrivateKey, parseEcdsaSignature, recoverAddress, InputError } from '../lib/evm.js';
+import { $, renderRows, showError } from '../lib/ui.js';
+
+// The "Mail" example from EIP-712.
+const EXAMPLE = {
+  types: {
+    EIP712Domain: [
+      { name: 'name', type: 'string' }, { name: 'version', type: 'string' },
+      { name: 'chainId', type: 'uint256' }, { name: 'verifyingContract', type: 'address' },
+    ],
+    Person: [{ name: 'name', type: 'string' }, { name: 'wallet', type: 'address' }],
+    Mail: [{ name: 'from', type: 'Person' }, { name: 'to', type: 'Person' }, { name: 'contents', type: 'string' }],
+  },
+  primaryType: 'Mail',
+  domain: { name: 'Ether Mail', version: '1', chainId: 1, verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC' },
+  message: {
+    from: { name: 'Cow', wallet: '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826' },
+    to: { name: 'Bob', wallet: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB' },
+    contents: 'Hello, Bob!',
+  },
+};
+
+let digest = null;
+
+function hash() {
+  showError($('err'), null);
+  $('out').innerHTML = '';
+  digest = null;
+  const raw = $('json').value.trim();
+  if (!raw) return;
+  try {
+    let td;
+    try { td = JSON.parse(raw); } catch (e) { throw new InputError(`Not valid JSON: ${e.message}`); }
+    const h = hashTypedData(td);
+    digest = h.digest;
+    renderRows($('out'), [
+      { label: 'Digest (signed hash)', value: bytesToHex(h.digest), cls: 'ok' },
+      { label: 'Domain separator', value: bytesToHex(h.domainSeparator) },
+      h.structHash && { label: 'Struct hash', value: bytesToHex(h.structHash) },
+      h.encodedType && { label: 'Encoded type', value: h.encodedType },
+    ]);
+  } catch (e) {
+    showError($('err'), e);
+  }
+}
+
+function sign() {
+  showError($('sign-err'), null);
+  $('sign-out').innerHTML = '';
+  if (!$('key').value.trim() || !digest) return;
+  try {
+    const key = parsePrivateKey($('key').value);
+    const sig = signHash(digest, key);
+    renderRows($('sign-out'), [
+      { label: 'Signature', value: bytesToHex(sig.bytes), cls: 'ok' },
+      { label: 'Signer', value: addressFromPrivateKey(key) },
+      { label: 'r', value: bytesToHex(sig.r) },
+      { label: 's', value: bytesToHex(sig.s) },
+      { label: 'v', value: String(sig.v) },
+    ]);
+  } catch (e) {
+    showError($('sign-err'), e);
+  }
+}
+
+function recover() {
+  showError($('rec-err'), null);
+  $('rec-out').innerHTML = '';
+  if (!$('sig').value.trim() || !digest) return;
+  try {
+    renderRows($('rec-out'), [{ label: 'Signer', value: recoverAddress(digest, parseEcdsaSignature($('sig').value)), cls: 'ok' }]);
+  } catch (e) {
+    showError($('rec-err'), e);
+  }
+}
+
+const all = () => { hash(); sign(); recover(); };
+$('json').addEventListener('input', all);
+$('key').addEventListener('input', sign);
+$('sig').addEventListener('input', recover);
+$('example').onclick = () => { $('json').value = JSON.stringify(EXAMPLE, null, 2); all(); };
+$('json').value = JSON.stringify(EXAMPLE, null, 2);
+all();
+</script>
 </body>
 </html>

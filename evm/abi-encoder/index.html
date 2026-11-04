@@ -6,13 +6,114 @@
   <title>🧩 ABI Encoder</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A7%A9</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/evm.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← EVM</a>
   <h1>🧩 ABI Encoder</h1>
-  <p class="lead">Encode function calls and parameters.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Encode a function call or a list of parameters. Enter a signature, then a value for each parameter.</p>
+
+  <div class="panel">
+    <div class="field">
+      <label for="sig" class="muted">Function signature, or a parameter list like <code>(address,uint256[])</code></label>
+      <input id="sig" class="mono" spellcheck="false" autocomplete="off" value="transfer(address to, uint256 amount)">
+    </div>
+    <div class="params" id="params"></div>
+    <p class="muted" id="hint">Numbers: decimal or 0x hex. Bytes: 0x hex. Arrays and tuples: JSON, e.g. <code>["0x…", "5"]</code>.</p>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+    <div id="words-box" hidden>
+      <p class="muted" style="margin:16px 0 6px">Parameters as 32-byte words</p>
+      <div class="words" id="words"></div>
+    </div>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { parseSignature, typeToString, abiEncode, selectorOf, bytesToHex, concat, hexToBytes, InputError } from '../lib/evm.js';
+import { $, esc, renderRows, showError } from '../lib/ui.js';
+
+const PLACEHOLDER = { uint: '123 or 0x7b', int: '-5', address: '0x…', bool: 'true or false', fixedbytes: '0x…', bytes: '0x…', string: 'text', array: '[…] as JSON', tuple: '[…] as JSON' };
+const EXAMPLE = { address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', uint: '1000000000000000000' };
+let parsed = null, fieldKey = '';
+
+function parse() {
+  const raw = $('sig').value.trim();
+  if (!raw) throw new InputError('Enter a signature');
+  return parseSignature(raw.startsWith('(') ? raw : raw.includes('(') ? raw : `(${raw})`);
+}
+
+function buildFields() {
+  const key = parsed.inputs.map(p => typeToString(p.type) + ' ' + p.name).join(',');
+  if (key === fieldKey) return;
+  const old = [...$('params').querySelectorAll('[data-i]')].map(el => el.value);
+  fieldKey = key;
+  $('params').innerHTML = parsed.inputs.map((p, i) => {
+    const t = typeToString(p.type), multi = p.type.kind === 'array' || p.type.kind === 'tuple' || p.type.kind === 'string' || p.type.kind === 'bytes';
+    const attrs = `id="p${i}" data-i="${i}" class="mono" spellcheck="false" autocomplete="off" placeholder="${esc(PLACEHOLDER[p.type.kind] || '')}"`;
+    return `<div class="field"><label for="p${i}" class="muted">${esc(p.name || 'param ' + (i + 1))} <code>${esc(t)}</code></label>
+      ${multi ? `<textarea ${attrs} rows="2"></textarea>` : `<input ${attrs}>`}</div>`;
+  }).join('');
+  parsed.inputs.forEach((p, i) => { if (old[i] !== undefined) $('p' + i).value = old[i]; });
+}
+
+function value(p, raw) {
+  if (p.type.kind === 'array' || p.type.kind === 'tuple') {
+    try { return JSON.parse(raw); } catch { throw new InputError(`${p.name || 'Parameter'}: not valid JSON`); }
+  }
+  if (p.type.kind === 'string') return raw;
+  return raw.trim();
+}
+
+function render() {
+  showError($('err'), null);
+  $('out').innerHTML = '';
+  $('words-box').hidden = true;
+  try {
+    parsed = parse();
+    buildFields();
+  } catch (e) {
+    parsed = null; fieldKey = ''; $('params').innerHTML = '';
+    showError($('err'), e);
+    return;
+  }
+  try {
+    const vals = parsed.inputs.map((p, i) => {
+      const raw = $('p' + i).value;
+      if (raw.trim() === '' && p.type.kind !== 'string') throw new InputError(`Enter a value for ${p.name || 'parameter ' + (i + 1)}`);
+      return value(p, raw);
+    });
+    const params = abiEncode(parsed.inputs, vals);
+    const selector = parsed.name ? selectorOf(parsed.canonical) : null;
+    const calldata = selector ? bytesToHex(concat(hexToBytes(selector), params)) : bytesToHex(params);
+    const link = selector ? `../calldata-decoder/?data=${calldata}&sig=${encodeURIComponent(parsed.canonical)}` : null;
+    renderRows($('out'), [
+      { label: selector ? 'Calldata' : 'Encoded', value: calldata, cls: 'ok' },
+      selector && { label: 'Selector', value: selector },
+      selector && { label: 'Signature', value: parsed.canonical },
+      { label: 'Size', value: `${(calldata.length - 2) / 2} bytes`, copy: false },
+    ]);
+    if (link) $('out').insertAdjacentHTML('beforeend', `<p style="margin:10px 0 0"><a href="${esc(link)}">Decode this calldata →</a></p>`);
+    const hex = bytesToHex(params).slice(2);
+    $('words').innerHTML = Array.from({ length: hex.length / 64 }, (_, i) =>
+      `<span>0x${(i * 32).toString(16).padStart(3, '0')}</span><span>${hex.slice(i * 64, i * 64 + 64)}</span>`).join('');
+    $('words').style.gridTemplateColumns = 'auto 1fr';
+    $('words').style.columnGap = '12px';
+    $('words-box').hidden = hex.length === 0;
+  } catch (e) {
+    showError($('err'), e);
+  }
+}
+
+$('sig').addEventListener('input', render);
+$('params').addEventListener('input', render);
+parsed = parse(); buildFields();
+parsed.inputs.forEach((p, i) => { $('p' + i).value = EXAMPLE[p.type.kind] || ''; });
+render();
+</script>
 </body>
 </html>

@@ -6,13 +6,58 @@
   <title>⛽ Unit Converter</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9B%BD</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/evm.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← EVM</a>
   <h1>⛽ Unit Converter</h1>
-  <p class="lead">Convert between wei, gwei and ether.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Convert between wei, gwei, ether and other units. Conversions are exact, with no rounding.</p>
+
+  <div class="panel">
+    <div id="units"></div>
+    <p class="error" id="err" hidden></p>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { UNITS, parseUnits, formatUnits } from '../lib/evm.js';
+import { $, showError } from '../lib/ui.js';
+
+const sup = n => String(n).replace(/\d/g, c => '⁰¹²³⁴⁵⁶⁷⁸⁹'[c]);
+$('units').innerHTML = UNITS.map(([u, d]) => `
+  <div class="field">
+    <label for="u-${u}" style="display:block">${u}${d ? ` · 10${sup(d)} wei` : ''}</label>
+    <div class="row" style="flex-wrap:nowrap">
+      <input class="mono" id="u-${u}" inputmode="decimal" autocomplete="off" spellcheck="false" style="flex:1">
+      <button class="icon-btn" data-copy-from="u-${u}">Copy</button>
+    </div>
+  </div>`).join('');
+$('units').querySelectorAll('label').forEach(l => { l.style.color = 'var(--muted)'; l.style.fontSize = '14px'; });
+
+function update(from) {
+  const [, decimals] = UNITS.find(([u]) => u === from);
+  const input = $('u-' + from), raw = input.value;
+  input.removeAttribute('aria-invalid');
+  showError($('err'), null);
+  if (!raw.trim()) {
+    UNITS.forEach(([u]) => { if (u !== from) $('u-' + u).value = ''; });
+    return;
+  }
+  try {
+    const wei = parseUnits(raw, decimals, from);
+    UNITS.forEach(([u, d]) => { if (u !== from) $('u-' + u).value = formatUnits(wei, d); });
+  } catch (e) {
+    input.setAttribute('aria-invalid', 'true');
+    showError($('err'), e);
+  }
+}
+UNITS.forEach(([u]) => $('u-' + u).addEventListener('input', () => update(u)));
+$('u-ether').value = '1';
+update('ether');
+</script>
 </body>
 </html>
