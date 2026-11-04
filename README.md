@@ -8,7 +8,7 @@ Personal GitHub Pages site: https://ai-pavel.github.io/
 | Toolbox | What's inside | Tools | Folder |
 |---|---|---|---|
 | [🧰 Utilities](https://ai-pavel.github.io/toolbox/) | Everyday utilities: time, text, files and media | 20 | [`toolbox/`](toolbox/) |
-| [🛠️ Developer](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 0 of 23 ready | [`dev/`](dev/) |
+| [🛠️ Developer](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 0 of 25 ready | [`dev/`](dev/) |
 | [🪙 Bitcoin](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, keys, addresses, HD wallets and signatures | 0 of 32 ready | [`bitcoin/`](bitcoin/) |
 | [⛓️ EVM](https://ai-pavel.github.io/evm/) | Ethereum and EVM: units, addresses, ABI, transactions and signatures | 0 of 15 ready | [`evm/`](evm/) |
 | [☀️ Solana](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 0 of 12 ready | [`solana/`](solana/) |
