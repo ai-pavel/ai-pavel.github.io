@@ -1,6 +1,8 @@
 # ai-pavel.github.io
 
-Personal GitHub Pages site: https://ai-pavel.github.io/
+Local-first browser tools — everyday, dev & crypto. Nothing leaves your device.
+
+🌐 https://ai-pavel.github.io/
 
 ## Toolboxes
 
