@@ -7,12 +7,12 @@ Personal GitHub Pages site: https://ai-pavel.github.io/
 <!-- toolboxes:start -->
 | Toolbox | What's inside | Tools | Folder |
 |---|---|---|---|
-| [🧰 Toolbox](https://ai-pavel.github.io/toolbox/) | Everyday utilities: time, text, files and media | 20 | [`toolbox/`](toolbox/) |
-| [🛠️ Dev Toolbox](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 0 of 23 ready | [`dev/`](dev/) |
-| [🪙 Bitcoin Toolbox](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, keys, addresses, HD wallets and signatures | 0 of 32 ready | [`bitcoin/`](bitcoin/) |
-| [⛓️ EVM Toolbox](https://ai-pavel.github.io/evm/) | Ethereum and EVM: units, addresses, ABI, transactions and signatures | 0 of 15 ready | [`evm/`](evm/) |
-| [☀️ Solana Toolbox](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 0 of 12 ready | [`solana/`](solana/) |
-| [💎 TON Toolbox](https://ai-pavel.github.io/ton/) | TON: addresses, wallets, cells, messages and signatures | 0 of 10 ready | [`ton/`](ton/) |
+| [🧰 Utilities](https://ai-pavel.github.io/toolbox/) | Everyday utilities: time, text, files and media | 20 | [`toolbox/`](toolbox/) |
+| [🛠️ Developer](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 0 of 23 ready | [`dev/`](dev/) |
+| [🪙 Bitcoin](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, keys, addresses, HD wallets and signatures | 0 of 32 ready | [`bitcoin/`](bitcoin/) |
+| [⛓️ EVM](https://ai-pavel.github.io/evm/) | Ethereum and EVM: units, addresses, ABI, transactions and signatures | 0 of 15 ready | [`evm/`](evm/) |
+| [☀️ Solana](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 0 of 12 ready | [`solana/`](solana/) |
+| [💎 TON](https://ai-pavel.github.io/ton/) | TON: addresses, wallets, cells, messages and signatures | 0 of 10 ready | [`ton/`](ton/) |
 <!-- toolboxes:end -->
 
 Everything runs client-side in the browser: files and keys never leave the device.

@@ -96,7 +96,7 @@ def count_label(tools):
 
 
 def home_page(toolboxes, total):
-    out = head("AI Pavel", "🤖", "assets/style.css") + f"""  <h1>AI Pavel</h1>
+    out = head("AI Pavel 🤖", "🤖", "assets/style.css") + f"""  <h1>AI Pavel 🤖</h1>
   <p class="lead">Experiments and tools.</p>
 
   <div class="search" id="search">

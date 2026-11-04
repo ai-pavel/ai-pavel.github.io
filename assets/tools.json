@@ -3,7 +3,7 @@
     {
       "id": "toolbox",
       "emoji": "🧰",
-      "name": "Toolbox",
+      "name": "Utilities",
       "summary": "Everyday utilities: time, text, files and media.",
       "lead": "Utilities that run entirely in your browser. Your files never leave your device.",
       "categories": [
@@ -152,7 +152,7 @@
     {
       "id": "dev",
       "emoji": "🛠️",
-      "name": "Dev Toolbox",
+      "name": "Developer",
       "summary": "Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes.",
       "lead": "Developer utilities that run entirely in your browser. Nothing you paste leaves your device.",
       "categories": [
@@ -351,7 +351,7 @@
     {
       "id": "bitcoin",
       "emoji": "🪙",
-      "name": "Bitcoin Toolbox",
+      "name": "Bitcoin",
       "summary": "Bitcoin: blocks, transactions, keys, addresses, HD wallets and signatures.",
       "lead": "Bitcoin tools that run entirely in your browser. Keys you enter never leave your device.",
       "categories": [
@@ -582,7 +582,7 @@
     {
       "id": "evm",
       "emoji": "⛓️",
-      "name": "EVM Toolbox",
+      "name": "EVM",
       "summary": "Ethereum and EVM: units, addresses, ABI, transactions and signatures.",
       "lead": "Ethereum and EVM tools that run entirely in your browser. Keys you enter never leave your device.",
       "categories": [
@@ -726,7 +726,7 @@
     {
       "id": "solana",
       "emoji": "☀️",
-      "name": "Solana Toolbox",
+      "name": "Solana",
       "summary": "Solana: keys, addresses, PDAs, token accounts, transactions and signatures.",
       "lead": "Solana tools that run entirely in your browser. Keys you enter never leave your device.",
       "categories": [
@@ -844,7 +844,7 @@
     {
       "id": "ton",
       "emoji": "💎",
-      "name": "TON Toolbox",
+      "name": "TON",
       "summary": "TON: addresses, wallets, cells, messages and signatures.",
       "lead": "TON tools that run entirely in your browser. Keys you enter never leave your device.",
       "categories": [
