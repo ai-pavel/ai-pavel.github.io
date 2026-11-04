@@ -958,6 +958,224 @@
           ]
         }
       ]
+    },
+    {
+      "id": "cardano",
+      "emoji": "🔵",
+      "name": "Cardano",
+      "summary": "Cardano: addresses, stake keys, native assets, CBOR transactions and signatures.",
+      "lead": "Cardano tools that run entirely in your browser. Keys you enter never leave your device.",
+      "categories": [
+        {
+          "name": "Units",
+          "tools": [
+            {
+              "slug": "unit-converter",
+              "emoji": "💰",
+              "name": "Unit Converter",
+              "description": "Convert between lovelace and ADA",
+              "keywords": "ada lovelace"
+            }
+          ]
+        },
+        {
+          "name": "Addresses",
+          "tools": [
+            {
+              "slug": "address-inspector",
+              "emoji": "🔍",
+              "name": "Address Inspector",
+              "description": "Decode an address: type, network and credentials",
+              "keywords": "bech32 addr1 shelley byron"
+            },
+            {
+              "slug": "stake-address",
+              "emoji": "🥩",
+              "name": "Stake Address",
+              "description": "Get the stake address of a base address",
+              "keywords": "reward address stake1 delegation"
+            },
+            {
+              "slug": "address-builder",
+              "emoji": "🏗️",
+              "name": "Address Builder",
+              "description": "Build an address from key or script hashes",
+              "keywords": "payment credential enterprise base"
+            }
+          ]
+        },
+        {
+          "name": "Wallets",
+          "tools": [
+            {
+              "slug": "mnemonic-accounts",
+              "emoji": "🌱",
+              "name": "Mnemonic Accounts",
+              "description": "Derive keys and addresses from a mnemonic (CIP-1852)",
+              "keywords": "seed phrase icarus bip32-ed25519 yoroi eternl lace"
+            }
+          ]
+        },
+        {
+          "name": "Assets",
+          "tools": [
+            {
+              "slug": "asset-fingerprint",
+              "emoji": "🖐️",
+              "name": "Asset Fingerprint",
+              "description": "Compute a native asset fingerprint (CIP-14)",
+              "keywords": "asset1 token nft"
+            },
+            {
+              "slug": "policy-id",
+              "emoji": "📜",
+              "name": "Policy ID",
+              "description": "Compute a native script hash and policy ID",
+              "keywords": "minting policy native script"
+            }
+          ]
+        },
+        {
+          "name": "Transactions",
+          "tools": [
+            {
+              "slug": "tx-decoder",
+              "emoji": "📦",
+              "name": "Transaction Decoder",
+              "description": "Decode a transaction from CBOR",
+              "keywords": "cbor tx body witness"
+            },
+            {
+              "slug": "datum-hash",
+              "emoji": "#️⃣",
+              "name": "Datum Hash",
+              "description": "Compute the hash of a Plutus datum",
+              "keywords": "plutus blake2b"
+            }
+          ]
+        },
+        {
+          "name": "Signatures",
+          "tools": [
+            {
+              "slug": "verify-message",
+              "emoji": "✔️",
+              "name": "Verify Message",
+              "description": "Verify a CIP-8 / CIP-30 signData signature",
+              "keywords": "cip8 cip30 cose signdata"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sui",
+      "emoji": "💧",
+      "name": "Sui",
+      "summary": "Sui: addresses, keys, BCS, transactions, object IDs and signatures.",
+      "lead": "Sui tools that run entirely in your browser. Keys you enter never leave your device.",
+      "categories": [
+        {
+          "name": "Units",
+          "tools": [
+            {
+              "slug": "unit-converter",
+              "emoji": "💰",
+              "name": "Unit Converter",
+              "description": "Convert between MIST and SUI",
+              "keywords": "mist"
+            }
+          ]
+        },
+        {
+          "name": "Addresses",
+          "tools": [
+            {
+              "slug": "address-from-key",
+              "emoji": "🗝️",
+              "name": "Address from Key",
+              "description": "Derive an address from an Ed25519, Secp256k1 or Secp256r1 public key",
+              "keywords": "public key flag blake2b"
+            },
+            {
+              "slug": "multisig-address",
+              "emoji": "👥",
+              "name": "Multisig Address",
+              "description": "Derive a multisig address from keys, weights and a threshold",
+              "keywords": "multisig threshold"
+            },
+            {
+              "slug": "object-id",
+              "emoji": "🆔",
+              "name": "Object ID",
+              "description": "Derive an object ID from a transaction digest and index",
+              "keywords": "object id digest"
+            }
+          ]
+        },
+        {
+          "name": "Wallets",
+          "tools": [
+            {
+              "slug": "mnemonic-accounts",
+              "emoji": "🌱",
+              "name": "Mnemonic Accounts",
+              "description": "Derive accounts from a mnemonic (m/44'/784')",
+              "keywords": "seed phrase bip39 sui wallet slush"
+            },
+            {
+              "slug": "keypair-converter",
+              "emoji": "🔐",
+              "name": "Keypair Converter",
+              "description": "Convert private keys between suiprivkey and hex",
+              "keywords": "bech32 private key export"
+            }
+          ]
+        },
+        {
+          "name": "Data",
+          "tools": [
+            {
+              "slug": "bcs",
+              "emoji": "🧩",
+              "name": "BCS",
+              "description": "Encode and decode BCS data",
+              "keywords": "binary canonical serialization move"
+            }
+          ]
+        },
+        {
+          "name": "Transactions",
+          "tools": [
+            {
+              "slug": "tx-decoder",
+              "emoji": "📦",
+              "name": "Transaction Decoder",
+              "description": "Decode Sui transaction bytes",
+              "keywords": "programmable transaction ptb"
+            }
+          ]
+        },
+        {
+          "name": "Signatures",
+          "tools": [
+            {
+              "slug": "sign-message",
+              "emoji": "✍️",
+              "name": "Sign Message",
+              "description": "Sign a personal message with an intent",
+              "keywords": "intent personal message"
+            },
+            {
+              "slug": "verify-message",
+              "emoji": "✔️",
+              "name": "Verify Message",
+              "description": "Verify a personal message or transaction signature",
+              "keywords": "signature verify"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
