@@ -1,7 +1,7 @@
 {
   "toolboxes": [
     {
-      "id": "toolbox",
+      "id": "utilities",
       "emoji": "🪄",
       "name": "Utilities",
       "summary": "Everyday utilities: time, text, files and media.",

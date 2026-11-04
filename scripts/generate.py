@@ -16,6 +16,7 @@ import html
 import json
 import os
 import re
+import subprocess
 import urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -205,12 +206,38 @@ PRECACHE_SKIP_DIRS = (".git", "scripts")
 PRECACHE_SKIP_FILES = {"README.md", "sw.js", ".gitignore", ".nojekyll", "VENDOR.md", "LICENSE", "LICENSE.md"}
 
 
-def site_files():
-    """Every file the site serves (and the service worker precaches), relative to ROOT."""
+COMMITTED_SIZES = {}
+
+
+def committed_files(folder):
+    """Files under folder as committed to git (ignores uncommitted work in progress)."""
+    out = subprocess.run(["git", "ls-tree", "-r", "-l", "HEAD", "--", folder],
+                         cwd=ROOT, capture_output=True, text=True, check=True)
+    files = []
+    for line in out.stdout.splitlines():
+        meta, name = line.split("\t", 1)
+        COMMITTED_SIZES[name] = int(meta.split()[3])
+        files.append(name)
+    return files
+
+
+def site_files(wip=()):
+    """Every file the site serves (and the service worker precaches), relative to ROOT.
+
+    For sections still being written only committed files count, so the service
+    worker never lists a file that isn't deployed yet.
+    """
     files = []
     for d, dirs, names in os.walk(ROOT):
         rel_dir = os.path.relpath(d, ROOT)
-        if rel_dir.split(os.sep)[0] in PRECACHE_SKIP_DIRS:
+        top = rel_dir.split(os.sep)[0]
+        if top in PRECACHE_SKIP_DIRS:
+            dirs[:] = []
+            continue
+        if top in wip:
+            if rel_dir == top:
+                files += [f for f in committed_files(top)
+                          if os.path.basename(f) not in PRECACHE_SKIP_FILES and not f.endswith(".md")]
             dirs[:] = []
             continue
         dirs.sort()
@@ -222,13 +249,13 @@ def site_files():
 
 
 def size_label(files):
-    total = sum(os.path.getsize(path(r)) for r in files)
+    total = sum(COMMITTED_SIZES.get(r) or os.path.getsize(path(r)) for r in files)
     return f"{total / 1e6:.1f} MB"
 
 
-def service_worker():
+def service_worker(wip=()):
     """Write sw.js with the list of site files to precache and a content-based version."""
-    files = site_files()
+    files = site_files(wip)
     digest = hashlib.sha256()
     urls = []
     for rel in files:
@@ -271,15 +298,15 @@ def main():
         toolboxes = json.load(f)["toolboxes"]
     # The footer shows the site's size, and the footer is part of every page, so
     # rebuild until the rounded size stops changing (normally one extra pass).
-    label = size_label(site_files())
+    label = size_label(site_files(wip))
     for _ in range(5):
         set_footer(label)
         build_pages(toolboxes, wip)
-        new_label = size_label(site_files())
+        new_label = size_label(site_files(wip))
         if new_label == label:
             break
         label = new_label
-    service_worker()
+    service_worker(wip)
     for tb in toolboxes:
         tools = [t for c in tb["categories"] for t in c["tools"]]
         print(f'{tb["id"]}: {count_label(tools)}')
