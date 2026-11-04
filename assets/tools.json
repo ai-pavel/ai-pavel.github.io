@@ -151,7 +151,7 @@
     },
     {
       "id": "dev",
-      "emoji": "🛠️",
+      "emoji": "🧑‍💻",
       "name": "Developer",
       "summary": "Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes.",
       "lead": "Developer utilities that run entirely in your browser. Nothing you paste leaves your device.",
