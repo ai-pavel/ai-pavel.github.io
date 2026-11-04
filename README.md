@@ -11,7 +11,7 @@ Personal GitHub Pages site: https://ai-pavel.github.io/
 | [🛠️ Developer](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 0 of 25 ready | [`dev/`](dev/) |
 | [🪙 Bitcoin](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, keys, addresses, HD wallets and signatures | 0 of 32 ready | [`bitcoin/`](bitcoin/) |
 | [⛓️ EVM](https://ai-pavel.github.io/evm/) | Ethereum and EVM: units, addresses, ABI, transactions and signatures | 0 of 15 ready | [`evm/`](evm/) |
-| [☀️ Solana](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 0 of 12 ready | [`solana/`](solana/) |
+| [🌞 Solana](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 0 of 12 ready | [`solana/`](solana/) |
 | [💎 TON](https://ai-pavel.github.io/ton/) | TON: addresses, wallets, cells, messages and signatures | 0 of 10 ready | [`ton/`](ton/) |
 <!-- toolboxes:end -->
 

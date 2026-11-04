@@ -739,7 +739,7 @@
     },
     {
       "id": "solana",
-      "emoji": "☀️",
+      "emoji": "🌞",
       "name": "Solana",
       "summary": "Solana: keys, addresses, PDAs, token accounts, transactions and signatures.",
       "lead": "Solana tools that run entirely in your browser. Keys you enter never leave your device.",
