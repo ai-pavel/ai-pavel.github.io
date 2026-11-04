@@ -6,13 +6,241 @@
   <title>🏷️ Barcode Generator</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%B7%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    .fields { display: grid; gap: 12px; margin-top: 16px; }
+    .fields label { display: flex; }
+    .fields input, .fields select, .fields textarea { width: 100%; }
+    .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .check { flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--text) !important; }
+    .check input { width: auto !important; }
+    input[type=color] { padding: 2px; height: 38px; }
+    .preview {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 200px; margin-top: 20px; padding: 16px;
+      border: 1px dashed var(--border); border-radius: 10px; overflow: auto;
+    }
+    .preview svg { max-width: 100%; height: auto; display: block; }
+    .error { color: #d14343; font-size: 14px; margin: 8px 0 0; }
+    [hidden] { display: none !important; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>🏷️ Barcode Generator</h1>
-  <p class="lead">Create QR codes and barcodes</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Create QR codes and barcodes. Everything is generated in your browser.</p>
+
+  <div class="panel">
+    <div class="grid2">
+      <label>Type
+        <select id="type">
+          <option value="QR">QR code</option>
+          <option value="CODE128">Code 128</option>
+          <option value="EAN13">EAN-13</option>
+          <option value="UPC">UPC-A</option>
+          <option value="CODE39">Code 39</option>
+        </select>
+      </label>
+      <label id="tplWrap">Content
+        <select id="tpl">
+          <option value="text">Text or URL</option>
+          <option value="wifi">Wi‑Fi network</option>
+          <option value="email">Email</option>
+          <option value="phone">Phone</option>
+          <option value="sms">SMS</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="fields" data-tpl="text">
+      <label>Text or URL <textarea id="text" rows="3">https://ai-pavel.github.io/toolbox/</textarea></label>
+    </div>
+    <div class="fields" data-tpl="wifi" hidden>
+      <div class="grid2">
+        <label>Network name (SSID) <input id="ssid" placeholder="MyNetwork"></label>
+        <label>Password <input id="wpass" placeholder="Leave empty for open networks"></label>
+        <label>Security
+          <select id="wsec"><option value="WPA">WPA/WPA2/WPA3</option><option value="WEP">WEP</option><option value="nopass">None</option></select>
+        </label>
+      </div>
+      <label class="check"><input type="checkbox" id="whidden"> Hidden network</label>
+    </div>
+    <div class="fields" data-tpl="email" hidden>
+      <div class="grid2">
+        <label>To <input id="eto" type="email" placeholder="name@example.com"></label>
+        <label>Subject <input id="esub"></label>
+      </div>
+      <label>Message <textarea id="ebody" rows="2"></textarea></label>
+    </div>
+    <div class="fields" data-tpl="phone" hidden>
+      <label>Phone number <input id="tel" type="tel" placeholder="+1 555 123 4567"></label>
+    </div>
+    <div class="fields" data-tpl="sms" hidden>
+      <label>Phone number <input id="smsto" type="tel" placeholder="+1 555 123 4567"></label>
+      <label>Message <textarea id="smsbody" rows="2"></textarea></label>
+    </div>
+    <div class="fields" id="linear" hidden>
+      <label>Value <input id="value" autocomplete="off"></label>
+      <p class="muted" id="hint"></p>
+    </div>
+
+    <div class="grid2" style="margin-top:16px">
+      <label id="eccWrap">Error correction
+        <select id="ecc">
+          <option value="L">Low (7%)</option>
+          <option value="M" selected>Medium (15%)</option>
+          <option value="Q">Quartile (25%)</option>
+          <option value="H">High (30%)</option>
+        </select>
+      </label>
+      <label><span>Size <span class="mono" id="sizeOut"></span></span><input id="size" type="range" min="128" max="1024" step="16" value="320"></label>
+      <label>Foreground <input id="fg" type="color" value="#000000"></label>
+      <label>Background <input id="bg" type="color" value="#ffffff"></label>
+    </div>
+    <label class="check" id="showTextWrap" style="margin-top:12px" hidden><input type="checkbox" id="showText" checked> Show value under the barcode</label>
+
+    <div class="preview" id="preview"></div>
+    <p class="error" id="error" hidden></p>
+
+    <div class="row" style="margin-top:16px">
+      <button class="primary" id="png">Download PNG</button>
+      <button id="svg">Download SVG</button>
+      <button id="copy">Copy image</button>
+      <span class="muted" id="msg"></span>
+    </div>
+  </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+
+const HINTS = {
+  CODE128: 'Any ASCII text.',
+  EAN13: '12 digits (the check digit is added for you) or 13 digits with a valid check digit.',
+  UPC: '11 digits (the check digit is added for you) or 12 digits with a valid check digit.',
+  CODE39: 'Uppercase letters A–Z, digits and - . $ / + % and space.',
+};
+const SAMPLES = { CODE128: 'Hello-123', EAN13: '590123412345', UPC: '03600029145', CODE39: 'CODE-39' };
+let currentSvg = null;
+
+// Escape for MECARD-style Wi‑Fi fields.
+const wifiEsc = s => s.replace(/([\\;,:"])/g, '\\$1');
+function qrPayload() {
+  switch ($('tpl').value) {
+    case 'wifi': {
+      const sec = $('wsec').value;
+      return `WIFI:T:${sec};S:${wifiEsc($('ssid').value)};` + (sec === 'nopass' ? '' : `P:${wifiEsc($('wpass').value)};`) + ($('whidden').checked ? 'H:true;' : '') + ';';
+    }
+    case 'email': {
+      const q = [['subject', $('esub').value], ['body', $('ebody').value]].filter(([, v]) => v).map(([k, v]) => k + '=' + encodeURIComponent(v));
+      return 'mailto:' + $('eto').value.trim() + (q.length ? '?' + q.join('&') : '');
+    }
+    case 'phone': return 'tel:' + $('tel').value.replace(/[^\d+]/g, '');
+    case 'sms': return 'SMSTO:' + $('smsto').value.replace(/[^\d+]/g, '') + ':' + $('smsbody').value;
+    default: return $('text').value;
+  }
+}
+
+function qrSvg(data, size, fg, bg) {
+  const qr = qrcode(0, $('ecc').value);
+  qr.addData(data); qr.make();
+  const n = qr.getModuleCount(), quiet = 4, total = n + quiet * 2;
+  let path = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) path += `M${c + quiet} ${r + quiet}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${total} ${total}" shape-rendering="crispEdges">` +
+    `<rect width="100%" height="100%" fill="${bg}"/><path d="${path}" fill="${fg}"/></svg>`;
+}
+
+function linearSvg(format, value, size, fg, bg) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  let valid = true;
+  JsBarcode(el, value, {
+    format, lineColor: fg, background: bg, width: Math.max(1, Math.round(size / 160)), height: Math.round(size / 3),
+    displayValue: $('showText').checked, font: 'monospace', fontSize: Math.max(14, Math.round(size / 18)), margin: 12,
+    valid: v => { valid = v; },
+  });
+  if (!valid) return null;
+  el.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  return el.outerHTML;
+}
+
+function linearError(format, value) {
+  if (!value) return 'Enter a value.';
+  if (format === 'EAN13') return /^\d{12,13}$/.test(value) ? 'Invalid check digit: the last digit does not match. Enter the first 12 digits to have it calculated.' : 'EAN-13 needs 12 or 13 digits.';
+  if (format === 'UPC') return /^\d{11,12}$/.test(value) ? 'Invalid check digit: the last digit does not match. Enter the first 11 digits to have it calculated.' : 'UPC-A needs 11 or 12 digits.';
+  if (format === 'CODE39') return 'Code 39 supports only A–Z, 0–9, space and - . $ / + %.';
+  return 'Code 128 supports only ASCII characters.';
+}
+
+function render() {
+  const type = $('type').value, size = +$('size').value, fg = $('fg').value, bg = $('bg').value;
+  const isQR = type === 'QR';
+  $('tplWrap').hidden = $('eccWrap').hidden = !isQR;
+  $('linear').hidden = $('showTextWrap').hidden = isQR;
+  document.querySelectorAll('[data-tpl]').forEach(el => el.hidden = !isQR || el.dataset.tpl !== $('tpl').value);
+  $('hint').textContent = HINTS[type] || '';
+  $('sizeOut').textContent = size + ' px';
+
+  let svg = null, error = '';
+  try {
+    if (isQR) {
+      const data = qrPayload();
+      if (!data) error = 'Enter some content.';
+      else svg = qrSvg(data, size, fg, bg);
+    } else {
+      const value = type === 'CODE39' ? $('value').value.toUpperCase() : $('value').value;
+      svg = value ? linearSvg(type, value, size, fg, bg) : null;
+      if (!svg) error = linearError(type, value);
+    }
+  } catch (e) {
+    error = /overflow|too long|length/i.test(e.message || e) ? 'Too much data for a QR code. Shorten the text or lower the error correction.' : 'Could not generate: ' + (e.message || e);
+  }
+  currentSvg = svg;
+  $('preview').innerHTML = svg || '';
+  $('error').textContent = error; $('error').hidden = !error;
+  ['png', 'svg', 'copy'].forEach(id => $(id).disabled = !svg);
+  $('copy').hidden = !(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write);
+}
+
+function pngBlob() {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([currentSvg], { type: 'image/svg+xml' }));
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('PNG export failed')), 'image/png');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('PNG export failed')); };
+    img.src = url;
+  });
+}
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const fileBase = () => $('type').value === 'QR' ? 'qr-code' : 'barcode-' + $('type').value.toLowerCase();
+function flash(m) { $('msg').textContent = m; clearTimeout(flash.t); flash.t = setTimeout(() => $('msg').textContent = '', 2500); }
+
+$('png').onclick = async () => { try { download(await pngBlob(), fileBase() + '.png'); } catch (e) { flash(e.message); } };
+$('svg').onclick = () => download(new Blob([currentSvg], { type: 'image/svg+xml' }), fileBase() + '.svg');
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob() })]); flash('Copied.'); }
+  catch { flash('Your browser did not allow copying the image.'); }
+};
+$('type').onchange = () => {
+  const t = $('type').value;
+  if (t !== 'QR') $('value').value = SAMPLES[t];
+  render();
+};
+document.querySelectorAll('input, select, textarea').forEach(el => el.addEventListener('input', render));
+$('tpl').addEventListener('change', render);
+render();
+</script>
 </body>
 </html>

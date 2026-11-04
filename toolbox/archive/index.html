@@ -6,13 +6,160 @@
   <title>🗜️ Archive</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%97%9C%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    .drop { border: 2px dashed var(--border); border-radius: 12px; padding: 28px 16px; text-align: center; color: var(--muted); }
+    .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+    .drop .row { justify-content: center; margin-top: 12px; }
+    .files td:first-child { word-break: break-all; }
+    .files td:nth-child(2) { white-space: nowrap; text-align: right; }
+    .files td:last-child { width: 1%; }
+    progress { width: 100%; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>🗜️ Archive</h1>
-  <p class="lead">Pack files into a ZIP</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Pack files and folders into a ZIP. Everything happens in your browser.</p>
+
+  <div class="panel">
+    <div class="drop" id="drop">
+      Drop files or folders here
+      <div class="row">
+        <button id="pick-files">Add files</button>
+        <button id="pick-folder">Add folder</button>
+      </div>
+      <input type="file" id="files" multiple hidden>
+      <input type="file" id="folder" webkitdirectory multiple hidden>
+    </div>
+
+    <table class="files" id="table" hidden>
+      <thead><tr><th>File</th><th style="text-align:right">Size</th><th></th></tr></thead>
+      <tbody></tbody>
+      <tfoot><tr><th id="count"></th><th id="total" style="text-align:right"></th><th></th></tr></tfoot>
+    </table>
+
+    <div class="row" style="margin-top:20px">
+      <label style="flex:1;min-width:160px">Archive name <input id="name" value="archive"></label>
+      <label>Compression
+        <select id="level">
+          <option value="0">None (store)</option>
+          <option value="1">Fast</option>
+          <option value="6" selected>Normal</option>
+          <option value="9">Maximum</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <button class="primary" id="create" disabled>Create ZIP</button>
+      <button id="clear" disabled>Clear</button>
+      <span class="muted" id="msg"></span>
+    </div>
+    <progress id="progress" max="1" value="0" hidden></progress>
+  </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.3/umd/index.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtSize = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+async function filesFromDrop(dt) {
+  const entries = [...(dt.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!entries.length) return [...dt.files].map(f => ({ file: f, path: f.name }));
+  const out = [];
+  async function walk(entry, prefix) {
+    if (entry.isFile) {
+      const f = await new Promise((res, rej) => entry.file(res, rej));
+      out.push({ file: f, path: prefix + f.name });
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      let batch;
+      do {
+        batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+        for (const e of batch) await walk(e, prefix + entry.name + '/');
+      } while (batch.length);
+    }
+  }
+  for (const e of entries) await walk(e, '');
+  return out;
+}
+
+let items = [];
+function add(list) {
+  const taken = new Set(items.map(i => i.path));
+  for (const it of list) {
+    let p = it.path, n = 2;
+    while (taken.has(p)) p = it.path.replace(/(\.[^./]*)?$/, m => ` (${n})` + m), n++;
+    taken.add(p); items.push({ file: it.file, path: p });
+  }
+  render();
+}
+function render() {
+  $('table').hidden = !items.length;
+  $('create').disabled = $('clear').disabled = !items.length;
+  $('table').tBodies[0].innerHTML = items.map((it, i) =>
+    `<tr><td>${esc(it.path)}</td><td class="mono">${fmtSize(it.file.size)}</td><td><button class="icon-btn" data-remove="${i}" title="Remove">✕</button></td></tr>`).join('');
+  $('count').textContent = `${items.length} file${items.length === 1 ? '' : 's'}`;
+  $('total').textContent = fmtSize(items.reduce((s, it) => s + it.file.size, 0));
+}
+
+async function createZip() {
+  const level = +$('level').value;
+  const total = items.reduce((s, it) => s + it.file.size, 0) || 1;
+  let done = 0;
+  $('progress').hidden = false; $('progress').value = 0;
+  $('create').disabled = true; $('msg').textContent = 'Packing…';
+  const blob = await new Promise(async (resolve, reject) => {
+    const chunks = [];
+    const zip = new fflate.Zip((err, data, final) => {
+      if (err) return reject(err);
+      chunks.push(data);
+      if (final) resolve(new Blob(chunks, { type: 'application/zip' }));
+    });
+    try {
+      for (const it of items) {
+        const entry = level ? new fflate.ZipDeflate(it.path, { level }) : new fflate.ZipPassThrough(it.path);
+        // ZIP timestamps only cover 1980–2099.
+        entry.mtime = Math.min(Math.max(it.file.lastModified || Date.now(), Date.UTC(1980, 0, 2)), Date.UTC(2099, 11, 30));
+        zip.add(entry);
+        const reader = it.file.stream().getReader();
+        for (;;) {
+          const { value, done: end } = await reader.read();
+          if (end) break;
+          entry.push(value, false);
+          done += value.length; $('progress').value = done / total;
+        }
+        entry.push(new Uint8Array(0), true);
+      }
+      zip.end();
+    } catch (e) { reject(e); }
+  });
+  let name = $('name').value.trim() || 'archive';
+  if (!/\.zip$/i.test(name)) name += '.zip';
+  download(blob, name);
+  $('msg').textContent = `Created ${name} (${fmtSize(blob.size)}).`;
+  $('create').disabled = false; $('progress').hidden = true;
+}
+
+const drop = $('drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', async e => { e.preventDefault(); drop.classList.remove('over'); add(await filesFromDrop(e.dataTransfer)); });
+$('pick-files').onclick = () => $('files').click();
+$('pick-folder').onclick = () => $('folder').click();
+for (const id of ['files', 'folder']) $(id).onchange = e => {
+  add([...e.target.files].map(f => ({ file: f, path: f.webkitRelativePath || f.name }))); e.target.value = '';
+};
+$('table').onclick = e => { const i = e.target.dataset.remove; if (i !== undefined) { items.splice(+i, 1); render(); } };
+$('clear').onclick = () => { items = []; $('msg').textContent = ''; render(); };
+$('create').onclick = () => createZip().catch(e => {
+  $('msg').textContent = 'Could not create the archive: ' + e.message;
+  $('create').disabled = false; $('progress').hidden = true;
+});
+</script>
 </body>
 </html>

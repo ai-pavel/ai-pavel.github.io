@@ -6,13 +6,245 @@
   <title>📐 Resize Images</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%90</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    .drop {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+      padding: 28px 16px; border: 2px dashed var(--border); border-radius: 12px;
+      text-align: center; cursor: pointer; color: var(--muted);
+    }
+    .drop.over, .drop:hover { border-color: var(--accent); color: var(--text); }
+    .drop strong { color: var(--text); }
+    .drop input { display: none; }
+    .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
+    .settings input, .settings select { width: 100%; }
+    .settings label[hidden] { display: none; }
+    .item .thumb { display: flex; gap: 12px; align-items: center; flex: 1; min-width: 0; }
+    .item img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: var(--bg); }
+    .item .info { flex: 1; min-width: 0; }
+    .item .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+    a.btn {
+      padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px;
+      color: inherit; text-decoration: none; white-space: nowrap;
+    }
+    a.btn:hover { border-color: var(--accent); }
+    .smaller { color: #2e8b57; }
+    .bigger { color: #c0392b; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>📐 Resize Images</h1>
-  <p class="lead">Scale and compress images</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Scale, convert and compress images. Everything happens on your device.</p>
+
+  <div class="panel">
+    <label class="drop" id="drop">
+      <input type="file" id="files" accept="image/*" multiple>
+      <span style="font-size:32px">🖼️</span>
+      <strong>Drop images here or click to choose</strong>
+      <span>JPEG, PNG, WebP, GIF, AVIF, HEIC (if your browser can open it)</span>
+    </label>
+
+    <div class="settings">
+      <label>Resize <select id="mode">
+        <option value="fit">Fit within</option>
+        <option value="percent">By percentage</option>
+        <option value="exact">Exact size</option>
+        <option value="none">Keep size</option>
+      </select></label>
+      <label data-mode="fit exact">Width (px) <input id="w" type="number" min="1" value="1920"></label>
+      <label data-mode="fit exact">Height (px) <input id="h" type="number" min="1" value="1920"></label>
+      <label data-mode="percent" hidden>Percentage <input id="pct" type="number" min="1" max="1000" value="50"></label>
+      <label>Format <select id="format"><option value="image/jpeg">JPEG</option><option value="image/png">PNG</option><option value="image/webp">WebP</option></select></label>
+      <label id="qualityLabel"><span>Quality: <span id="qv">85</span>%</span> <input id="quality" type="range" min="10" max="100" value="85"></label>
+    </div>
+    <p class="muted" id="modeHint"></p>
+
+    <div class="list" id="list"></div>
+    <div class="row" id="actions" hidden style="margin-top:16px">
+      <button class="primary" id="zip">Download all (ZIP)</button>
+      <button id="clear">Clear</button>
+      <span class="muted" id="total"></span>
+    </div>
+  </div>
 </main>
+<script type="module">
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtBytes = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : (n / 1048576).toFixed(2) + ' MB';
+const FORMATS = { 'image/jpeg': 'JPEG', 'image/png': 'PNG', 'image/webp': 'WebP', 'image/avif': 'AVIF' };
+const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' };
+const HINTS = {
+  fit: 'Images are scaled down to fit inside the box, keeping their proportions. Smaller images are not enlarged.',
+  percent: 'Both sides are scaled by the same percentage.',
+  exact: 'Images are stretched to exactly this size.',
+  none: 'Only the format and quality change.',
+};
+
+let items = []; // { id, file, bitmap, w, h, out: { blob, w, h, url } }
+let nextId = 1, generation = 0;
+
+// Formats the browser's canvas can actually encode.
+async function supportedFormats() {
+  const c = document.createElement('canvas'); c.width = c.height = 1;
+  const ok = [];
+  for (const type of Object.keys(FORMATS)) {
+    const blob = await new Promise(r => c.toBlob(r, type));
+    if (blob && blob.type === type) ok.push(type);
+  }
+  return ok;
+}
+
+function targetSize(w, h) {
+  const mode = $('mode').value;
+  if (mode === 'none') return [w, h];
+  if (mode === 'percent') { const p = Math.max(+$('pct').value || 100, 1) / 100; return [Math.max(1, Math.round(w * p)), Math.max(1, Math.round(h * p))]; }
+  const W = Math.max(+$('w').value || w, 1), H = Math.max(+$('h').value || h, 1);
+  if (mode === 'exact') return [Math.round(W), Math.round(H)];
+  const s = Math.min(W / w, H / h, 1);
+  return [Math.max(1, Math.round(w * s)), Math.max(1, Math.round(h * s))];
+}
+
+// Halving steps keep downscaled images sharp instead of aliased.
+function draw(bitmap, tw, th, type) {
+  let src = bitmap, sw = bitmap.width, sh = bitmap.height;
+  while (sw / 2 >= tw && sh / 2 >= th) {
+    const c = new OffscreenCanvas(Math.round(sw / 2), Math.round(sh / 2)), x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, c.width, c.height);
+    src = c; sw = c.width; sh = c.height;
+  }
+  const out = document.createElement('canvas'); out.width = tw; out.height = th;
+  const ctx = out.getContext('2d');
+  if (type === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, tw, th); } // JPEG has no transparency
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, tw, th);
+  return out;
+}
+
+async function process(item, gen) {
+  const type = $('format').value, q = +$('quality').value / 100;
+  const [tw, th] = targetSize(item.w, item.h);
+  const canvas = draw(item.bitmap, tw, th, type);
+  const blob = await new Promise(r => canvas.toBlob(r, type, q));
+  if (gen !== generation) return;
+  if (item.out) URL.revokeObjectURL(item.out.url);
+  item.out = { blob, w: tw, h: th, url: URL.createObjectURL(blob) };
+}
+
+function outName(item) {
+  return item.file.name.replace(/\.[^.]+$/, '') + '.' + EXT[$('format').value];
+}
+
+function render() {
+  $('actions').hidden = !items.length;
+  $('list').innerHTML = items.map(it => {
+    const o = it.out;
+    const change = o ? Math.round((o.blob.size / it.file.size - 1) * 100) : 0;
+    return `
+    <div class="item stack" data-id="${it.id}">
+      <div class="thumb">
+      <img src="${it.thumb}" alt="">
+      <div class="info">
+        <div class="name" title="${esc(it.file.name)}">${esc(it.file.name)}</div>
+        <div class="muted">${it.w}×${it.h} · ${fmtBytes(it.file.size)}</div>
+        <div class="muted">${o ? `→ ${o.w}×${o.h} · ${fmtBytes(o.blob.size)} <span class="${change <= 0 ? 'smaller' : 'bigger'}">(${change > 0 ? '+' : ''}${change}%)</span>` : 'Processing…'}</div>
+      </div>
+      </div>
+      <div class="row">
+        ${o ? `<a class="btn" download="${esc(outName(it))}" href="${o.url}">Download</a>` : ''}
+        <button class="icon-btn" data-remove="${it.id}" title="Remove">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  const done = items.filter(i => i.out);
+  const before = done.reduce((s, i) => s + i.file.size, 0), after = done.reduce((s, i) => s + i.out.blob.size, 0);
+  $('total').textContent = done.length ? `${done.length} image${done.length > 1 ? 's' : ''} · ${fmtBytes(before)} → ${fmtBytes(after)}` : '';
+}
+
+async function processAll() {
+  const gen = ++generation;
+  items.forEach(i => i.out && (URL.revokeObjectURL(i.out.url), i.out = null));
+  render();
+  for (const it of items) {
+    await process(it, gen);
+    if (gen !== generation) return;
+    render();
+  }
+}
+
+async function addFiles(files) {
+  const bad = [];
+  for (const file of files) {
+    if (!file.type.startsWith('image/') && !/\.(heic|heif|avif)$/i.test(file.name)) { bad.push(file.name); continue; }
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const t = document.createElement('canvas'), s = 112 / Math.max(bitmap.width, bitmap.height);
+      t.width = Math.max(1, Math.round(bitmap.width * s)); t.height = Math.max(1, Math.round(bitmap.height * s));
+      t.getContext('2d').drawImage(bitmap, 0, 0, t.width, t.height);
+      items.push({ id: nextId++, file, bitmap, w: bitmap.width, h: bitmap.height, thumb: t.toDataURL('image/png') });
+    } catch { bad.push(file.name); }
+  }
+  if (bad.length) alert("These files couldn't be opened as images:\n" + bad.join('\n'));
+  processAll();
+}
+
+function syncMode() {
+  const mode = $('mode').value;
+  document.querySelectorAll('[data-mode]').forEach(l => l.hidden = !l.dataset.mode.split(' ').includes(mode));
+  $('modeHint').textContent = HINTS[mode];
+}
+function syncQuality() {
+  $('qv').textContent = $('quality').value;
+  $('qualityLabel').style.opacity = $('format').value === 'image/png' ? 0.4 : 1;
+  $('quality').disabled = $('format').value === 'image/png';
+}
+
+let debounce;
+const onSettings = () => { syncMode(); syncQuality(); clearTimeout(debounce); debounce = setTimeout(processAll, 250); };
+['mode', 'w', 'h', 'pct', 'format', 'quality'].forEach(id => $(id).addEventListener('input', onSettings));
+
+$('files').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+const drop = $('drop');
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files]); };
+
+$('list').onclick = e => {
+  const id = +e.target.dataset.remove;
+  if (!id) return;
+  const it = items.find(i => i.id === id);
+  if (it?.out) URL.revokeObjectURL(it.out.url);
+  it?.bitmap.close();
+  items = items.filter(i => i.id !== id); render();
+};
+$('clear').onclick = () => { generation++; items.forEach(i => { i.bitmap.close(); i.out && URL.revokeObjectURL(i.out.url); }); items = []; render(); };
+$('zip').onclick = async () => {
+  const done = items.filter(i => i.out);
+  if (!done.length) return;
+  $('zip').disabled = true; $('zip').textContent = 'Zipping…';
+  try {
+    const { zipSync } = await import('https://cdn.jsdelivr.net/npm/fflate@0.8.3/esm/browser.js');
+    const files = {}, used = new Set();
+    for (const it of done) {
+      let name = outName(it), n = 1;
+      while (used.has(name)) name = outName(it).replace(/(\.[^.]+)$/, `-${++n}$1`);
+      used.add(name);
+      files[name] = [new Uint8Array(await it.out.blob.arrayBuffer()), { level: 0 }]; // images are already compressed
+    }
+    const url = URL.createObjectURL(new Blob([zipSync(files)], { type: 'application/zip' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'resized-images.zip'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (err) { alert('Could not create the ZIP: ' + err.message); }
+  $('zip').disabled = false; $('zip').textContent = 'Download all (ZIP)';
+};
+
+syncMode(); syncQuality();
+// JPEG, PNG and WebP are listed up front; drop any the canvas can't encode and add AVIF where it can.
+supportedFormats().then(ok => {
+  const current = $('format').value;
+  $('format').innerHTML = ok.map(t => `<option value="${t}">${FORMATS[t]}</option>`).join('');
+  $('format').value = ok.includes(current) ? current : 'image/jpeg';
+});
+</script>
 </body>
 </html>

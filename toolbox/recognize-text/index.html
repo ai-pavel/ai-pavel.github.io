@@ -6,13 +6,149 @@
   <title>🔍 Recognize Text</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%8D</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    .drop {
+      display: block; padding: 28px 16px; text-align: center; cursor: pointer;
+      border: 2px dashed var(--border); border-radius: 10px; color: var(--muted);
+    }
+    .drop.over { border-color: var(--accent); color: var(--accent); }
+    .drop input { display: none; }
+    .preview { max-width: 100%; max-height: 360px; display: block; margin: 16px auto 0; border-radius: 8px; }
+    .langs { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+    .langs label { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 15px; }
+    progress { width: 100%; height: 8px; accent-color: var(--accent); }
+    textarea { width: 100%; resize: vertical; margin-top: 16px; }
+    .error { color: #d14343; font-size: 14px; }
+    [hidden] { display: none !important; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>🔍 Recognize Text</h1>
-  <p class="lead">Extract text from images (OCR)</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Extract text from an image (OCR). Recognition runs in your browser; only the language data is downloaded.</p>
+
+  <div class="panel">
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="image/*">
+      <strong>Choose an image</strong>, drop it here, or paste it with ⌘V / Ctrl+V
+    </label>
+    <img class="preview" id="preview" alt="Selected image" hidden>
+
+    <p class="muted" style="margin:20px 0 0">Languages in the image</p>
+    <div class="langs" id="langs"></div>
+
+    <div class="row" style="margin-top:16px">
+      <button class="primary" id="run" disabled>Recognize text</button>
+      <span class="muted" id="status"></span>
+    </div>
+    <progress id="progress" max="1" value="0" hidden></progress>
+    <p class="error" id="error" hidden></p>
+
+    <div id="out" hidden>
+      <textarea id="text" rows="10" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:12px">
+        <button id="copy">Copy</button>
+        <button id="download">Download .txt</button>
+        <span class="muted" id="msg"></span>
+      </div>
+    </div>
+  </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const LANGS = [
+  ['eng', 'English'], ['rus', 'Russian'], ['ukr', 'Ukrainian'], ['deu', 'German'], ['fra', 'French'],
+  ['spa', 'Spanish'], ['ita', 'Italian'], ['por', 'Portuguese'], ['pol', 'Polish'], ['nld', 'Dutch'],
+  ['tur', 'Turkish'], ['chi_sim', 'Chinese (Simplified)'], ['jpn', 'Japanese'], ['kor', 'Korean'],
+];
+const KEY = 'toolbox.ocrLangs';
+let chosen;
+try { chosen = JSON.parse(localStorage.getItem(KEY)) || ['eng']; } catch { chosen = ['eng']; }
+$('langs').innerHTML = LANGS.map(([code, name]) =>
+  `<label><input type="checkbox" value="${code}" ${chosen.includes(code) ? 'checked' : ''}> ${name}</label>`).join('');
+
+const STATUS = {
+  'loading tesseract core': 'Loading OCR engine…', 'initializing tesseract': 'Starting OCR engine…',
+  'loading language traineddata': 'Downloading language data…', 'initializing api': 'Preparing…',
+  'recognizing text': 'Recognizing text…',
+};
+let image = null, worker = null, workerLangs = '';
+
+function selectedLangs() { return [...document.querySelectorAll('#langs input:checked')].map(i => i.value); }
+function showError(m) { $('error').textContent = m || ''; $('error').hidden = !m; }
+function updateRun() { $('run').disabled = !image || !selectedLangs().length; }
+function flash(m) { $('msg').textContent = m; clearTimeout(flash.t); flash.t = setTimeout(() => $('msg').textContent = '', 2000); }
+
+function setImage(file) {
+  if (!file || !file.type.startsWith('image/')) { showError('Please choose an image file.'); return; }
+  showError('');
+  image = file;
+  $('preview').src = URL.createObjectURL(file); $('preview').hidden = false;
+  updateRun();
+}
+$('file').onchange = e => { setImage(e.target.files[0]); e.target.value = ''; };
+const drop = $('drop');
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); setImage(e.dataTransfer.files[0]); };
+document.addEventListener('paste', e => {
+  if (e.target.closest('textarea, input')) return;
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (item) setImage(item.getAsFile());
+});
+$('langs').onchange = () => {
+  try { localStorage.setItem(KEY, JSON.stringify(selectedLangs())); } catch {}
+  updateRun();
+};
+
+function onProgress(m) {
+  $('status').textContent = STATUS[m.status] || '';
+  if (typeof m.progress === 'number') $('progress').value = m.progress;
+}
+async function getWorker(langs) {
+  const key = langs.join('+');
+  if (worker && workerLangs === key) return worker;
+  if (worker) { await worker.terminate(); worker = null; }
+  worker = await Tesseract.createWorker(langs, 1, {
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
+    logger: onProgress,
+  });
+  workerLangs = key;
+  return worker;
+}
+
+$('run').onclick = async () => {
+  const langs = selectedLangs();
+  $('run').disabled = true; showError('');
+  $('progress').hidden = false; $('progress').value = 0;
+  try {
+    const w = await getWorker(langs);
+    const { data } = await w.recognize(image);
+    const text = data.text.trim();
+    $('text').value = text; $('out').hidden = false;
+    $('status').textContent = text ? `Done · ${Math.round(data.confidence)}% confidence` : '';
+    if (!text) showError('No text was found. Try a sharper image or a different language.');
+  } catch (e) {
+    worker = null; workerLangs = '';
+    $('status').textContent = '';
+    showError('Recognition failed: ' + (e.message || e));
+  } finally {
+    $('progress').hidden = true; updateRun();
+  }
+};
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('text').value); flash('Copied.'); }
+  catch { $('text').select(); flash('Press ⌘C / Ctrl+C to copy.'); }
+};
+$('download').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([$('text').value], { type: 'text/plain;charset=utf-8' }));
+  a.download = 'recognized-text.txt'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+</script>
 </body>
 </html>

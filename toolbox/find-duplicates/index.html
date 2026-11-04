@@ -6,13 +6,153 @@
   <title>👯 Find Duplicates</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%91%AF</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    .drop { border: 2px dashed var(--border); border-radius: 12px; padding: 28px 16px; text-align: center; color: var(--muted); }
+    .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+    .drop .row { justify-content: center; margin-top: 12px; }
+    progress { width: 100%; margin-top: 12px; }
+    .group { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; }
+    .group header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; margin-bottom: 6px; }
+    .group ul { margin: 0; padding-left: 18px; }
+    .group li { word-break: break-all; font-size: 14px; }
+    .summary { font-weight: 600; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>👯 Find Duplicates</h1>
-  <p class="lead">Find duplicate files in a folder</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Find identical files in a folder by comparing their contents. Nothing is uploaded.</p>
+
+  <div class="panel">
+    <div class="drop" id="drop">
+      Drop a folder or files here
+      <div class="row">
+        <button id="pick-folder">Choose folder</button>
+        <button id="pick-files">Choose files</button>
+      </div>
+      <input type="file" id="folder" webkitdirectory multiple hidden>
+      <input type="file" id="files" multiple hidden>
+    </div>
+    <p class="muted" id="status"></p>
+    <progress id="progress" max="1" value="0" hidden></progress>
+
+    <div id="result" hidden>
+      <div class="row" style="justify-content:space-between">
+        <span class="summary" id="summary"></span>
+        <button id="csv">Export list as CSV</button>
+      </div>
+      <div class="list" id="groups"></div>
+      <p class="muted">Browsers can't delete files on your disk. Use the list or the CSV to clean up in your file manager.</p>
+    </div>
+  </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/hash-wasm@4.12.0/dist/index.umd.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtSize = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+async function filesFromDrop(dt) {
+  const entries = [...(dt.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (!entries.length) return [...dt.files].map(f => ({ file: f, path: f.name }));
+  const out = [];
+  async function walk(entry, prefix) {
+    if (entry.isFile) {
+      const f = await new Promise((res, rej) => entry.file(res, rej));
+      out.push({ file: f, path: prefix + f.name });
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      let batch;
+      do {
+        batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+        for (const e of batch) await walk(e, prefix + entry.name + '/');
+      } while (batch.length);
+    }
+  }
+  for (const e of entries) await walk(e, '');
+  return out;
+}
+
+const CHUNK = 4 * 1024 * 1024;
+let groups = [], running = 0;
+
+async function scan(items) {
+  const id = ++running;
+  $('result').hidden = true;
+  // Same content needs the same size, so only hash files whose size is shared.
+  const bySize = new Map();
+  for (const it of items) if (it.file.size > 0) {
+    if (!bySize.has(it.file.size)) bySize.set(it.file.size, []);
+    bySize.get(it.file.size).push(it);
+  }
+  const candidates = [...bySize.values()].filter(g => g.length > 1).flat();
+  const totalBytes = candidates.reduce((s, it) => s + it.file.size, 0) || 1;
+  $('progress').hidden = false; $('progress').value = 0;
+  const hasher = await hashwasm.createSHA256();
+  const byHash = new Map();
+  let done = 0;
+  for (const [i, it] of candidates.entries()) {
+    if (id !== running) return;
+    $('status').textContent = `Comparing ${i + 1} of ${candidates.length} candidate files (${items.length} scanned)…`;
+    hasher.init();
+    for (let off = 0; off < it.file.size; off += CHUNK) {
+      hasher.update(new Uint8Array(await it.file.slice(off, off + CHUNK).arrayBuffer()));
+      done += Math.min(CHUNK, it.file.size - off); $('progress').value = done / totalBytes;
+    }
+    const key = it.file.size + ':' + hasher.digest('hex');
+    if (!byHash.has(key)) byHash.set(key, []);
+    byHash.get(key).push(it);
+  }
+  $('progress').hidden = true;
+  groups = [...byHash.entries()].filter(([, g]) => g.length > 1).map(([key, g]) => ({
+    hash: key.split(':')[1], size: g[0].file.size,
+    paths: g.map(it => it.path).sort((a, b) => a.localeCompare(b)),
+  })).sort((a, b) => b.size * (b.paths.length - 1) - a.size * (a.paths.length - 1));
+  render(items.length, items.filter(it => it.file.size === 0).length);
+}
+
+function render(scanned, empty) {
+  const wasted = groups.reduce((s, g) => s + g.size * (g.paths.length - 1), 0);
+  const dupFiles = groups.reduce((s, g) => s + g.paths.length - 1, 0);
+  $('status').textContent = `Scanned ${scanned} file${scanned === 1 ? '' : 's'}.` + (empty ? ` ${empty} empty file${empty === 1 ? '' : 's'} skipped.` : '');
+  $('result').hidden = false;
+  $('csv').hidden = !groups.length;
+  $('summary').textContent = groups.length
+    ? `${groups.length} duplicate group${groups.length === 1 ? '' : 's'} · ${dupFiles} extra cop${dupFiles === 1 ? 'y' : 'ies'} · ${fmtSize(wasted)} wasted`
+    : 'No duplicates found. 🎉';
+  $('groups').innerHTML = groups.map(g => `
+    <div class="group">
+      <header><strong>${g.paths.length} × ${fmtSize(g.size)}</strong><span class="muted">${fmtSize(g.size * (g.paths.length - 1))} wasted</span></header>
+      <ul>${g.paths.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+      <div class="muted mono" style="font-size:12px;word-break:break-all;margin-top:6px">SHA-256 ${g.hash}</div>
+    </div>`).join('');
+}
+
+function csv() {
+  const q = v => /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  const lines = ['group,sha256,size_bytes,path'];
+  groups.forEach((g, i) => g.paths.forEach(p => lines.push([i + 1, g.hash, g.size, q(p)].join(','))));
+  download(new Blob([lines.join('\n') + '\n'], { type: 'text/csv' }), 'duplicates.csv');
+}
+
+const drop = $('drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', async e => {
+  e.preventDefault(); drop.classList.remove('over');
+  $('status').textContent = 'Reading folder…';
+  scan(await filesFromDrop(e.dataTransfer));
+});
+$('pick-folder').onclick = () => $('folder').click();
+$('pick-files').onclick = () => $('files').click();
+for (const id of ['folder', 'files']) $(id).onchange = e => {
+  scan([...e.target.files].map(f => ({ file: f, path: f.webkitRelativePath || f.name }))); e.target.value = '';
+};
+$('csv').onclick = csv;
+</script>
 </body>
 </html>

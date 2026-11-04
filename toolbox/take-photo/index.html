@@ -6,13 +6,128 @@
   <title>📷 Take Photo</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%B7</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    .stage { position: relative; background: #000; border-radius: 10px; overflow: hidden; aspect-ratio: 4 / 3; display: grid; place-items: center; }
+    .stage video { width: 100%; height: 100%; object-fit: contain; }
+    .stage video.mirror { transform: scaleX(-1); }
+    .stage .overlay { position: absolute; inset: 0; display: grid; place-items: center; color: #fff;
+      font: 700 96px/1 ui-monospace, Menlo, monospace; text-shadow: 0 2px 12px rgba(0,0,0,.6); pointer-events: none; }
+    .stage .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .3s; }
+    .stage .flash.on { opacity: .8; transition: none; }
+    .placeholder-msg { color: #bbb; padding: 16px; text-align: center; }
+    .switch { flex-direction: row; align-items: center; gap: 6px; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 16px; }
+    .shot { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .shot img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #000; }
+    .shot .row { padding: 6px 8px; justify-content: space-between; flex-wrap: nowrap; }
+    .shot a { font-size: 14px; }
+    .error { color: #d14343; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>📷 Take Photo</h1>
-  <p class="lead">Snap a photo with your webcam</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Snap photos with your webcam. Press <kbd>Space</kbd> to take a photo. Photos stay on your device until you download them.</p>
+
+  <div class="panel">
+    <div class="stage">
+      <video id="video" autoplay playsinline muted class="mirror" hidden></video>
+      <p class="placeholder-msg" id="msg">Turn on the camera to start.</p>
+      <div class="overlay" id="overlay"></div>
+      <div class="flash" id="flash"></div>
+    </div>
+    <p class="error" id="error" hidden></p>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="power">Turn on camera</button>
+      <button class="primary" id="capture" hidden>📸 Take photo</button>
+      <select id="camera" hidden title="Camera"></select>
+    </div>
+    <div class="row">
+      <label class="switch"><input type="checkbox" id="mirror" checked> Mirror</label>
+      <label class="switch"><input type="checkbox" id="delay"> 3 s countdown</label>
+      <label class="switch">Format
+        <select id="format"><option value="image/png">PNG</option><option value="image/jpeg">JPEG</option></select>
+      </label>
+    </div>
+    <div class="gallery" id="gallery"></div>
+  </div>
 </main>
+<canvas id="canvas" hidden></canvas>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const video = $('video');
+let stream = null, busy = false, count = 0;
+
+function showError(text) { $('error').textContent = text; $('error').hidden = !text; }
+function explain(err) {
+  if (!navigator.mediaDevices?.getUserMedia) return 'Your browser does not support camera access here. Use a recent browser over HTTPS.';
+  if (err.name === 'NotAllowedError') return 'Camera access was blocked. Allow the camera for this site in your browser settings and try again.';
+  if (err.name === 'NotFoundError' || err.name === 'OverconstrainedError') return 'No camera was found. Connect a camera and try again.';
+  if (err.name === 'NotReadableError') return 'The camera is in use by another app. Close it and try again.';
+  return 'Could not start the camera: ' + err.message;
+}
+
+async function listCameras() {
+  const cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+  const current = stream?.getVideoTracks()[0]?.getSettings().deviceId;
+  $('camera').innerHTML = cams.map((c, i) => `<option value="${esc(c.deviceId)}">${esc(c.label || 'Camera ' + (i + 1))}</option>`).join('');
+  if (current) $('camera').value = current;
+  $('camera').hidden = cams.length < 2;
+}
+function stop() {
+  stream?.getTracks().forEach(t => t.stop()); stream = null;
+  video.srcObject = null; video.hidden = true; $('msg').hidden = false;
+  $('capture').hidden = true; $('camera').hidden = true; $('power').textContent = 'Turn on camera';
+}
+async function start(deviceId) {
+  showError('');
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : { width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    stream?.getTracks().forEach(t => t.stop());
+    stream = s; video.srcObject = s; video.hidden = false; $('msg').hidden = true;
+    $('capture').hidden = false; $('power').textContent = 'Turn off camera';
+    await listCameras();
+  } catch (err) { stop(); showError(explain(err)); }
+}
+
+function snap() {
+  const c = $('canvas'), w = video.videoWidth, h = video.videoHeight;
+  if (!w) return;
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  if ($('mirror').checked) { ctx.translate(w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(video, 0, 0, w, h);
+  const type = $('format').value, ext = type === 'image/png' ? 'png' : 'jpg';
+  c.toBlob(blob => {
+    const url = URL.createObjectURL(blob), n = ++count, stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const el = document.createElement('div');
+    el.className = 'shot';
+    el.innerHTML = `<img alt="Photo ${n}" src="${url}"><div class="row"><a href="${url}" download="photo-${stamp}.${ext}">Download</a><button class="icon-btn" title="Delete">✕</button></div>`;
+    el.querySelector('button').onclick = () => { URL.revokeObjectURL(url); el.remove(); };
+    $('gallery').prepend(el);
+  }, type, 0.92);
+  $('flash').classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => $('flash').classList.remove('on')));
+}
+async function capture() {
+  if (busy || !stream) return;
+  busy = true; $('capture').disabled = true;
+  if ($('delay').checked) {
+    for (let i = 3; i > 0; i--) { $('overlay').textContent = i; await new Promise(r => setTimeout(r, 1000)); }
+    $('overlay').textContent = '';
+  }
+  snap();
+  busy = false; $('capture').disabled = false;
+}
+
+$('power').onclick = () => (stream ? stop() : start());
+$('capture').onclick = capture;
+$('camera').onchange = () => start($('camera').value);
+$('mirror').onchange = () => video.classList.toggle('mirror', $('mirror').checked);
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && stream && !e.target.closest('input, select, textarea')) { e.preventDefault(); if (e.target.tagName === 'BUTTON') e.target.blur(); capture(); }
+});
+</script>
 </body>
 </html>

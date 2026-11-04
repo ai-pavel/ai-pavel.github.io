@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+"""Regenerate the site's index pages from assets/tools.json.
+
+Writes the home page, each toolbox's index page, the search index used by
+the home page, and the toolbox table in README.md. Creates a placeholder page
+for any tool listed in tools.json that has no page yet. A tool counts as
+ready once its page no longer contains the placeholder marker.
+
+Run from anywhere: python3 scripts/generate.py
+"""
+import html
+import json
+import os
+import re
+import urllib.parse
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PLACEHOLDER_MARKER = 'class="placeholder"'
+
+
+def path(*parts):
+    return os.path.join(ROOT, *parts)
+
+
+def esc(s):
+    return html.escape(s, quote=True)
+
+
+def favicon(emoji):
+    svg = ("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>"
+           f"<text y='.9em' font-size='90'>{emoji}</text></svg>")
+    return "data:image/svg+xml," + urllib.parse.quote(svg, safe=" =:/'<>")
+
+
+def head(title, emoji, css):
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{esc(title)}</title>
+  <link rel="icon" href="{favicon(emoji)}">
+  <link rel="stylesheet" href="{css}">
+</head>
+<body>
+<main>
+"""
+
+
+FOOT = "</main>\n</body>\n</html>\n"
+
+
+def write(rel, content):
+    with open(path(rel), "w", encoding="utf-8") as f:
+        f.write(content)
+
+
+def is_ready(toolbox_id, slug):
+    page = path(toolbox_id, slug, "index.html")
+    with open(page, encoding="utf-8") as f:
+        return PLACEHOLDER_MARKER not in f.read()
+
+
+def ensure_placeholder(tb, tool):
+    page = path(tb["id"], tool["slug"], "index.html")
+    if os.path.exists(page):
+        return
+    os.makedirs(os.path.dirname(page), exist_ok=True)
+    title = f'{tool["emoji"]} {tool["name"]}'
+    write(os.path.relpath(page, ROOT), head(title, tool["emoji"], "../../assets/style.css") + f"""  <a class="back" href="../">← {esc(tb["name"])}</a>
+  <h1>{esc(title)}</h1>
+  <p class="lead">{esc(tool["description"])}.</p>
+  <p {PLACEHOLDER_MARKER}>Coming soon.</p>
+""" + FOOT)
+
+
+def toolbox_page(tb):
+    title = f'{tb["emoji"]} {tb["name"]}'
+    out = head(title, tb["emoji"], "../assets/style.css") + f"""  <a class="back" href="../">← Home</a>
+  <h1>{esc(title)}</h1>
+  <p class="lead">{esc(tb["lead"])}</p>
+"""
+    for cat in tb["categories"]:
+        out += f'  <h2>{esc(cat["name"])}</h2>\n  <div class="grid">\n'
+        for t in cat["tools"]:
+            cls = "card" if t["ready"] else "card soon"
+            out += (f'    <a class="{cls}" href="{t["slug"]}/"><strong>{esc(t["emoji"])} {esc(t["name"])}</strong>'
+                    f'<span>{esc(t["description"])}</span></a>\n')
+        out += "  </div>\n"
+    write(os.path.join(tb["id"], "index.html"), out + FOOT)
+
+
+def count_label(tools):
+    ready = sum(t["ready"] for t in tools)
+    return f"{len(tools)} tools" if ready == len(tools) else f"{ready} of {len(tools)} tools ready"
+
+
+def home_page(toolboxes, total):
+    out = head("AI Pavel", "🤖", "assets/style.css") + f"""  <h1>AI Pavel</h1>
+  <p class="lead">Experiments and tools.</p>
+
+  <div class="search" id="search">
+    <input id="search-input" type="search" placeholder="Search {total} tools…" autocomplete="off" spellcheck="false"
+      role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list" aria-label="Search tools">
+    <kbd class="search-hint">/</kbd>
+    <ul id="search-results" class="search-results" role="listbox" hidden></ul>
+  </div>
+
+  <div class="grid grid-large">
+"""
+    for tb in toolboxes:
+        tools = [t for c in tb["categories"] for t in c["tools"]]
+        out += f"""    <a class="card card-large" href="{tb["id"]}/">
+      <span class="card-emoji">{tb["emoji"]}</span>
+      <strong>{esc(tb["name"])}</strong>
+      <span>{esc(tb["summary"])}</span>
+      <span class="card-meta">{count_label(tools)}</span>
+    </a>
+"""
+    out += """  </div>
+<script src="assets/search-index.js"></script>
+<script src="assets/search.js"></script>
+"""
+    write("index.html", out + FOOT)
+
+
+def search_index(toolboxes):
+    entries = []
+    for tb in toolboxes:
+        for cat in tb["categories"]:
+            for t in cat["tools"]:
+                entries.append({
+                    "url": f'{tb["id"]}/{t["slug"]}/',
+                    "emoji": t["emoji"],
+                    "name": t["name"],
+                    "description": t["description"],
+                    "keywords": t.get("keywords", ""),
+                    "category": cat["name"],
+                    "toolbox": tb["name"],
+                    "toolboxEmoji": tb["emoji"],
+                    "ready": t["ready"],
+                })
+    body = json.dumps(entries, ensure_ascii=False, indent=0).replace("\n", "")
+    write(os.path.join("assets", "search-index.js"),
+          "// Generated by scripts/generate.py from assets/tools.json. Do not edit.\n"
+          f"window.TOOLS = {body};\n")
+
+
+def readme_table(toolboxes):
+    rows = ["| Toolbox | What's inside | Tools | Folder |", "|---|---|---|---|"]
+    for tb in toolboxes:
+        tools = [t for c in tb["categories"] for t in c["tools"]]
+        summary = tb["summary"].rstrip(".")
+        rows.append(f'| [{tb["emoji"]} {tb["name"]}](https://ai-pavel.github.io/{tb["id"]}/) | {summary} '
+                    f'| {count_label(tools).replace(" tools", "")} | [`{tb["id"]}/`]({tb["id"]}/) |')
+    readme = open(path("README.md"), encoding="utf-8").read()
+    new = re.sub(r"(<!-- toolboxes:start -->\n)(?:.*?\n)?(<!-- toolboxes:end -->)",
+                 lambda m: m.group(1) + "\n".join(rows) + "\n" + m.group(2), readme, flags=re.S)
+    write("README.md", new)
+
+
+def main():
+    with open(path("assets", "tools.json"), encoding="utf-8") as f:
+        toolboxes = json.load(f)["toolboxes"]
+    for tb in toolboxes:
+        os.makedirs(path(tb["id"]), exist_ok=True)
+        for cat in tb["categories"]:
+            for t in cat["tools"]:
+                ensure_placeholder(tb, t)
+                t["ready"] = is_ready(tb["id"], t["slug"])
+        toolbox_page(tb)
+    total = sum(len(c["tools"]) for tb in toolboxes for c in tb["categories"])
+    home_page(toolboxes, total)
+    search_index(toolboxes)
+    readme_table(toolboxes)
+    for tb in toolboxes:
+        tools = [t for c in tb["categories"] for t in c["tools"]]
+        print(f'{tb["id"]}: {count_label(tools)}')
+
+
+if __name__ == "__main__":
+    main()

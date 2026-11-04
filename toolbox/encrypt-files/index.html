@@ -6,13 +6,210 @@
   <title>🔐 Encrypt Files</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%90</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    .drop { border: 2px dashed var(--border); border-radius: 12px; padding: 28px 16px; text-align: center; color: var(--muted); }
+    .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+    .drop .row { justify-content: center; margin-top: 12px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    .pw { display: flex; gap: 8px; }
+    .pw input { flex: 1; width: 0; }
+    .fields { display: grid; gap: 12px; margin-top: 16px; }
+    .fields label { display: flex; }
+    [hidden] { display: none !important; }
+    .item .name { word-break: break-all; }
+    .error { color: #c0392b; }
+    .ok { color: #1e8e3e; }
+    .strength { height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; margin-top: 6px; }
+    .strength span { display: block; height: 100%; width: 0; transition: width .2s; }
+    .dl { padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; color: inherit; text-decoration: none; white-space: nowrap; }
+    .dl:hover { border-color: var(--accent); }
+    details { margin-top: 24px; }
+    summary { cursor: pointer; color: var(--muted); }
+    details p, details li { font-size: 14px; color: var(--muted); }
+    code { font-size: 13px; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>🔐 Encrypt Files</h1>
-  <p class="lead">Password-protect files with AES-GCM</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Password-protect files with AES-256-GCM. Encryption runs in your browser; files and passwords never leave your device.</p>
+
+  <div class="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-mode="encrypt">Encrypt</button>
+      <button role="tab" aria-selected="false" data-mode="decrypt">Decrypt</button>
+    </div>
+
+    <div class="drop" id="drop">
+      <span id="drop-label">Drop files to encrypt</span>
+      <div class="row"><button id="pick">Choose files</button></div>
+      <input type="file" id="files" multiple hidden>
+    </div>
+    <div class="list" id="queue"></div>
+
+    <div class="fields">
+      <label>Password
+        <span class="pw">
+          <input id="pw" type="password" autocomplete="new-password">
+          <button id="show" type="button">Show</button>
+        </span>
+        <span class="strength"><span id="bar"></span></span>
+        <span id="hint" class="muted"></span>
+      </label>
+      <label id="confirm-wrap">Confirm password
+        <input id="pw2" type="password" autocomplete="new-password">
+      </label>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="primary" id="go" disabled>Encrypt</button>
+      <span id="msg" class="muted"></span>
+    </div>
+
+    <div class="list" id="results"></div>
+
+    <details>
+      <summary>How it works</summary>
+      <p>Your password is stretched with PBKDF2-SHA256 (600,000 iterations, random 16-byte salt) into a 256-bit key. The file is encrypted with AES-256-GCM using a random 12-byte IV. The original file name is encrypted together with the contents, so it stays private too.</p>
+      <p>File layout (<code>.enc</code>):</p>
+      <ul>
+        <li><code>TBXENC</code> magic (6 bytes) · version <code>1</code> (1 byte) · iterations (4 bytes, big-endian) · salt (16 bytes) · IV (12 bytes)</li>
+        <li>AES-GCM ciphertext + 16-byte tag of: name length (2 bytes) · UTF-8 name · file bytes. The header is authenticated as additional data.</li>
+      </ul>
+      <p>There is no way to recover a forgotten password.</p>
+    </details>
+  </div>
 </main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtSize = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+const MAGIC = new TextEncoder().encode('TBXENC'), VERSION = 1, ITERATIONS = 600000, HEADER = 6 + 1 + 4 + 16 + 12;
+const enc = new TextEncoder(), dec = new TextDecoder();
+
+async function deriveKey(password, salt, iterations) {
+  const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+function isEncrypted(head) { return head.length >= HEADER && MAGIC.every((b, i) => head[i] === b); }
+
+async function encryptFile(file, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const header = new Uint8Array(HEADER);
+  header.set(MAGIC, 0); header[6] = VERSION;
+  new DataView(header.buffer).setUint32(7, ITERATIONS);
+  header.set(salt, 11); header.set(iv, 27);
+  const name = enc.encode(file.name).subarray(0, 65535), body = new Uint8Array(await file.arrayBuffer());
+  const plain = new Uint8Array(2 + name.length + body.length);
+  new DataView(plain.buffer).setUint16(0, name.length); plain.set(name, 2); plain.set(body, 2 + name.length);
+  const key = await deriveKey(password, salt, ITERATIONS);
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: header }, key, plain);
+  return { blob: new Blob([header, cipher], { type: 'application/octet-stream' }), name: file.name + '.enc' };
+}
+async function decryptFile(file, password) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  if (!isEncrypted(buf)) throw new Error('Not a file encrypted with this tool.');
+  if (buf[6] !== VERSION) throw new Error(`Unsupported format version ${buf[6]}.`);
+  const header = buf.subarray(0, HEADER), view = new DataView(buf.buffer, buf.byteOffset);
+  const key = await deriveKey(password, buf.slice(11, 27), view.getUint32(7));
+  let plain;
+  try { plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.slice(27, 39), additionalData: header }, key, buf.subarray(HEADER))); }
+  catch { throw new Error('Wrong password, or the file is damaged.'); }
+  const n = new DataView(plain.buffer).getUint16(0);
+  const name = dec.decode(plain.subarray(2, 2 + n)) || file.name.replace(/\.enc$/i, '');
+  return { blob: new Blob([plain.subarray(2 + n)]), name };
+}
+
+function strength(pw) {
+  if (!pw) return [0, ''];
+  let score = Math.min(4, Math.floor(pw.length / 4));
+  const classes = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter(r => r.test(pw)).length;
+  score = Math.max(0, Math.min(4, score + classes - 2));
+  if (pw.length < 8) score = Math.min(score, 1);
+  return [score, ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'][score]];
+}
+const COLORS = ['#c0392b', '#e67e22', '#f1c40f', '#7cb342', '#1e8e3e'];
+
+let mode = 'encrypt', queue = [];
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-selected', b.dataset.mode === m));
+  $('confirm-wrap').hidden = m === 'decrypt';
+  $('drop-label').textContent = m === 'encrypt' ? 'Drop files to encrypt' : 'Drop .enc files to decrypt';
+  $('pw').autocomplete = m === 'encrypt' ? 'new-password' : 'current-password';
+  update();
+}
+function renderQueue() {
+  $('queue').innerHTML = queue.map((f, i) => `
+    <div class="item"><div class="name">${esc(f.name)} <span class="muted">· ${fmtSize(f.size)}</span></div>
+    <button class="icon-btn" data-remove="${i}" title="Remove">✕</button></div>`).join('');
+  update();
+}
+function update() {
+  const pw = $('pw').value, [score, label] = strength(pw);
+  $('bar').style.width = pw ? (score + 1) * 20 + '%' : '0';
+  $('bar').style.background = COLORS[score];
+  $('hint').textContent = mode === 'encrypt' && pw ? label : '';
+  const mismatch = mode === 'encrypt' && $('pw2').value && $('pw2').value !== pw;
+  $('msg').className = mismatch ? 'error' : 'muted';
+  $('msg').textContent = mismatch ? 'Passwords do not match.' : '';
+  const ready = queue.length && pw && (mode === 'decrypt' || $('pw2').value === pw);
+  $('go').disabled = !ready;
+  $('go').textContent = (mode === 'encrypt' ? 'Encrypt' : 'Decrypt') + (queue.length > 1 ? ` ${queue.length} files` : '');
+}
+async function addFiles(files) {
+  queue.push(...files);
+  // Switch to Decrypt automatically if everything added is in our format.
+  const heads = await Promise.all(queue.map(f => f.slice(0, HEADER).arrayBuffer().then(b => new Uint8Array(b))));
+  if (heads.length && heads.every(isEncrypted) && mode === 'encrypt') setMode('decrypt');
+  renderQueue();
+}
+
+async function run() {
+  const pw = $('pw').value, files = [...queue];
+  $('go').disabled = true; $('results').innerHTML = '';
+  let ok = 0;
+  for (const [i, f] of files.entries()) {
+    $('msg').className = 'muted';
+    $('msg').textContent = `${mode === 'encrypt' ? 'Encrypting' : 'Decrypting'} ${i + 1} of ${files.length}…`;
+    const row = document.createElement('div'); row.className = 'item';
+    try {
+      const out = await (mode === 'encrypt' ? encryptFile(f, pw) : decryptFile(f, pw));
+      const url = URL.createObjectURL(out.blob);
+      row.innerHTML = `<div class="name"><span class="ok">✓</span> ${esc(out.name)} <span class="muted">· ${fmtSize(out.blob.size)}</span></div>
+        <a class="dl" href="${url}" download="${esc(out.name)}">Download</a>`;
+      ok++;
+    } catch (e) {
+      row.innerHTML = `<div class="name"><span class="error">✕ ${esc(f.name)}: ${esc(e.message)}</span></div>`;
+    }
+    $('results').append(row);
+  }
+  $('msg').className = ok === files.length ? 'ok' : 'error';
+  $('msg').textContent = `${ok} of ${files.length} file${files.length === 1 ? '' : 's'} ${mode === 'encrypt' ? 'encrypted' : 'decrypted'}.`;
+  $('go').disabled = false;
+}
+
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+const drop = $('drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files]); });
+$('pick').onclick = () => $('files').click();
+$('files').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+$('queue').onclick = e => { const i = e.target.dataset.remove; if (i !== undefined) { queue.splice(+i, 1); renderQueue(); } };
+$('pw').oninput = $('pw2').oninput = update;
+$('show').onclick = () => {
+  const t = $('pw').type === 'password' ? 'text' : 'password';
+  $('pw').type = $('pw2').type = t; $('show').textContent = t === 'password' ? 'Show' : 'Hide';
+};
+$('go').onclick = run;
+setMode('encrypt');
+</script>
 </body>
 </html>

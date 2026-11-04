@@ -11,20 +11,42 @@
 <main>
   <h1>AI Pavel</h1>
   <p class="lead">Experiments and tools.</p>
+
+  <div class="search" id="search">
+    <input id="search-input" type="search" placeholder="Search 94 tools…" autocomplete="off" spellcheck="false"
+      role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list" aria-label="Search tools">
+    <kbd class="search-hint">/</kbd>
+    <ul id="search-results" class="search-results" role="listbox" hidden></ul>
+  </div>
+
   <div class="grid grid-large">
     <a class="card card-large" href="toolbox/">
       <span class="card-emoji">🧰</span>
       <strong>Toolbox</strong>
-      <span>Everyday utilities: timers, text, files and media.</span>
+      <span>Everyday utilities: time, text, files and media.</span>
       <span class="card-meta">23 tools</span>
     </a>
     <a class="card card-large" href="crypto/">
       <span class="card-emoji">🔑</span>
       <strong>Crypto Toolbox</strong>
       <span>Bitcoin and cryptography: hashes, keys, addresses, transactions and signatures.</span>
-      <span class="card-meta">38 tools</span>
+      <span class="card-meta">0 of 38 tools ready</span>
+    </a>
+    <a class="card card-large" href="dev/">
+      <span class="card-emoji">🛠️</span>
+      <strong>Dev Toolbox</strong>
+      <span>Developer utilities: JSON, encoding, tokens, regex, diffs and time.</span>
+      <span class="card-meta">0 of 18 tools ready</span>
+    </a>
+    <a class="card card-large" href="evm/">
+      <span class="card-emoji">⛓️</span>
+      <strong>EVM Toolbox</strong>
+      <span>Ethereum and EVM: units, addresses, ABI, transactions and signatures.</span>
+      <span class="card-meta">0 of 15 tools ready</span>
     </a>
   </div>
+<script src="assets/search-index.js"></script>
+<script src="assets/search.js"></script>
 </main>
 </body>
 </html>

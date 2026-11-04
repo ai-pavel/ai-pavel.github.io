@@ -6,13 +6,169 @@
   <title>🎬 Convert Video</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8E%AC</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    .drop {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+      padding: 28px 16px; border: 2px dashed var(--border); border-radius: 12px;
+      text-align: center; cursor: pointer; color: var(--muted);
+    }
+    .drop.over, .drop:hover { border-color: var(--accent); color: var(--text); }
+    .drop strong { color: var(--text); overflow-wrap: anywhere; }
+    .drop input { display: none; }
+    .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 16px; }
+    .settings input, .settings select { width: 100%; }
+    .settings label[hidden] { display: none; }
+    progress { width: 100%; height: 10px; accent-color: var(--accent); }
+    video, audio { display: block; width: 100%; max-height: 360px; margin-top: 12px; border-radius: 8px; }
+    video { background: #000; }
+    video[hidden], audio[hidden] { display: none; }
+    a.btn { padding: 8px 14px; border-radius: 8px; background: var(--accent); color: var(--on-accent); text-decoration: none; }
+    .warn { padding: 10px 12px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); font-size: 14px; color: var(--muted); }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>🎬 Convert Video</h1>
-  <p class="lead">Convert video between formats</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Convert, shrink or trim videos, or extract their audio. Powered by ffmpeg running on your device.</p>
+
+  <div class="panel">
+    <p class="warn">⚠️ Conversion runs on your device in a single thread, so it is several times slower than a desktop app. It works best for short clips — roughly under 200 MB.</p>
+    <label class="drop" id="drop" style="margin-top:16px">
+      <input type="file" id="file" accept="video/*,.mkv,.avi,.flv,.wmv,.m4v,.3gp,.ts">
+      <span style="font-size:32px">🎬</span>
+      <strong id="dropTitle">Drop a video here or click to choose</strong>
+      <span id="dropInfo">MP4, MOV, WebM, MKV, AVI and more</span>
+    </label>
+    <p class="muted" id="sizeWarn" hidden>This file is large. Conversion may take a long time or run out of memory — trimming or lowering the resolution helps.</p>
+
+    <div class="settings">
+      <label>Format <select id="format">
+        <option value="mp4">MP4 (H.264)</option>
+        <option value="webm">WebM (VP8)</option>
+        <option value="mov">MOV (H.264)</option>
+        <option value="mp3">Audio only (MP3)</option>
+      </select></label>
+      <label data-video>Resolution <select id="res">
+        <option value="0">Original</option>
+        <option value="1080">1080p</option>
+        <option value="720" selected>720p</option>
+        <option value="480">480p</option>
+        <option value="360">360p</option>
+      </select></label>
+      <label data-video>Quality <select id="quality">
+        <option value="high">High</option>
+        <option value="medium" selected>Medium</option>
+        <option value="low">Small file</option>
+      </select></label>
+      <label>Trim start <input id="start" placeholder="0:00" inputmode="decimal"></label>
+      <label>Trim end <input id="end" placeholder="end" inputmode="decimal"></label>
+    </div>
+    <p class="muted">Resolution only scales down. Times can be seconds (<code>75</code>) or minutes:seconds (<code>1:15</code>).</p>
+
+    <div class="row" style="margin-top:8px">
+      <button class="primary" id="convert" disabled>Convert</button>
+      <button id="cancel" hidden>Cancel</button>
+      <span class="muted" id="status"></span>
+    </div>
+    <progress id="progress" max="1" value="0" hidden style="margin-top:12px"></progress>
+
+    <div id="result" hidden style="margin-top:16px">
+      <video id="player" controls playsinline hidden></video>
+      <audio id="audioPlayer" controls hidden></audio>
+      <div class="row" style="margin-top:12px">
+        <a class="btn" id="download">Download</a>
+        <span class="muted" id="resultInfo"></span>
+      </div>
+    </div>
+  </div>
 </main>
+<script type="module">
+import { Converter, CancelledError, parseTime, formatBytes, escapeHTML } from '../vendor/ffmpeg/loader.js';
+
+const $ = id => document.getElementById(id);
+const CRF = { x264: { high: 20, medium: 26, low: 32 }, vp8: { high: 8, medium: 16, low: 30 } };
+const MIME = { mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mp3: 'audio/mpeg' };
+const converter = new Converter();
+let file = null, duration = 0, resultURL = null, busy = false;
+
+function setFile(f) {
+  if (!f) return;
+  file = f; duration = 0;
+  $('dropTitle').textContent = f.name;
+  $('dropInfo').textContent = formatBytes(f.size) + ' · click to choose another file';
+  $('sizeWarn').hidden = f.size < 300 * 1024 * 1024;
+  const probe = document.createElement('video'), url = URL.createObjectURL(f);
+  probe.preload = 'metadata';
+  probe.onloadedmetadata = () => { if (isFinite(probe.duration)) duration = probe.duration; URL.revokeObjectURL(url); };
+  probe.onerror = () => URL.revokeObjectURL(url);
+  probe.src = url;
+  $('convert').disabled = busy;
+  $('status').textContent = '';
+}
+
+$('file').onchange = e => { setFile(e.target.files[0]); e.target.value = ''; };
+const drop = $('drop');
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); setFile(e.dataTransfer.files[0]); };
+
+const syncFormat = () => document.querySelectorAll('[data-video]').forEach(l => l.hidden = $('format').value === 'mp3');
+$('format').onchange = syncFormat;
+
+function codecArgs(fmt) {
+  if (fmt === 'mp3') return ['-vn', '-c:a', 'libmp3lame', '-b:a', '192k'];
+  const h = +$('res').value, q = $('quality').value;
+  // Even dimensions are required by yuv420p; -2 keeps the aspect ratio.
+  const scale = h ? `scale=-2:'trunc(min(ih,${h})/2)*2'` : 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+  const maps = ['-map', '0:v:0', '-map', '0:a:0?'];
+  if (fmt === 'webm') return [...maps, '-vf', scale, '-c:v', 'libvpx', '-deadline', 'realtime', '-cpu-used', '8',
+    '-crf', String(CRF.vp8[q]), '-b:v', '4M', '-c:a', 'libopus', '-b:a', '96k'];
+  return [...maps, '-vf', scale, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', String(CRF.x264[q]),
+    '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart'];
+}
+
+$('convert').onclick = async () => {
+  const fmt = $('format').value;
+  const start = parseTime($('start').value), end = parseTime($('end').value);
+  if ($('start').value.trim() && start === null || $('end').value.trim() && end === null) { $('status').textContent = 'Check the trim times.'; return; }
+  if (start !== null && end !== null && end <= start) { $('status').textContent = 'Trim end must be after the start.'; return; }
+  const outName = 'output.' + fmt, length = (end ?? duration) - (start ?? 0);
+
+  busy = true; $('convert').disabled = true; $('cancel').hidden = false; $('progress').hidden = false; $('result').hidden = true;
+  try {
+    const data = await converter.run({
+      file, outName, duration: length > 0 ? length : 0,
+      buildArgs: input => [
+        // Input-side -ss seeks quickly; -t then limits the length.
+        ...(start !== null ? ['-ss', String(start)] : []),
+        '-i', input,
+        ...(end !== null ? ['-t', String(end - (start ?? 0))] : []),
+        ...codecArgs(fmt),
+        outName,
+      ],
+      onStage: s => $('status').textContent = s === 'loading' ? 'Loading converter (~32 MB, only once)…' : 'Converting…',
+      onProgress: p => { $('progress').value = p; if ($('status').textContent.startsWith('Converting')) $('status').textContent = `Converting… ${Math.round(p * 100)}%`; },
+    });
+    if (resultURL) URL.revokeObjectURL(resultURL);
+    const blob = new Blob([data], { type: MIME[fmt] });
+    resultURL = URL.createObjectURL(blob);
+    const name = file.name.replace(/\.[^.]+$/, '') + (fmt === 'mp3' ? '' : '-converted') + '.' + fmt;
+    const isAudio = fmt === 'mp3';
+    $('player').hidden = isAudio; $('audioPlayer').hidden = !isAudio;
+    (isAudio ? $('audioPlayer') : $('player')).src = resultURL;
+    $('download').href = resultURL; $('download').download = name;
+    $('resultInfo').innerHTML = `${escapeHTML(name)} · ${formatBytes(blob.size)}` +
+      (fmt === 'mov' ? ' · MOV may not preview in every browser' : '');
+    $('result').hidden = false; $('status').textContent = 'Done.';
+  } catch (err) {
+    $('status').textContent = err instanceof CancelledError ? 'Cancelled.' : 'Failed: ' + err.message;
+  } finally {
+    busy = false; $('convert').disabled = !file; $('cancel').hidden = true; $('progress').hidden = true;
+  }
+};
+$('cancel').onclick = () => converter.cancel();
+syncFormat();
+</script>
 </body>
 </html>

@@ -6,13 +6,148 @@
   <title>☕ Break Time</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%98%95</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    .phase { text-align: center; font-size: 20px; font-weight: 600; margin: 0; }
+    .phase.break { color: var(--accent); }
+    .hint { text-align: center; margin: 0 0 4px; min-height: 1.5em; }
+    .center { justify-content: center; }
+    .presets button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+    .progress { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 20px; }
+    .progress div { height: 100%; width: 0; background: var(--accent); transition: width 0.3s linear; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>☕ Break Time</h1>
-  <p class="lead">Get reminded to take breaks</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Get reminded to step away from the screen. Keep this tab open to hear the alerts.</p>
+
+  <div class="panel">
+    <div class="row presets" id="presets">
+      <button data-preset="eyes">20-20-20 eyes</button>
+      <button data-preset="pomodoro">Pomodoro 25 / 5</button>
+      <button data-preset="deep">Deep work 50 / 10</button>
+      <button data-preset="custom">Custom</button>
+    </div>
+    <div class="row" id="custom" hidden>
+      <label>Work, minutes <input id="workMin" type="number" min="1" max="240" value="45" style="width:110px"></label>
+      <label>Break, minutes <input id="breakMin" type="number" min="1" max="120" value="5" style="width:110px"></label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <p class="phase" id="phase">Work</p>
+    <div class="display" id="display">20:00</div>
+    <div class="progress"><div id="bar"></div></div>
+    <p class="hint muted" id="hint"></p>
+    <div class="row center">
+      <button class="primary" id="start">Start</button>
+      <button id="skip">Skip</button>
+      <button id="reset">Reset</button>
+    </div>
+    <p class="muted" style="text-align:center" id="count">Breaks taken: 0</p>
+  </div>
 </main>
+<script>
+const $ = id => document.getElementById(id);
+const KEY = 'toolbox.breakTime';
+const PRESETS = {
+  eyes: { work: 20 * 60, rest: 20, hint: 'Look at something about 20 feet (6 m) away.' },
+  pomodoro: { work: 25 * 60, rest: 5 * 60, hint: 'Stand up, stretch, get some water.' },
+  deep: { work: 50 * 60, rest: 10 * 60, hint: 'Take a walk and rest your eyes.' },
+  custom: { hint: 'Time for a break.' },
+};
+
+function loadPrefs() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
+function savePrefs() { try { localStorage.setItem(KEY, JSON.stringify({ preset, work: $('workMin').value, rest: $('breakMin').value })); } catch {} }
+
+const prefs = loadPrefs();
+let preset = PRESETS[prefs.preset] ? prefs.preset : 'eyes';
+if (prefs.work) $('workMin').value = prefs.work;
+if (prefs.rest) $('breakMin').value = prefs.rest;
+
+let phase = 'work', endAt = null, remaining = 0, tick = null, breaks = 0;
+
+function durations() {
+  if (preset !== 'custom') return PRESETS[preset];
+  return { work: Math.max(1, +$('workMin').value || 1) * 60, rest: Math.max(1, +$('breakMin').value || 1) * 60 };
+}
+const phaseLength = () => (phase === 'work' ? durations().work : durations().rest) * 1000;
+
+const pad = n => String(n).padStart(2, '0');
+function fmt(ms) {
+  const t = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
+  return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
+function render() {
+  const running = !!tick;
+  $('phase').textContent = phase === 'work' ? '💻 Work' : '☕ Break';
+  $('phase').className = 'phase' + (phase === 'break' ? ' break' : '');
+  $('display').textContent = fmt(remaining);
+  $('bar').style.width = (100 * (1 - remaining / phaseLength())) + '%';
+  $('hint').textContent = phase === 'break' ? PRESETS[preset].hint : (running ? 'Focus. A break is coming.' : '');
+  $('count').textContent = `Breaks taken: ${breaks}`;
+  document.title = running ? `${fmt(remaining)} · ${phase === 'work' ? 'Work' : 'Break'}` : '☕ Break Time';
+  document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', b.dataset.preset === preset));
+  $('custom').hidden = preset !== 'custom';
+}
+
+let audio = null;
+function beep(freqs) {
+  try {
+    audio = audio || new AudioContext();
+    freqs.forEach((f, i) => {
+      const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + i * 0.3;
+      o.frequency.value = f; o.connect(g); g.connect(audio.destination);
+      g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      o.start(t); o.stop(t + 0.25);
+    });
+  } catch {}
+}
+function notify(body) {
+  if ('Notification' in window && Notification.permission === 'granted') { try { new Notification('☕ Break Time', { body }); } catch {} }
+}
+
+function switchPhase(announce = true) {
+  if (phase === 'work') { phase = 'break'; breaks++; } else phase = 'work';
+  remaining = phaseLength();
+  if (tick) endAt = Date.now() + remaining;
+  if (announce) {
+    if (phase === 'break') { beep([660, 880]); notify('Break time! ' + PRESETS[preset].hint); }
+    else { beep([880, 660]); notify('Break is over. Back to work.'); }
+  }
+  render();
+}
+function onTick() {
+  remaining = endAt - Date.now();
+  // Catch up on phases that ended while the tab was throttled in the background.
+  while (remaining <= 0) { const over = -remaining; switchPhase(); remaining -= over; endAt = Date.now() + remaining; }
+  render();
+}
+function start() {
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  try { audio = audio || new AudioContext(); audio.resume(); } catch {}
+  endAt = Date.now() + remaining;
+  tick = setInterval(onTick, 250);
+  $('start').textContent = 'Pause';
+  render();
+}
+function pause() {
+  remaining = endAt - Date.now(); clearInterval(tick); tick = null;
+  $('start').textContent = 'Resume'; render();
+}
+function reset() {
+  clearInterval(tick); tick = null; phase = 'work'; breaks = 0; remaining = phaseLength();
+  $('start').textContent = 'Start'; render();
+}
+
+$('start').onclick = () => (tick ? pause() : start());
+$('skip').onclick = () => switchPhase(false);
+$('reset').onclick = reset;
+document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { preset = b.dataset.preset; savePrefs(); reset(); });
+['workMin', 'breakMin'].forEach(id => $(id).onchange = () => { savePrefs(); if (!tick) { remaining = phaseLength(); render(); } });
+reset();
+</script>
 </body>
 </html>

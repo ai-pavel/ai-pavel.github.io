@@ -1,0 +1,757 @@
+{
+  "toolboxes": [
+    {
+      "id": "toolbox",
+      "emoji": "🧰",
+      "name": "Toolbox",
+      "summary": "Everyday utilities: time, text, files and media.",
+      "lead": "Utilities that run entirely in your browser. Your files never leave your device.",
+      "categories": [
+        {
+          "name": "Time",
+          "tools": [
+            {
+              "slug": "alarm",
+              "emoji": "⏰",
+              "name": "Alarm",
+              "description": "Set an alarm"
+            },
+            {
+              "slug": "timer",
+              "emoji": "⏲️",
+              "name": "Timer",
+              "description": "Count down a set time"
+            },
+            {
+              "slug": "stopwatch",
+              "emoji": "⏱️",
+              "name": "Stopwatch",
+              "description": "Measure elapsed time"
+            },
+            {
+              "slug": "date-countdown",
+              "emoji": "📅",
+              "name": "Date Countdown",
+              "description": "Count down to a date"
+            },
+            {
+              "slug": "world-time",
+              "emoji": "🌍",
+              "name": "World Time",
+              "description": "See the time around the world"
+            },
+            {
+              "slug": "break-time",
+              "emoji": "☕",
+              "name": "Break Time",
+              "description": "Get reminded to take breaks"
+            }
+          ]
+        },
+        {
+          "name": "Text & Data",
+          "tools": [
+            {
+              "slug": "recognize-text",
+              "emoji": "🔍",
+              "name": "Recognize Text",
+              "description": "Extract text from images (OCR)"
+            },
+            {
+              "slug": "transform-text",
+              "emoji": "🔤",
+              "name": "Transform Text",
+              "description": "Change case, clean up and reformat text"
+            },
+            {
+              "slug": "barcode-generator",
+              "emoji": "🏷️",
+              "name": "Barcode Generator",
+              "description": "Create QR codes and barcodes"
+            },
+            {
+              "slug": "barcode-reader",
+              "emoji": "📲",
+              "name": "Barcode Reader",
+              "description": "Scan QR codes and barcodes"
+            },
+            {
+              "slug": "unit-converter",
+              "emoji": "📏",
+              "name": "Unit Converter",
+              "description": "Convert between units"
+            }
+          ]
+        },
+        {
+          "name": "Files",
+          "tools": [
+            {
+              "slug": "archive",
+              "emoji": "🗜️",
+              "name": "Archive",
+              "description": "Pack files into a ZIP"
+            },
+            {
+              "slug": "unarchive",
+              "emoji": "📂",
+              "name": "Unarchive",
+              "description": "Extract files from an archive"
+            },
+            {
+              "slug": "encrypt-files",
+              "emoji": "🔐",
+              "name": "Encrypt Files",
+              "description": "Password-protect files with AES-GCM"
+            },
+            {
+              "slug": "verify-checksum",
+              "emoji": "✅",
+              "name": "Verify Checksum",
+              "description": "Compute and compare file hashes"
+            },
+            {
+              "slug": "find-duplicates",
+              "emoji": "👯",
+              "name": "Find Duplicates",
+              "description": "Find duplicate files in a folder"
+            }
+          ]
+        },
+        {
+          "name": "Media",
+          "tools": [
+            {
+              "slug": "resize-images",
+              "emoji": "📐",
+              "name": "Resize Images",
+              "description": "Scale and compress images"
+            },
+            {
+              "slug": "make-gif",
+              "emoji": "🎞️",
+              "name": "Make GIF",
+              "description": "Turn a video or images into a GIF"
+            },
+            {
+              "slug": "convert-audio",
+              "emoji": "🎵",
+              "name": "Convert Audio",
+              "description": "Convert audio between formats"
+            },
+            {
+              "slug": "convert-video",
+              "emoji": "🎬",
+              "name": "Convert Video",
+              "description": "Convert video between formats"
+            },
+            {
+              "slug": "take-photo",
+              "emoji": "📷",
+              "name": "Take Photo",
+              "description": "Snap a photo with your webcam"
+            },
+            {
+              "slug": "take-video",
+              "emoji": "📹",
+              "name": "Take Video",
+              "description": "Record a video with your webcam"
+            },
+            {
+              "slug": "record-audio",
+              "emoji": "🎙️",
+              "name": "Record Audio",
+              "description": "Record sound from your microphone"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "crypto",
+      "emoji": "🔑",
+      "name": "Crypto Toolbox",
+      "summary": "Bitcoin and cryptography: hashes, keys, addresses, transactions and signatures.",
+      "lead": "Bitcoin and cryptography tools that run entirely in your browser. Keys you enter never leave your device.",
+      "categories": [
+        {
+          "name": "General",
+          "tools": [
+            {
+              "slug": "little-endian",
+              "emoji": "🔄",
+              "name": "Little Endian",
+              "description": "Convert a number between big-endian and little-endian bytes"
+            },
+            {
+              "slug": "number-converter",
+              "emoji": "🔢",
+              "name": "Number Converter",
+              "description": "Convert numbers between binary, decimal and hex"
+            }
+          ]
+        },
+        {
+          "name": "Blocks",
+          "tools": [
+            {
+              "slug": "block-hash",
+              "emoji": "🧱",
+              "name": "Block Hash",
+              "description": "Hash a block header to get its block hash"
+            },
+            {
+              "slug": "block-header",
+              "emoji": "📋",
+              "name": "Block Header",
+              "description": "Decode and encode a block header"
+            },
+            {
+              "slug": "merkle-root",
+              "emoji": "🌳",
+              "name": "Merkle Root",
+              "description": "Compute the merkle root of a list of TXIDs"
+            },
+            {
+              "slug": "target-bits",
+              "emoji": "🎯",
+              "name": "Target Bits",
+              "description": "Convert between a target and its compact bits"
+            },
+            {
+              "slug": "target-adjustment",
+              "emoji": "⚖️",
+              "name": "Target Adjustment",
+              "description": "Calculate the next difficulty target"
+            }
+          ]
+        },
+        {
+          "name": "Transactions",
+          "tools": [
+            {
+              "slug": "transaction-builder",
+              "emoji": "🏗️",
+              "name": "Transaction Builder",
+              "description": "Build raw transaction data"
+            },
+            {
+              "slug": "transaction-splitter",
+              "emoji": "✂️",
+              "name": "Transaction Splitter",
+              "description": "Split a raw transaction into its fields"
+            },
+            {
+              "slug": "txid",
+              "emoji": "🆔",
+              "name": "TXID",
+              "description": "Compute a TXID from raw transaction data"
+            },
+            {
+              "slug": "wtxid",
+              "emoji": "🪪",
+              "name": "wTXID",
+              "description": "Compute a wTXID from raw transaction data"
+            },
+            {
+              "slug": "script",
+              "emoji": "📜",
+              "name": "Script",
+              "description": "Decode and encode a script"
+            },
+            {
+              "slug": "sequence",
+              "emoji": "🔁",
+              "name": "Sequence",
+              "description": "Decode an input's sequence field"
+            },
+            {
+              "slug": "relative-locktime",
+              "emoji": "⏳",
+              "name": "Relative Locktime",
+              "description": "Build a relative locktime for an input"
+            },
+            {
+              "slug": "psbt-decoder",
+              "emoji": "📦",
+              "name": "PSBT Decoder",
+              "description": "Decode a partially signed transaction"
+            }
+          ]
+        },
+        {
+          "name": "Keys & Addresses",
+          "tools": [
+            {
+              "slug": "address",
+              "emoji": "📬",
+              "name": "Address",
+              "description": "Encode a P2WPKH, P2WSH or P2TR script as an address"
+            },
+            {
+              "slug": "wif-private-key",
+              "emoji": "🗝️",
+              "name": "WIF Private Key",
+              "description": "Convert a private key to and from WIF"
+            },
+            {
+              "slug": "base58",
+              "emoji": "🔡",
+              "name": "Base58",
+              "description": "Convert between hex and Base58"
+            },
+            {
+              "slug": "base58check",
+              "emoji": "☑️",
+              "name": "Base58Check",
+              "description": "Add a checksum and encode to Base58"
+            },
+            {
+              "slug": "bech32",
+              "emoji": "🔣",
+              "name": "Bech32",
+              "description": "Convert between a ScriptPubKey and a Bech32 address"
+            }
+          ]
+        },
+        {
+          "name": "HD Wallets",
+          "tools": [
+            {
+              "slug": "mnemonic-seed",
+              "emoji": "🌱",
+              "name": "Mnemonic Seed",
+              "description": "Generate a BIP 39 mnemonic and seed"
+            },
+            {
+              "slug": "extended-keys",
+              "emoji": "🧬",
+              "name": "Extended Keys",
+              "description": "Derive a child extended key from a parent"
+            },
+            {
+              "slug": "derivation-paths",
+              "emoji": "🛤️",
+              "name": "Derivation Paths",
+              "description": "Derive keys and addresses along a path"
+            }
+          ]
+        },
+        {
+          "name": "Hash Functions",
+          "tools": [
+            {
+              "slug": "hash256",
+              "emoji": "#️⃣",
+              "name": "HASH256",
+              "description": "Double SHA-256"
+            },
+            {
+              "slug": "hash160",
+              "emoji": "🔗",
+              "name": "HASH160",
+              "description": "SHA-256 followed by RIPEMD-160"
+            },
+            {
+              "slug": "ripemd160",
+              "emoji": "🌀",
+              "name": "RIPEMD-160",
+              "description": "Hash bytes with RIPEMD-160"
+            },
+            {
+              "slug": "sha256",
+              "emoji": "🔒",
+              "name": "SHA-256",
+              "description": "Hash text with SHA-256"
+            },
+            {
+              "slug": "pbkdf2",
+              "emoji": "🧂",
+              "name": "PBKDF2",
+              "description": "Turn a mnemonic and passphrase into a seed"
+            }
+          ]
+        },
+        {
+          "name": "Cryptography",
+          "tools": [
+            {
+              "slug": "ecdsa-sign",
+              "emoji": "✍️",
+              "name": "ECDSA Sign",
+              "description": "Sign a message hash with a private key"
+            },
+            {
+              "slug": "ecdsa-verify",
+              "emoji": "✔️",
+              "name": "ECDSA Verify",
+              "description": "Verify an ECDSA signature"
+            },
+            {
+              "slug": "der-signature",
+              "emoji": "🖋️",
+              "name": "DER Signature",
+              "description": "Convert a signature to and from DER"
+            },
+            {
+              "slug": "schnorr-sign",
+              "emoji": "✒️",
+              "name": "Schnorr Sign",
+              "description": "Sign a message with Schnorr (BIP 340)"
+            },
+            {
+              "slug": "schnorr-verify",
+              "emoji": "🛡️",
+              "name": "Schnorr Verify",
+              "description": "Verify a Schnorr signature"
+            },
+            {
+              "slug": "modular-inverse",
+              "emoji": "➗",
+              "name": "Modular Inverse",
+              "description": "Find a number's inverse modulo n"
+            }
+          ]
+        },
+        {
+          "name": "Other",
+          "tools": [
+            {
+              "slug": "byte-ascii",
+              "emoji": "🔤",
+              "name": "Byte (ASCII)",
+              "description": "Convert between a byte and an ASCII character"
+            },
+            {
+              "slug": "byte-integer",
+              "emoji": "🔟",
+              "name": "Byte (Integer)",
+              "description": "Convert a byte between binary, hex and integer"
+            },
+            {
+              "slug": "byte",
+              "emoji": "💾",
+              "name": "Byte",
+              "description": "Show every representation of a byte"
+            },
+            {
+              "slug": "bit",
+              "emoji": "💡",
+              "name": "Bit",
+              "description": "Flip bits in an interactive editor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dev",
+      "emoji": "🛠️",
+      "name": "Dev Toolbox",
+      "summary": "Developer utilities: JSON, encoding, tokens, regex, diffs and time.",
+      "lead": "Developer utilities that run entirely in your browser. Nothing you paste leaves your device.",
+      "categories": [
+        {
+          "name": "Data",
+          "tools": [
+            {
+              "slug": "json-formatter",
+              "emoji": "🧾",
+              "name": "JSON Formatter",
+              "description": "Format, minify and validate JSON",
+              "keywords": "pretty print lint"
+            },
+            {
+              "slug": "json-diff",
+              "emoji": "🆚",
+              "name": "JSON Diff",
+              "description": "Compare two JSON documents",
+              "keywords": "compare"
+            },
+            {
+              "slug": "yaml-json",
+              "emoji": "🔀",
+              "name": "YAML ↔ JSON",
+              "description": "Convert between YAML and JSON",
+              "keywords": "yml convert"
+            },
+            {
+              "slug": "csv-json",
+              "emoji": "📊",
+              "name": "CSV ↔ JSON",
+              "description": "Convert between CSV and JSON",
+              "keywords": "spreadsheet table convert"
+            },
+            {
+              "slug": "sql-formatter",
+              "emoji": "🗄️",
+              "name": "SQL Formatter",
+              "description": "Format and beautify SQL queries",
+              "keywords": "query pretty"
+            }
+          ]
+        },
+        {
+          "name": "Encoding",
+          "tools": [
+            {
+              "slug": "jwt-decoder",
+              "emoji": "🎫",
+              "name": "JWT Decoder",
+              "description": "Decode and inspect JSON Web Tokens",
+              "keywords": "token jws auth"
+            },
+            {
+              "slug": "base64",
+              "emoji": "📦",
+              "name": "Base64",
+              "description": "Encode and decode Base64 text and files",
+              "keywords": "data uri"
+            },
+            {
+              "slug": "url-parser",
+              "emoji": "🔗",
+              "name": "URL Parser",
+              "description": "Split a URL and edit its query parameters",
+              "keywords": "query string encode"
+            },
+            {
+              "slug": "html-entities",
+              "emoji": "🏷️",
+              "name": "HTML Entities",
+              "description": "Escape and unescape HTML entities",
+              "keywords": "escape"
+            }
+          ]
+        },
+        {
+          "name": "Time",
+          "tools": [
+            {
+              "slug": "timestamp",
+              "emoji": "⌛",
+              "name": "Timestamp Converter",
+              "description": "Convert Unix timestamps and dates",
+              "keywords": "epoch unix time date iso"
+            },
+            {
+              "slug": "cron",
+              "emoji": "🕰️",
+              "name": "Cron Explainer",
+              "description": "Explain a cron expression and its next runs",
+              "keywords": "crontab schedule"
+            }
+          ]
+        },
+        {
+          "name": "Testing",
+          "tools": [
+            {
+              "slug": "regex-tester",
+              "emoji": "🧪",
+              "name": "Regex Tester",
+              "description": "Test regular expressions with live matches",
+              "keywords": "regexp pattern"
+            },
+            {
+              "slug": "text-diff",
+              "emoji": "📑",
+              "name": "Text Diff",
+              "description": "Compare two texts line by line",
+              "keywords": "compare diff"
+            }
+          ]
+        },
+        {
+          "name": "Generators",
+          "tools": [
+            {
+              "slug": "uuid",
+              "emoji": "🆔",
+              "name": "UUID / ULID",
+              "description": "Generate and inspect UUIDs and ULIDs",
+              "keywords": "guid id random"
+            },
+            {
+              "slug": "lorem-ipsum",
+              "emoji": "📝",
+              "name": "Lorem Ipsum",
+              "description": "Generate placeholder text",
+              "keywords": "dummy text"
+            }
+          ]
+        },
+        {
+          "name": "Web",
+          "tools": [
+            {
+              "slug": "user-agent",
+              "emoji": "🕵️",
+              "name": "User-Agent Parser",
+              "description": "Identify browser, OS and device from a User-Agent",
+              "keywords": "ua browser"
+            },
+            {
+              "slug": "http-status",
+              "emoji": "🚦",
+              "name": "HTTP Status Codes",
+              "description": "Look up HTTP status codes",
+              "keywords": "404 500 response"
+            },
+            {
+              "slug": "markdown-preview",
+              "emoji": "📖",
+              "name": "Markdown Preview",
+              "description": "Write Markdown with a live preview",
+              "keywords": "md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "evm",
+      "emoji": "⛓️",
+      "name": "EVM Toolbox",
+      "summary": "Ethereum and EVM: units, addresses, ABI, transactions and signatures.",
+      "lead": "Ethereum and EVM tools that run entirely in your browser. Keys you enter never leave your device.",
+      "categories": [
+        {
+          "name": "Units",
+          "tools": [
+            {
+              "slug": "unit-converter",
+              "emoji": "⛽",
+              "name": "Unit Converter",
+              "description": "Convert between wei, gwei and ether",
+              "keywords": "eth gas"
+            }
+          ]
+        },
+        {
+          "name": "Addresses",
+          "tools": [
+            {
+              "slug": "keccak256",
+              "emoji": "#️⃣",
+              "name": "Keccak-256",
+              "description": "Hash text or hex with Keccak-256",
+              "keywords": "sha3 hash"
+            },
+            {
+              "slug": "checksum-address",
+              "emoji": "✅",
+              "name": "Checksum Address",
+              "description": "Validate and checksum an address (EIP-55)",
+              "keywords": "eip55 mixed case"
+            },
+            {
+              "slug": "address-from-key",
+              "emoji": "🗝️",
+              "name": "Address from Key",
+              "description": "Derive the address of a private or public key",
+              "keywords": "private key public key"
+            },
+            {
+              "slug": "contract-address",
+              "emoji": "🏭",
+              "name": "Contract Address",
+              "description": "Predict CREATE and CREATE2 addresses",
+              "keywords": "create2 deploy salt nonce"
+            }
+          ]
+        },
+        {
+          "name": "ABI",
+          "tools": [
+            {
+              "slug": "function-selector",
+              "emoji": "🎯",
+              "name": "Function Selector",
+              "description": "Get a function's 4-byte selector",
+              "keywords": "signature 4byte"
+            },
+            {
+              "slug": "event-topic",
+              "emoji": "📣",
+              "name": "Event Topic",
+              "description": "Get an event's topic hash",
+              "keywords": "log signature"
+            },
+            {
+              "slug": "abi-encoder",
+              "emoji": "🧩",
+              "name": "ABI Encoder",
+              "description": "Encode function calls and parameters",
+              "keywords": "calldata encode"
+            },
+            {
+              "slug": "calldata-decoder",
+              "emoji": "🔍",
+              "name": "Calldata Decoder",
+              "description": "Decode calldata with an ABI or signature",
+              "keywords": "decode input data"
+            }
+          ]
+        },
+        {
+          "name": "Transactions",
+          "tools": [
+            {
+              "slug": "rlp",
+              "emoji": "🪆",
+              "name": "RLP",
+              "description": "Encode and decode RLP",
+              "keywords": "recursive length prefix"
+            },
+            {
+              "slug": "tx-decoder",
+              "emoji": "📦",
+              "name": "Transaction Decoder",
+              "description": "Decode a raw signed transaction and recover its sender",
+              "keywords": "raw tx eip1559 legacy"
+            }
+          ]
+        },
+        {
+          "name": "Signatures",
+          "tools": [
+            {
+              "slug": "sign-message",
+              "emoji": "✍️",
+              "name": "Sign Message",
+              "description": "Sign a message with a private key (EIP-191)",
+              "keywords": "personal_sign eip191"
+            },
+            {
+              "slug": "verify-message",
+              "emoji": "✔️",
+              "name": "Verify Message",
+              "description": "Recover the signer of a message",
+              "keywords": "ecrecover eip191"
+            },
+            {
+              "slug": "typed-data",
+              "emoji": "🧾",
+              "name": "Typed Data",
+              "description": "Hash and sign EIP-712 typed data",
+              "keywords": "eip712 permit"
+            }
+          ]
+        },
+        {
+          "name": "Wallets",
+          "tools": [
+            {
+              "slug": "mnemonic-accounts",
+              "emoji": "🌱",
+              "name": "Mnemonic Accounts",
+              "description": "Derive accounts from a mnemonic (BIP-44)",
+              "keywords": "seed phrase bip39 hd wallet"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

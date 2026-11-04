@@ -6,13 +6,143 @@
   <title>🎙️ Record Audio</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8E%99%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <style>
+    #wave { display: block; width: 100%; height: 96px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+    .center { justify-content: center; }
+    button.stop { background: #e5484d; border-color: #e5484d; color: #fff; }
+    .take { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; }
+    .take audio { width: 100%; }
+    .take .row { justify-content: space-between; flex-wrap: nowrap; }
+    .error { color: #d14343; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>🎙️ Record Audio</h1>
-  <p class="lead">Record sound from your microphone</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Record sound from your microphone. Recordings stay on your device until you download them.</p>
+
+  <div class="panel">
+    <div class="display" id="display">00:00</div>
+    <canvas id="wave" width="800" height="96"></canvas>
+    <p class="error" id="error" hidden></p>
+    <div class="row center" style="margin-top:16px">
+      <button class="primary" id="record">⏺ Record</button>
+      <button id="pause" disabled>Pause</button>
+    </div>
+    <div class="row center">
+      <select id="mic" hidden title="Microphone"></select>
+      <span class="muted" id="format"></span>
+    </div>
+    <div class="list" id="takes"></div>
+  </div>
 </main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const TYPES = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'];
+const mime = window.MediaRecorder ? TYPES.find(t => MediaRecorder.isTypeSupported(t)) || '' : '';
+const ext = mime.startsWith('audio/mp4') ? 'm4a' : mime.startsWith('audio/ogg') ? 'ogg' : 'webm';
+$('format').textContent = window.MediaRecorder ? `Saves as ${ext.toUpperCase()}` : '';
+
+let stream = null, recorder = null, chunks = [], ctx = null, analyser = null, raf = null;
+let elapsed = 0, segmentStart = 0, tick = null, takeNo = 0;
+
+const pad = n => String(n).padStart(2, '0');
+const fmt = ms => { const t = Math.floor(ms / 1000); return `${pad(Math.floor(t / 60))}:${pad(t % 60)}`; };
+const duration = () => elapsed + (recorder?.state === 'recording' ? Date.now() - segmentStart : 0);
+function showError(text) { $('error').textContent = text; $('error').hidden = !text; }
+function explain(err) {
+  if (err.name === 'NotAllowedError') return 'Microphone access was blocked. Allow the microphone for this site in your browser settings and try again.';
+  if (err.name === 'NotFoundError' || err.name === 'OverconstrainedError') return 'No microphone was found. Connect one and try again.';
+  if (err.name === 'NotReadableError') return 'The microphone is in use by another app. Close it and try again.';
+  return 'Could not start the microphone: ' + err.message;
+}
+
+function draw() {
+  const c = $('wave'), g = c.getContext('2d'), w = c.width, h = c.height;
+  const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3a5bd9';
+  g.clearRect(0, 0, w, h);
+  g.lineWidth = 2; g.strokeStyle = color; g.beginPath();
+  if (analyser) {
+    const data = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(data);
+    data.forEach((v, i) => { const x = i / (data.length - 1) * w, y = v / 255 * h; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+  } else { g.moveTo(0, h / 2); g.lineTo(w, h / 2); }
+  g.stroke();
+  if (analyser) raf = requestAnimationFrame(draw);
+}
+
+async function listMics() {
+  const mics = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+  const current = $('mic').value;
+  $('mic').innerHTML = mics.map((m, i) => `<option value="${esc(m.deviceId)}">${esc(m.label || 'Microphone ' + (i + 1))}</option>`).join('');
+  if (current) $('mic').value = current;
+  $('mic').hidden = mics.length < 2;
+}
+
+async function startRecording() {
+  showError('');
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    showError('Your browser does not support audio recording here. Use a recent browser over HTTPS.'); return;
+  }
+  try {
+    const id = $('mic').value;
+    stream = await navigator.mediaDevices.getUserMedia({ audio: id ? { deviceId: { exact: id } } : true });
+  } catch (err) { showError(explain(err)); return; }
+  await listMics();
+  try {
+    ctx = new AudioContext();
+    analyser = ctx.createAnalyser(); analyser.fftSize = 2048;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    draw();
+  } catch {}
+  chunks = []; elapsed = 0; segmentStart = Date.now();
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+  recorder.onstop = finish;
+  recorder.start(1000);
+  tick = setInterval(() => $('display').textContent = fmt(duration()), 200);
+  $('record').textContent = '⏹ Stop'; $('record').classList.add('stop');
+  $('pause').disabled = false; $('pause').textContent = 'Pause'; $('mic').disabled = true;
+}
+function finish() {
+  const total = elapsed;
+  clearInterval(tick); cancelAnimationFrame(raf);
+  stream?.getTracks().forEach(t => t.stop()); stream = null;
+  try { ctx?.close(); } catch {}
+  ctx = analyser = null; draw();
+  $('record').textContent = '⏺ Record'; $('record').classList.remove('stop');
+  $('pause').disabled = true; $('pause').textContent = 'Pause'; $('mic').disabled = false;
+  $('display').textContent = '00:00';
+  if (chunks.length) addTake(new Blob(chunks, { type: recorder.mimeType || mime || 'audio/webm' }), total);
+}
+function stopRecording() {
+  if (recorder.state === 'recording') elapsed += Date.now() - segmentStart;
+  recorder.stop();
+}
+function togglePause() {
+  if (recorder?.state === 'recording') {
+    recorder.pause(); elapsed += Date.now() - segmentStart; $('pause').textContent = 'Resume';
+  } else if (recorder?.state === 'paused') {
+    recorder.resume(); segmentStart = Date.now(); $('pause').textContent = 'Pause';
+  }
+}
+
+function addTake(blob, ms) {
+  const url = URL.createObjectURL(blob), n = ++takeNo, stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const el = document.createElement('div');
+  el.className = 'take';
+  el.innerHTML = `<div class="row"><strong>Recording ${n}</strong><span class="muted">${fmt(ms)} · ${(blob.size / 1024).toFixed(0)} KB</span></div>
+    <audio controls src="${url}"></audio>
+    <div class="row"><a href="${url}" download="recording-${stamp}.${ext}">Download</a><button class="icon-btn" title="Delete">✕</button></div>`;
+  el.querySelector('button').onclick = () => { URL.revokeObjectURL(url); el.remove(); };
+  $('takes').prepend(el);
+}
+
+$('record').onclick = () => (recorder && recorder.state !== 'inactive' ? stopRecording() : startRecording());
+$('pause').onclick = togglePause;
+draw();
+</script>
 </body>
 </html>
