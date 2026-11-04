@@ -6,13 +6,83 @@
   <title>🧱 BOC Decoder</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A7%B1</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← TON</a>
   <h1>🧱 BOC Decoder</h1>
-  <p class="lead">Decode a bag of cells into a cell tree.</p>
-  <p class="placeholder">Coming soon.</p>
+
+  <p class="lead">Decode a bag of cells (BOC) into its cell tree with bits, references and hashes.</p>
+
+  <div class="panel">
+    <label class="field"><span>BOC (hex or base64)</span><textarea id="in" rows="5" class="mono" spellcheck="false" autocomplete="off" placeholder="te6cck…"></textarea></label>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" type="button" id="go">Decode</button>
+      <button type="button" id="example">Example</button>
+      <button type="button" id="expand" hidden>Expand all</button>
+      <button type="button" id="collapse" hidden>Collapse all</button>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="kv" id="summary"></div>
+    <div id="tree"></div>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { bocFromString, bytesToHex, bytesToBase64, serializeBoc, CELL_TYPES, commentCell } from '../lib/ton.js';
+import { $, row, esc, showError } from '../lib/ui.js';
+
+// Fift-style hex: completion tag in the last nibble and a trailing "_" when not nibble-aligned.
+function bitsHex(cell) {
+  const len = cell.bitLength;
+  if (!len) return '';
+  let bits = '';
+  for (let i = 0; i < len; i++) bits += (cell.bits[i >> 3] >> (7 - (i & 7))) & 1;
+  let tail = '';
+  if (len % 4) { bits += '1'; bits = bits.padEnd(Math.ceil(bits.length / 4) * 4, '0'); tail = '_'; }
+  let hex = '';
+  for (let i = 0; i < bits.length; i += 4) hex += parseInt(bits.slice(i, i + 4), 2).toString(16);
+  return hex.toUpperCase() + tail;
+}
+
+function cellHtml(cell, path, seen) {
+  const h = bytesToHex(cell.hash());
+  const type = CELL_TYPES[cell.type];
+  const label = `${esc(path)} · ${cell.bitLength} bits · ${cell.refs.length} ref${cell.refs.length === 1 ? '' : 's'}${cell.exotic ? ' · ' + esc(type) : ''}`;
+  const dup = seen.has(h); seen.add(h);
+  return `<details class="cell" ${path.split('.').length <= 2 ? 'open' : ''}>
+    <summary><span class="mono">${label}</span>${dup ? ' <span class="muted">(same cell as above)</span>' : ''}</summary>
+    <div class="cell-body">
+      <div class="kv-label">Data</div><div class="kv-value">x{${esc(bitsHex(cell))}}</div>
+      <div class="kv-label">Hash</div><div class="kv-value">${h}</div>
+      <div class="kv-label">Depth</div><div class="kv-value">${cell.depth()}${cell.levelMask ? ` · level mask ${cell.levelMask}` : ''}</div>
+      ${cell.refs.map((r, i) => cellHtml(r, `${path}.${i}`, seen)).join('')}
+    </div></details>`;
+}
+
+function decode() {
+  showError($('err')); $('summary').innerHTML = ''; $('tree').innerHTML = '';
+  $('expand').hidden = $('collapse').hidden = true;
+  if (!$('in').value.trim()) return;
+  try {
+    const { roots, info } = bocFromString($('in').value);
+    let html = row('Root hash', bytesToHex(roots[0].hash())) +
+      `<div class="kv-row"><div class="kv-label">BOC</div><div class="kv-value">${esc(info.magic)} · ${info.cells} cell${info.cells === 1 ? '' : 's'} · ${info.roots} root${info.roots === 1 ? '' : 's'} · index ${info.hasIdx ? 'yes' : 'no'} · CRC32C ${info.hasCrc32c ? 'yes, valid' : 'no'}</div></div>`;
+    html += row('Re-encoded (base64, with CRC32C)', bytesToBase64(serializeBoc(roots[0])));
+    $('summary').innerHTML = html;
+    const seen = new Set();
+    $('tree').innerHTML = roots.map((r, i) => cellHtml(r, roots.length > 1 ? `root${i}` : 'root', seen)).join('');
+    $('expand').hidden = $('collapse').hidden = false;
+  } catch (e) { showError($('err'), e); }
+}
+$('go').onclick = decode;
+$('example').onclick = () => { $('in').value = bytesToBase64(serializeBoc(commentCell('Hello from the BOC decoder! '.repeat(6).trim()))); decode(); };
+$('expand').onclick = () => document.querySelectorAll('#tree details').forEach(d => d.open = true);
+$('collapse').onclick = () => document.querySelectorAll('#tree details').forEach(d => d.open = false);
+</script>
 </body>
 </html>

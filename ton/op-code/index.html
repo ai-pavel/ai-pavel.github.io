@@ -6,13 +6,86 @@
   <title>🔢 Op Code</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%A2</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
+  <style>
+  .ops td, .ops th { vertical-align: top; }
+  .ops td:first-child { white-space: nowrap; }
+  .ops tr[data-scheme] { cursor: pointer; }
+  .ops tr[data-scheme]:hover td { background: var(--bg); }
+  .scheme { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+</style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← TON</a>
   <h1>🔢 Op Code</h1>
-  <p class="lead">Compute an op code from a TL-B scheme.</p>
-  <p class="placeholder">Coming soon.</p>
+
+  <p class="lead">Compute a message op code from its TL-B constructor, the way TON contracts derive them.</p>
+
+  <div class="panel">
+    <label class="field"><span>TL-B constructor</span>
+      <textarea id="tlb" rows="3" class="mono" spellcheck="false" placeholder="transfer query_id:uint64 amount:(VarUInteger 16) destination:MsgAddress response_destination:MsgAddress custom_payload:(Maybe ^Cell) forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell) = InternalMsgBody"></textarea>
+    </label>
+    <p class="error" id="err" hidden></p>
+    <div class="kv" id="out"></div>
+    <details class="help">
+      <summary>How it works</summary>
+      <p>The scheme is normalized: an explicit tag (<code>#…</code> or <code>$…</code>) and brackets are removed, a trailing <code>;</code> is dropped and whitespace is collapsed. The op code is the CRC32 of that text with the highest bit cleared.</p>
+      <p>Some standard ops use the same CRC32 with the highest bit <em>set</em> instead, often responses such as <code>excesses</code> (0xd53276db). Both forms are shown.</p>
+    </details>
+
+    <h2>Common op codes</h2>
+    <p class="muted">Click a row to load its scheme. The last column shows that the value is reproduced from the scheme.</p>
+    <div style="overflow-x:auto"><table class="ops"><thead><tr><th>Op</th><th>Message</th><th></th></tr></thead><tbody id="ops"></tbody></table></div>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { crc32, utf8 } from '../lib/ton.js';
+import { $, row, esc, showError } from '../lib/ui.js';
+
+const COMMON = [
+  ['0f8a7ea5', 'Jetton transfer', 'transfer query_id:uint64 amount:(VarUInteger 16) destination:MsgAddress response_destination:MsgAddress custom_payload:(Maybe ^Cell) forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell) = InternalMsgBody'],
+  ['178d4519', 'Jetton internal transfer', 'internal_transfer query_id:uint64 amount:(VarUInteger 16) from:MsgAddress response_address:MsgAddress forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell) = InternalMsgBody'],
+  ['7362d09c', 'Jetton transfer notification', 'transfer_notification query_id:uint64 amount:(VarUInteger 16) sender:MsgAddress forward_payload:(Either Cell ^Cell) = InternalMsgBody'],
+  ['595f07bc', 'Jetton burn', 'burn query_id:uint64 amount:(VarUInteger 16) response_destination:MsgAddress custom_payload:(Maybe ^Cell) = InternalMsgBody'],
+  ['d53276db', 'Excesses', 'excesses query_id:uint64 = InternalMsgBody'],
+  ['5fcc3d14', 'NFT transfer', 'transfer query_id:uint64 new_owner:MsgAddress response_destination:MsgAddress custom_payload:(Maybe ^Cell) forward_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell) = InternalMsgBody'],
+  ['05138d91', 'NFT ownership assigned', 'ownership_assigned query_id:uint64 prev_owner:MsgAddress forward_payload:(Either Cell ^Cell) = InternalMsgBody'],
+  ['2fcb26a2', 'NFT get static data', 'get_static_data query_id:uint64 = InternalMsgBody'],
+];
+
+function normalize(s) {
+  let t = s.replace(/\s+/g, ' ').trim().replace(/;\s*$/, '');
+  t = t.replace(/^(\S+?)(#[0-9a-fA-F_]*|\$[01_]*)(?=\s|$)/, '$1');
+  return t.replace(/[()]/g, '').replace(/\s+/g, ' ').trim();
+}
+const hex8 = n => n.toString(16).padStart(8, '0');
+
+function compute() {
+  showError($('err')); $('out').innerHTML = '';
+  const src = $('tlb').value.trim();
+  if (!src) return;
+  if (!src.includes('=')) { showError($('err'), new Error('A TL-B constructor needs "= ResultType" at the end')); return; }
+  const tag = src.match(/^\S+?#([0-9a-fA-F]+)\b/);
+  const norm = normalize(src), raw = crc32(utf8(norm)), op = raw & 0x7fffffff, high = (op | 0x80000000) >>> 0;
+  const t = tag ? parseInt(tag[1], 16) >>> 0 : null;
+  $('out').innerHTML = row('Op code (hex)', '0x' + hex8(op)) + row('Op code (decimal)', String(op)) +
+    row('With the high bit set', '0x' + hex8(high), 'Used by some standard ops, often responses such as excesses (0xd53276db).') +
+    row('Normalized scheme', norm) +
+    (tag ? `<div class="kv-row"><div class="kv-label">Explicit tag in the input</div><div class="kv-value">#${esc(tag[1])} ${t === op ? '<span class="ok">matches</span>' : t === high ? '<span class="ok">matches the high-bit form</span>' : '<span class="muted">differs from the computed value; contracts use the explicit tag</span>'}</div></div>` : '');
+}
+$('tlb').addEventListener('input', compute);
+
+$('ops').innerHTML = COMMON.map(([op, name, scheme]) => {
+  const raw = crc32(utf8(normalize(scheme)));
+  const ok = hex8(raw & 0x7fffffff) === op ? '✓ computed' : hex8(((raw & 0x7fffffff) | 0x80000000) >>> 0) === op ? '✓ high bit set' : '✗';
+  return `<tr data-scheme="${esc(scheme)}"><td class="mono">0x${op}</td><td>${esc(name)}<div class="scheme mono">${esc(scheme)}</div></td><td class="muted" style="white-space:nowrap">${ok}</td></tr>`;
+}).join('');
+$('ops').onclick = e => { const tr = e.target.closest('tr[data-scheme]'); if (tr) { $('tlb').value = tr.dataset.scheme; compute(); $('tlb').scrollIntoView({ block: 'center' }); } };
+</script>
 </body>
 </html>

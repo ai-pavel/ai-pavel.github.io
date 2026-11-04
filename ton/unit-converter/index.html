@@ -6,13 +6,71 @@
   <title>💰 Unit Converter</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%92%B0</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← TON</a>
   <h1>💰 Unit Converter</h1>
-  <p class="lead">Convert between nanotons and TON.</p>
-  <p class="placeholder">Coming soon.</p>
+
+  <p class="lead">Convert between nanotons and TON exactly, and between jetton amounts and their on-chain units.</p>
+
+  <div class="panel">
+    <h2 style="margin-top:0">TON</h2>
+    <div class="row">
+      <label class="field" style="flex:1 1 200px"><span>TON</span><input id="ton" inputmode="decimal" value="1" autocomplete="off"></label>
+      <label class="field" style="flex:1 1 200px"><span>Nanotons</span><input id="nano" inputmode="numeric" autocomplete="off"></label>
+    </div>
+    <p class="muted" id="ton-note">1 TON = 1,000,000,000 nanotons.</p>
+    <p class="error" id="ton-err" hidden></p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Jetton</h2>
+    <div class="row">
+      <label class="field" style="flex:0 1 140px"><span>Decimals</span><input id="dec" type="number" min="0" max="255" value="6"></label>
+      <div class="row" style="align-self:flex-end">
+        <button type="button" data-dec="6">USDT (6)</button>
+        <button type="button" data-dec="9">Default (9)</button>
+      </div>
+    </div>
+    <div class="row">
+      <label class="field" style="flex:1 1 200px"><span>Amount</span><input id="amt" inputmode="decimal" value="1" autocomplete="off"></label>
+      <label class="field" style="flex:1 1 200px"><span>Units</span><input id="units" inputmode="numeric" autocomplete="off"></label>
+    </div>
+    <p class="error" id="jet-err" hidden></p>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { toUnits, fromUnits } from '../lib/ton.js';
+import { $, showError } from '../lib/ui.js';
+
+function pair(a, b, err, decimals) {
+  const fwd = () => { try { $(b).value = toUnits($(a).value, decimals()).toString(); showError($(err)); } catch (e) { $(b).value = ''; showError($(err), e); } };
+  const back = () => {
+    try {
+      const t = $(b).value.trim().replace(/[_\s,]/g, '');
+      if (!/^-?\d+$/.test(t)) throw new Error('Units must be a whole number');
+      $(a).value = fromUnits(BigInt(t), decimals()); showError($(err));
+    } catch (e) { $(a).value = ''; showError($(err), e); }
+  };
+  $(a).addEventListener('input', fwd); $(b).addEventListener('input', back);
+  return fwd;
+}
+const decimals = () => {
+  const d = Number($('dec').value);
+  if (!Number.isInteger(d) || d < 0 || d > 255) throw new Error('Decimals must be a whole number from 0 to 255');
+  return d;
+};
+pair('ton', 'nano', 'ton-err', () => 9)();
+const jet = pair('amt', 'units', 'jet-err', decimals);
+$('dec').addEventListener('input', jet);
+document.querySelectorAll('[data-dec]').forEach(b => b.onclick = () => { $('dec').value = b.dataset.dec; jet(); });
+jet();
+</script>
 </body>
 </html>

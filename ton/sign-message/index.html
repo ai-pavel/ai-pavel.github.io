@@ -6,13 +6,82 @@
   <title>✍️ Sign Message</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%8D%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← TON</a>
   <h1>✍️ Sign Message</h1>
-  <p class="lead">Sign a message with an ed25519 key.</p>
-  <p class="placeholder">Coming soon.</p>
+
+  <p class="lead">Sign a message with an ed25519 key: a raw private key or a TON mnemonic.</p>
+
+  <div class="panel">
+    <p class="notice">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="segmented" role="group" aria-label="Key">
+      <button type="button" data-key="secret" aria-pressed="true">Private key</button>
+      <button type="button" data-key="mn" aria-pressed="false">Mnemonic</button>
+    </div>
+    <div id="secret-box" style="margin-top:12px">
+      <label class="field"><span>Private key: 32-byte seed or 64-byte secret key (hex or base64)</span>
+        <input id="secret" class="mono" type="password" autocomplete="off" spellcheck="false"></label>
+      <div class="row" style="margin-top:8px"><button type="button" id="random">Random key</button><label class="row muted" style="flex-direction:row"><input type="checkbox" id="show"> Show</label></div>
+    </div>
+    <div id="mn-box" style="margin-top:12px" hidden>
+      <label class="field"><span>Mnemonic (24 words)</span><textarea id="mn" rows="3" class="mono" spellcheck="false" autocomplete="off"></textarea></label>
+      <label class="field" style="margin-top:8px"><span>Password (optional)</span><input id="pw" type="password" autocomplete="off"></label>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <span class="muted">Message is</span>
+      <div class="segmented" role="group" aria-label="Message format">
+        <button type="button" data-fmt="text" aria-pressed="true">Text</button>
+        <button type="button" data-fmt="hex" aria-pressed="false">Hex</button>
+      </div>
+    </div>
+    <label class="field" style="margin-top:8px"><span>Message</span><textarea id="msg" rows="3" spellcheck="false"></textarea></label>
+    <div class="row" style="margin-top:12px"><button class="primary" type="button" id="go">Sign</button><span class="muted" id="status"></span></div>
+    <p class="error" id="err" hidden></p>
+    <div class="kv" id="out"></div>
+    <p class="muted" style="margin-top:16px">This signs the message bytes directly with ed25519. Wallet apps may add a prefix or hash first (for example TON Connect's signData), so their signatures differ.</p>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { ed25519, seedFromSecret, mnemonicToKeyPair, validateMnemonic, bytesToHex, bytesToBase64, hexToBytes, utf8 } from '../lib/ton.js';
+import { $, row, showError } from '../lib/ui.js';
+
+let key = 'secret', fmt = 'text';
+const seg = (attr, set) => document.querySelectorAll(`[data-${attr}]`).forEach(b => b.onclick = () => {
+  document.querySelectorAll(`[data-${attr}]`).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  set(b.dataset[attr]);
+});
+seg('key', v => { key = v; $('secret-box').hidden = v !== 'secret'; $('mn-box').hidden = v !== 'mn'; });
+seg('fmt', v => { fmt = v; });
+$('show').onchange = () => { $('secret').type = $('show').checked ? 'text' : 'password'; };
+$('random').onclick = () => { $('secret').value = bytesToHex(crypto.getRandomValues(new Uint8Array(32))); };
+
+$('go').onclick = async () => {
+  showError($('err')); $('out').innerHTML = '';
+  try {
+    let seed;
+    if (key === 'secret') {
+      if (!$('secret').value.trim()) throw new Error('Enter a private key');
+      seed = seedFromSecret($('secret').value);
+    } else {
+      $('status').textContent = 'Deriving key…';
+      const v = await validateMnemonic($('mn').value, $('pw').value);
+      if (!v.valid) throw new Error(v.reason);
+      seed = (await mnemonicToKeyPair($('mn').value, $('pw').value)).seed;
+    }
+    const msg = fmt === 'hex' ? hexToBytes($('msg').value) : utf8($('msg').value);
+    const sig = ed25519.sign(msg, seed);
+    $('out').innerHTML = row('Signature (hex)', bytesToHex(sig)) + row('Signature (base64)', bytesToBase64(sig)) +
+      row('Public key (hex)', bytesToHex(ed25519.getPublicKey(seed))) + row('Message bytes (hex)', bytesToHex(msg));
+  } catch (e) { showError($('err'), e); }
+  $('status').textContent = '';
+};
+</script>
 </body>
 </html>

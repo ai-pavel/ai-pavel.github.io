@@ -6,13 +6,96 @@
   <title>🗝️ Wallet Address</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%97%9D%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← TON</a>
   <h1>🗝️ Wallet Address</h1>
-  <p class="lead">Derive a wallet address from a public key (v3, v4, v5).</p>
-  <p class="placeholder">Coming soon.</p>
+
+  <p class="lead">Derive the addresses of the standard wallet contracts (v3r1, v3r2, v4r2, v5r1) for a public key or mnemonic.</p>
+
+  <div class="panel">
+    <p class="notice">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="segmented" role="group" aria-label="Input">
+      <button type="button" data-mode="pub" aria-pressed="true">Public key</button>
+      <button type="button" data-mode="mn" aria-pressed="false">Mnemonic</button>
+    </div>
+    <div id="pub-box" style="margin-top:12px">
+      <label class="field"><span>Public key (32 bytes, hex or base64)</span>
+        <input id="pub" class="mono" autocomplete="off" spellcheck="false" placeholder="e.g. 82a0b2543d06fec0aac952e9ec738be56ab1b6027fc0c1aa817ae14b4d1ed2fb">
+      </label>
+    </div>
+    <div id="mn-box" style="margin-top:12px" hidden>
+      <label class="field"><span>Mnemonic (24 words)</span><textarea id="mn" rows="3" class="mono" spellcheck="false" autocomplete="off"></textarea></label>
+      <label class="field" style="margin-top:8px"><span>Password (optional)</span><input id="pw" type="password" autocomplete="off"></label>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label class="field" style="flex:1 1 140px"><span>Network</span>
+        <select id="net"><option value="main">Mainnet</option><option value="test">Testnet</option></select></label>
+      <label class="field" style="flex:1 1 140px"><span>Workchain</span>
+        <select id="wc"><option value="0">0 (basechain)</option><option value="-1">-1 (masterchain)</option></select></label>
+      <label class="field" style="flex:1 1 140px"><span>Wallet ID (v3/v4)</span><input id="wid" type="number" placeholder="698983191"></label>
+      <label class="field" style="flex:1 1 140px"><span>Subwallet (v5)</span><input id="sub" type="number" min="0" max="32767" value="0"></label>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="primary" type="button" id="go">Derive addresses</button><span class="muted" id="status"></span></div>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { parseBytes, bytesToHex, walletAddress, formatFriendly, formatRaw, validateMnemonic, mnemonicToKeyPair, DEFAULT_WALLET_ID, WALLET_VERSIONS } from '../lib/ton.js';
+import { $, row, esc, showError } from '../lib/ui.js';
+
+let mode = 'pub';
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  $('pub-box').hidden = mode !== 'pub'; $('mn-box').hidden = mode !== 'mn';
+  $('out').innerHTML = ''; showError($('err'));
+});
+$('wc').onchange = () => { $('wid').placeholder = String(DEFAULT_WALLET_ID + Number($('wc').value)); };
+
+const NAMES = { v3r1: 'Wallet v3r1', v3r2: 'Wallet v3r2', v4r2: 'Wallet v4r2', v5r1: 'Wallet v5r1 (W5)' };
+
+async function derive() {
+  showError($('err')); $('out').innerHTML = ''; $('status').textContent = '';
+  try {
+    let pub, extra = '';
+    if (mode === 'pub') {
+      if (!$('pub').value.trim()) throw new Error('Enter a public key');
+      pub = parseBytes($('pub').value);
+      if (pub.length !== 32) throw new Error(`Public key must be 32 bytes, got ${pub.length}`);
+    } else {
+      $('status').textContent = 'Deriving keys…';
+      const v = await validateMnemonic($('mn').value, $('pw').value);
+      if (!v.valid) throw new Error(v.reason);
+      pub = (await mnemonicToKeyPair($('mn').value, $('pw').value)).publicKey;
+      extra = row('Public key', bytesToHex(pub));
+      $('status').textContent = '';
+    }
+    const workchain = Number($('wc').value), testnet = $('net').value === 'test';
+    const wid = $('wid').value.trim() === '' ? undefined : Number($('wid').value);
+    if (wid !== undefined && (!Number.isInteger(wid) || wid < 0 || wid > 0xffffffff)) throw new Error('Wallet ID must be a whole number from 0 to 4294967295');
+    const subwallet = Number($('sub').value || 0);
+    if (!Number.isInteger(subwallet) || subwallet < 0 || subwallet > 32767) throw new Error('Subwallet must be from 0 to 32767');
+    let html = extra ? `<div class="kv">${extra}</div>` : '';
+    for (const ver of [...WALLET_VERSIONS].reverse()) {
+      const a = walletAddress(ver, pub, { workchain, walletId: wid, subwallet, networkGlobalId: testnet ? -3 : -239 });
+      html += `<h2>${esc(NAMES[ver])}</h2><div class="kv">` +
+        row('Non-bounceable (as wallets show it)', formatFriendly(a.workchain, a.hash, { bounceable: false, testnet })) +
+        row('Bounceable', formatFriendly(a.workchain, a.hash, { bounceable: true, testnet })) +
+        row('Raw', formatRaw(a.workchain, a.hash)) + '</div>';
+    }
+    $('out').innerHTML = html;
+  } catch (e) { $('status').textContent = ''; showError($('err'), e); }
+}
+$('go').onclick = derive;
+$('pub').addEventListener('keydown', e => { if (e.key === 'Enter') derive(); });
+</script>
 </body>
 </html>

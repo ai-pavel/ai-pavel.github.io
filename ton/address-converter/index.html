@@ -6,13 +6,65 @@
   <title>🔄 Address Converter</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%84</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← TON</a>
   <h1>🔄 Address Converter</h1>
-  <p class="lead">Convert between raw, bounceable and non-bounceable addresses.</p>
-  <p class="placeholder">Coming soon.</p>
+
+  <p class="lead">Convert a TON address between raw and user-friendly forms, and check its checksum.</p>
+
+  <div class="panel">
+    <label class="field"><span>Address</span>
+      <input id="addr" class="mono" placeholder="EQ… / UQ… / 0:83df…" autocomplete="off" spellcheck="false">
+    </label>
+    <div class="row" style="margin-top:8px">
+      <button type="button" id="example">Example</button>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div id="info" class="muted" style="margin-top:12px"></div>
+    <div class="kv" id="out"></div>
+    <details class="help">
+      <summary>What the forms mean</summary>
+      <p><strong>Raw</strong> is <code>workchain:hash</code>. <strong>User-friendly</strong> addresses are 36 bytes in base64: a flags byte, the workchain, the 32-byte hash and a CRC16 checksum.</p>
+      <p><strong>Bounceable</strong> (EQ…, testnet kQ…): if the receiving contract fails, the coins bounce back. Use it for smart contracts.
+        <strong>Non-bounceable</strong> (UQ…, testnet 0Q…): coins stay even if the account isn't deployed yet. Wallets show this form.</p>
+      <p>The testnet flag only marks the address as meant for testnet; the account hash is the same.</p>
+    </details>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { parseAddress, formatFriendly, formatRaw } from '../lib/ton.js';
+import { $, row, esc, showError } from '../lib/ui.js';
+
+function render() {
+  const v = $('addr').value.trim();
+  $('out').innerHTML = ''; $('info').textContent = '';
+  if (!v) { showError($('err')); return; }
+  let a;
+  try { a = parseAddress(v); } catch (e) { showError($('err'), e); return; }
+  showError($('err'));
+  const f = (bounceable, testnet, urlSafe = true) => formatFriendly(a.workchain, a.hash, { bounceable, testnet, urlSafe });
+  $('info').innerHTML = a.format === 'raw'
+    ? `Input: raw address · workchain ${a.workchain}`
+    : `Input: user-friendly · ${a.bounceable ? 'bounceable' : 'non-bounceable'} · ${a.testnet ? 'testnet' : 'mainnet'} · ${a.urlSafe ? 'base64url' : 'base64'} · workchain ${a.workchain} · <span class="ok">checksum OK</span>`;
+  $('out').innerHTML = [
+    row('Raw', formatRaw(a.workchain, a.hash)),
+    row('Non-bounceable (wallets)', f(false, false)),
+    row('Bounceable (contracts)', f(true, false)),
+    row('Non-bounceable · testnet', f(false, true)),
+    row('Bounceable · testnet', f(true, true)),
+    row('Non-bounceable · standard base64', f(false, false, false)),
+    row('Bounceable · standard base64', f(true, false, false)),
+  ].join('');
+}
+$('addr').addEventListener('input', render);
+$('example').onclick = () => { $('addr').value = 'EQCD39VS5jcptHL8vMjEXrzGaRcCVYto7HUn4bpAOg8xqB2N'; render(); };
+</script>
 </body>
 </html>

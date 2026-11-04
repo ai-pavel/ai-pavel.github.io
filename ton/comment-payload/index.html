@@ -6,13 +6,85 @@
   <title>💬 Comment Payload</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%92%AC</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← TON</a>
   <h1>💬 Comment Payload</h1>
-  <p class="lead">Encode and decode text comments in message bodies.</p>
-  <p class="placeholder">Coming soon.</p>
+
+  <p class="lead">Build the message body for a text comment, or read the comment from a body BOC.</p>
+
+  <div class="panel">
+    <div class="segmented" role="group" aria-label="Mode">
+      <button type="button" data-mode="enc" aria-pressed="true">Encode</button>
+      <button type="button" data-mode="dec" aria-pressed="false">Decode</button>
+    </div>
+    <div id="enc-box" style="margin-top:12px">
+      <label class="field"><span>Comment text</span><textarea id="text" rows="4" placeholder="Thanks for lunch!"></textarea></label>
+      <p class="muted" id="enc-info"></p>
+      <div class="kv" id="enc-out"></div>
+    </div>
+    <div id="dec-box" style="margin-top:12px" hidden>
+      <label class="field"><span>Body BOC (hex or base64)</span><textarea id="boc" rows="4" class="mono" spellcheck="false" autocomplete="off"></textarea></label>
+      <div id="dec-out" style="margin-top:12px"></div>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <details class="help">
+      <summary>Format</summary>
+      <p>A text comment is a cell that starts with the 32-bit op code 0, followed by the UTF-8 text. Text that doesn't fit in one cell (123 bytes after the op code, 127 bytes per further cell) continues in a chain of references ("snake" format).</p>
+      <p>Encrypted comments use op 0x2167da4b. They can only be decrypted with the wallet's private key, which this tool doesn't do.</p>
+    </details>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { commentCell, decodeComment, bocFromString, serializeBoc, bytesToBase64, bytesToHex, utf8, OP_ENCRYPTED_COMMENT } from '../lib/ton.js';
+import { $, row, esc, showError } from '../lib/ui.js';
+
+let mode = 'enc';
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  $('enc-box').hidden = mode !== 'enc'; $('dec-box').hidden = mode !== 'dec';
+  showError($('err'));
+});
+
+function countCells(c) { return 1 + c.refs.reduce((n, r) => n + countCells(r), 0); }
+
+function encode() {
+  showError($('err'));
+  const text = $('text').value;
+  if (!text) { $('enc-out').innerHTML = ''; $('enc-info').textContent = ''; return; }
+  try {
+    const cell = commentCell(text), boc = serializeBoc(cell);
+    $('enc-info').textContent = `${utf8(text).length} bytes of UTF-8 in ${countCells(cell)} cell${countCells(cell) === 1 ? '' : 's'}.`;
+    $('enc-out').innerHTML = row('Body BOC (base64)', bytesToBase64(boc)) + row('Body BOC (base64url)', bytesToBase64(boc, true)) +
+      row('Body BOC (hex)', bytesToHex(boc)) + row('Body cell hash', bytesToHex(cell.hash()));
+  } catch (e) { showError($('err'), e); }
+}
+
+function decode() {
+  showError($('err')); $('dec-out').innerHTML = '';
+  if (!$('boc').value.trim()) return;
+  try {
+    const r = decodeComment(bocFromString($('boc').value).roots[0]);
+    if (r.kind === 'empty') $('dec-out').innerHTML = '<p class="muted">Empty body: a plain transfer with no comment.</p>';
+    else if (r.kind === 'text') {
+      $('dec-out').innerHTML = `<p class="ok">Text comment (op 0)${r.validUtf8 ? '' : ' <span class="bad">· not valid UTF-8</span>'}</p>` +
+        `<div class="kv">${row('Text', r.text)}</div>`;
+    } else if (r.kind === 'encrypted') {
+      $('dec-out').innerHTML = `<p>Encrypted comment (op 0x${OP_ENCRYPTED_COMMENT.toString(16)}), ${r.bytes.length} bytes. It can only be read with the recipient's private key.</p>`;
+    } else {
+      $('dec-out').innerHTML = `<p>Not a comment: op code 0x${r.op.toString(16).padStart(8, '0')}. Look it up in the Op Code tool or decode the cell in the BOC Decoder.</p>`;
+    }
+  } catch (e) { showError($('err'), e); }
+}
+$('text').addEventListener('input', encode);
+$('boc').addEventListener('input', decode);
+</script>
 </body>
 </html>
