@@ -6,13 +6,131 @@
   <title>✨ Vanity Address</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%A8</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/sol.css">
+  <style>
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 16px; }
+    .stat { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+    .stat b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
+    .stat span { color: var(--muted); font-size: 13px; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← Solana</a>
   <h1>✨ Vanity Address</h1>
-  <p class="lead">Generate an address with a chosen prefix.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Generate a keypair whose address starts or ends with characters you choose. The search runs in background threads on your device.</p>
+
+  <div class="panel">
+    <div class="row">
+      <label class="field" style="flex:1;min-width:140px">Starts with <input id="prefix" class="mono" autocomplete="off" spellcheck="false" maxlength="10"></label>
+      <label class="field" style="flex:1;min-width:140px">Ends with <input id="suffix" class="mono" autocomplete="off" spellcheck="false" maxlength="10"></label>
+    </div>
+    <label class="row" style="margin-top:12px;color:var(--text)"><input type="checkbox" id="case"> Case-sensitive</label>
+    <label class="field">Threads
+      <input id="threads" type="number" min="1" max="32">
+    </label>
+    <p class="error" id="err" hidden></p>
+    <p class="muted" id="estimate"></p>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="start">Start</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+    <div class="stats" id="stats" hidden>
+      <div class="stat"><b id="tried">0</b><span>Keys tried</span></div>
+      <div class="stat"><b id="rate">0</b><span>Keys per second</span></div>
+      <div class="stat"><b id="elapsed">0s</b><span>Elapsed</span></div>
+    </div>
+    <div id="out"></div>
+    <p class="note">Runs locally in your browser. Keys are generated with crypto.getRandomValues and never leave your device, but treat generated keys with care.</p>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { keypairFromSeed, base58, kvTable, wireCopy, showError } from '../lib/sol.js';
+const $ = id => document.getElementById(id);
+const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+let workers = [], tried = 0, startedAt = 0, ticker;
+$('threads').value = Math.max(1, Math.min(16, (navigator.hardwareConcurrency || 4) - 1));
+
+// Probability that one random address character matches c (ignores the slightly skewed first character).
+function matches(c, cs) {
+  if (cs) return ALPHABET.includes(c) ? 1 : 0;
+  return [...ALPHABET].filter(a => a.toLowerCase() === c.toLowerCase()).length;
+}
+function validate() {
+  const cs = $('case').checked, p = $('prefix').value.trim(), s = $('suffix').value.trim();
+  for (const c of p + s) {
+    if (!matches(c, cs)) return { error: `"${c}" can never appear in an address: base58 has no 0, O, I or l.` };
+  }
+  if (!p && !s) return { error: 'Enter a prefix, a suffix or both.' };
+  let expected = 1;
+  for (const c of p + s) expected *= 58 / matches(c, cs);
+  return { p, s, cs, expected };
+}
+const fmt = n => n >= 1e9 ? (n / 1e9).toFixed(1) + 'B' : n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(Math.round(n));
+function dur(sec) {
+  if (!isFinite(sec)) return '—';
+  if (sec < 60) return Math.round(sec) + ' s';
+  if (sec < 3600) return Math.round(sec / 60) + ' min';
+  if (sec < 86400) return (sec / 3600).toFixed(1) + ' h';
+  if (sec < 86400 * 365) return Math.round(sec / 86400) + ' days';
+  return fmt(sec / 86400 / 365) + ' years';
+}
+let lastRate = 0;
+function showEstimate() {
+  const v = validate();
+  if (v.error) { $('estimate').textContent = ''; if ($('prefix').value || $('suffix').value) showError($('err'), v.error); else showError($('err')); return v; }
+  showError($('err'));
+  $('estimate').textContent = `About ${fmt(v.expected)} keys on average` + (lastRate ? ` · roughly ${dur(v.expected / lastRate)} at the current speed.` : '. Speed is shown once the search starts.') + (v.p.length + v.s.length > 6 ? ' Long patterns can take days or longer.' : '');
+  return v;
+}
+['prefix', 'suffix'].forEach(id => $(id).oninput = showEstimate);
+$('case').onchange = showEstimate;
+
+function stop() {
+  workers.forEach(w => w.terminate()); workers = [];
+  clearInterval(ticker);
+  $('start').disabled = false; $('stop').disabled = true;
+}
+function tick() {
+  const sec = (performance.now() - startedAt) / 1000;
+  $('tried').textContent = fmt(tried);
+  lastRate = tried / Math.max(sec, 0.001);
+  $('rate').textContent = fmt(lastRate);
+  $('elapsed').textContent = dur(sec);
+}
+$('start').onclick = () => {
+  const v = showEstimate();
+  if (v.error) return showError($('err'), v.error);
+  stop();
+  tried = 0; startedAt = performance.now(); $('out').innerHTML = ''; $('stats').hidden = false;
+  $('start').disabled = true; $('stop').disabled = false;
+  const n = Math.max(1, Math.min(32, parseInt($('threads').value) || 1));
+  for (let i = 0; i < n; i++) {
+    const w = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+    w.onmessage = e => {
+      if (e.data.type === 'progress') tried += e.data.tried;
+      if (e.data.type === 'found') {
+        tried += e.data.tried; tick(); stop();
+        const kp = keypairFromSeed(Uint8Array.from(e.data.seed));
+        $('out').innerHTML = `<p class="ok" style="margin-top:16px">Found after ${fmt(tried)} keys.</p>` + kvTable([
+          ['Address', base58.encode(kp.publicKey)],
+          ['Secret key (base58)', base58.encode(kp.secretKey)],
+          ['Secret key (JSON array)', JSON.stringify(Array.from(kp.secretKey))],
+        ]);
+      }
+    };
+    w.onerror = e => { stop(); showError($('err'), 'Worker failed: ' + (e.message || 'unknown error')); };
+    w.postMessage({ type: 'start', prefix: v.p, suffix: v.s, caseSensitive: v.cs });
+    workers.push(w);
+  }
+  ticker = setInterval(() => { tick(); showEstimate(); }, 500);
+};
+$('stop').onclick = () => { tick(); stop(); };
+wireCopy();
+</script>
 </body>
 </html>

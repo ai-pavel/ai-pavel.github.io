@@ -6,13 +6,59 @@
   <title>🔐 Keypair Converter</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%90</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/sol.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← Solana</a>
   <h1>🔐 Keypair Converter</h1>
-  <p class="lead">Convert a keypair between JSON bytes and base58.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Convert a keypair between the JSON byte array used by <code>id.json</code>, a base58 secret key and the 32-byte seed.</p>
+
+  <div class="panel">
+    <label class="field">Secret key: JSON array (64 or 32 numbers), base58, or hex
+      <textarea id="input" class="wide" rows="4" spellcheck="false" autocomplete="off" placeholder="[174,47,154,...] or 4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw..."></textarea>
+    </label>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="gen">Generate new keypair</button>
+      <button id="clear">Clear</button>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+    <p class="note">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { parseSecret, keypairFromSeed, base58, hex, kvTable, wireCopy, showError } from '../lib/sol.js';
+const $ = id => document.getElementById(id);
+
+function render() {
+  const v = $('input').value;
+  $('out').innerHTML = '';
+  if (!v.trim()) { showError($('err')); return; }
+  try {
+    const kp = parseSecret(v);
+    showError($('err'), kp.mismatch ? 'Warning: the last 32 bytes of this 64-byte key do not match the public key derived from its seed. The outputs below use the correct public key.' : '');
+    $('out').innerHTML = kvTable([
+      ['Public key (address)', base58.encode(kp.publicKey)],
+      ['Secret key (base58, 64 bytes)', base58.encode(kp.secretKey), 'Format used by Phantom and Solflare import.'],
+      ['Secret key (JSON array, 64 bytes)', JSON.stringify(Array.from(kp.secretKey)), 'Format of id.json used by the Solana CLI.'],
+      ['Seed (hex, 32 bytes)', hex.encode(kp.seed)],
+      ['Seed (base58, 32 bytes)', base58.encode(kp.seed)],
+    ]);
+  } catch (e) { showError($('err'), e.message); }
+}
+$('input').oninput = render;
+$('gen').onclick = () => {
+  const kp = keypairFromSeed(crypto.getRandomValues(new Uint8Array(32)));
+  $('input').value = JSON.stringify(Array.from(kp.secretKey));
+  render();
+};
+$('clear').onclick = () => { $('input').value = ''; render(); };
+wireCopy();
+</script>
 </body>
 </html>

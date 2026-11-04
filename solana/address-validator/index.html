@@ -6,13 +6,62 @@
   <title>✅ Address Validator</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%85</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/sol.css">
+  <style>
+    .result { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; }
+    .result .addr { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; word-break: break-all; }
+    .result ul { margin: 8px 0 0; padding-left: 18px; font-size: 14px; }
+  </style>
 </head>
 <body>
 <main>
   <a class="back" href="../">← Solana</a>
   <h1>✅ Address Validator</h1>
-  <p class="lead">Check an address and whether it is on the ed25519 curve.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Check Solana addresses: valid base58, 32 bytes, on or off the ed25519 curve, and well-known programs.</p>
+
+  <div class="panel">
+    <label class="field">Addresses, one per line
+      <textarea id="input" class="wide" rows="4" spellcheck="false" autocomplete="off" placeholder="11111111111111111111111111111111"></textarea>
+    </label>
+    <div id="out"></div>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { base58, hex, isOnCurve, PROGRAMS, esc } from '../lib/sol.js';
+const $ = id => document.getElementById(id);
+
+function check(addr) {
+  let bytes;
+  try { bytes = base58.decode(addr); } catch {
+    const bad = [...addr].filter(c => !'123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'.includes(c));
+    return { ok: false, msg: bad.length ? `Not base58: contains ${[...new Set(bad)].map(c => `"${c}"`).join(', ')}` + (bad.some(c => '0OIl'.includes(c)) ? ' (base58 has no 0, O, I or l)' : '') : 'Not valid base58.' };
+  }
+  if (bytes.length !== 32) return { ok: false, msg: `Decodes to ${bytes.length} bytes; a Solana address is 32 bytes.` };
+  const on = isOnCurve(bytes);
+  const notes = [
+    on ? 'On the ed25519 curve: a regular wallet address that can have a private key.'
+       : 'Off the ed25519 curve: no private key exists. Typically a program derived address (PDA).',
+  ];
+  if (PROGRAMS[addr]) notes.unshift(`Known address: ${PROGRAMS[addr]}.`);
+  return { ok: true, msg: 'Valid address', notes, hex: hex.encode(bytes), name: PROGRAMS[addr] };
+}
+
+function render() {
+  const lines = $('input').value.split('\n').map(s => s.trim()).filter(Boolean);
+  $('out').innerHTML = lines.map(a => {
+    const r = check(a);
+    return `<div class="result">
+      <div class="addr">${esc(a)}</div>
+      <div class="${r.ok ? 'ok' : 'bad'}" style="margin-top:6px">${r.ok ? '✅' : '❌'} ${esc(r.msg)}${r.name ? ` · ${esc(r.name)}` : ''}</div>
+      ${r.ok ? `<ul>${r.notes.map(n => `<li>${esc(n)}</li>`).join('')}<li class="mono" style="word-break:break-all">Hex: ${r.hex}</li></ul>` : ''}
+    </div>`;
+  }).join('');
+}
+$('input').oninput = render;
+</script>
 </body>
 </html>

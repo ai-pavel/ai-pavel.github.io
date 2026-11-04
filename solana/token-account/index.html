@@ -6,13 +6,65 @@
   <title>🏦 Token Account</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%A6</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/sol.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← Solana</a>
   <h1>🏦 Token Account</h1>
-  <p class="lead">Derive an associated token account address.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive the associated token account (ATA) address for a wallet and a token mint.</p>
+
+  <div class="panel">
+    <label class="field">Wallet (owner) address
+      <input id="wallet" class="mono" autocomplete="off" spellcheck="false">
+    </label>
+    <label class="field">Token mint address
+      <input id="mint" class="mono" autocomplete="off" spellcheck="false" list="mints">
+      <datalist id="mints">
+        <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
+        <option value="Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB">USDT</option>
+        <option value="So11111111111111111111111111111111111111112">Wrapped SOL</option>
+      </datalist>
+    </label>
+    <label class="field">Token program
+      <select id="program">
+        <option value="TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">Token Program (SPL Token)</option>
+        <option value="TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb">Token-2022 Program</option>
+      </select>
+    </label>
+    <div class="row" style="margin-top:12px"><button id="example">Example: USDC</button></div>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+    <p class="muted">The mint must be owned by the selected token program; a USDC account under Token-2022 is a different (unused) address.</p>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { decodePubkey, ataAddress, isOnCurve, base58, kvTable, wireCopy, showError } from '../lib/sol.js';
+const $ = id => document.getElementById(id);
+function render() {
+  $('out').innerHTML = '';
+  if (!$('wallet').value.trim() || !$('mint').value.trim()) { showError($('err')); return; }
+  try {
+    const wallet = decodePubkey($('wallet').value, 'Wallet'), mint = decodePubkey($('mint').value, 'Mint');
+    const r = ataAddress(wallet, mint, base58.decode($('program').value));
+    showError($('err'));
+    $('out').innerHTML = kvTable([['Associated token account', base58.encode(r.address)], ['Bump', String(r.bump)]]) +
+      (isOnCurve(wallet) ? '' : '<p class="muted">The wallet is off-curve (a PDA). That is allowed, but SPL libraries require <code>allowOwnerOffCurve</code> for it.</p>');
+  } catch (e) { showError($('err'), e.message); }
+}
+['wallet', 'mint'].forEach(id => $(id).oninput = render);
+$('program').onchange = render;
+$('example').onclick = () => {
+  $('wallet').value = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM';
+  $('mint').value = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+  $('program').value = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+  render();
+};
+wireCopy();
+</script>
 </body>
 </html>

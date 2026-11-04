@@ -6,13 +6,56 @@
   <title>🎯 Anchor Discriminator</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8E%AF</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/sol.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← Solana</a>
   <h1>🎯 Anchor Discriminator</h1>
-  <p class="lead">Compute Anchor instruction and account discriminators.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Compute the 8-byte discriminators Anchor puts in front of instruction data, accounts and events.</p>
+
+  <div class="panel">
+    <label class="field">Name
+      <input id="name" class="mono" autocomplete="off" spellcheck="false" placeholder="e.g. initialize, transferTokens, UserAccount">
+    </label>
+    <label class="field">Kind
+      <select id="kind">
+        <option value="global">Instruction (global:&lt;snake_case&gt;)</option>
+        <option value="account">Account (account:&lt;PascalCase&gt;)</option>
+        <option value="event">Event (event:&lt;PascalCase&gt;)</option>
+      </select>
+    </label>
+    <label class="row" style="margin-top:12px;color:var(--text)"><input type="checkbox" id="convert" checked> Convert the name's case the way Anchor does</label>
+    <div id="out"></div>
+    <p class="muted">Discriminator = first 8 bytes of SHA-256("&lt;namespace&gt;:&lt;name&gt;").</p>
+  </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script type="module">
+import { sha256, hex, utf8, kvTable, wireCopy } from '../lib/sol.js';
+const $ = id => document.getElementById(id);
+const words = s => s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').split(/[^A-Za-z0-9]+/).filter(Boolean);
+const snake = s => words(s).map(w => w.toLowerCase()).join('_');
+const pascal = s => words(s).map(w => w[0].toUpperCase() + w.slice(1)).join('');
+function render() {
+  const raw = $('name').value.trim();
+  if (!raw) { $('out').innerHTML = ''; return; }
+  const kind = $('kind').value;
+  const name = !$('convert').checked ? raw : kind === 'global' ? snake(raw) : pascal(raw);
+  const pre = `${kind}:${name}`;
+  const d = sha256(utf8.encode(pre)).slice(0, 8);
+  $('out').innerHTML = kvTable([
+    ['Preimage', pre],
+    ['Discriminator (hex)', hex.encode(d)],
+    ['Byte array', `[${Array.from(d).join(', ')}]`],
+    ['As u64 (LE)', new DataView(d.buffer).getBigUint64(0, true).toString()],
+  ]);
+}
+$('name').oninput = render; $('kind').onchange = render; $('convert').onchange = render;
+wireCopy();
+</script>
 </body>
 </html>
