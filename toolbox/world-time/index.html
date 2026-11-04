@@ -9,7 +9,7 @@
 </head>
 <body>
 <main>
-  <a class="back" href="../">← All tools</a>
+  <a class="back" href="../">← Utilities</a>
   <h1>🌍 World Time</h1>
   <p class="lead">See the current time in cities around the world. Your list is saved in this browser.</p>
 
@@ -23,6 +23,10 @@
     <div class="list" id="list"></div>
   </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
 <script>
 const KEY = 'toolbox.worldTime';
 const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;

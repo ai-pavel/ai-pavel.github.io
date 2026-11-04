@@ -182,3 +182,13 @@ th { color: var(--muted); font-weight: 500; font-size: 14px; }
   .search-result a { grid-template-columns: auto 1fr; }
   .search-meta { grid-column: 2; }
 }
+
+/* Site footer */
+.site-footer {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px;
+  width: calc(100% - 32px); max-width: 928px; margin: 0 auto; padding: 20px 0 32px;
+  border-top: 1px solid var(--border);
+  color: var(--muted); font-size: 14px;
+}
+.site-footer a { color: var(--muted); }
+.site-footer a:hover { color: var(--accent); }

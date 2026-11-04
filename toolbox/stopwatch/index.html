@@ -9,7 +9,7 @@
 </head>
 <body>
 <main>
-  <a class="back" href="../">← All tools</a>
+  <a class="back" href="../">← Utilities</a>
   <h1>⏱️ Stopwatch</h1>
   <p class="lead">Measure elapsed time with laps. Shortcuts: <kbd>Space</kbd> start/stop, <kbd>L</kbd> lap, <kbd>R</kbd> reset.</p>
 
@@ -26,6 +26,10 @@
     </table>
   </div>
 </main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
 <script>
 const $ = id => document.getElementById(id);
 let startedAt = null, elapsed = 0, raf = null, laps = [];

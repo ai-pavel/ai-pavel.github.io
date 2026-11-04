@@ -47,12 +47,26 @@ def head(title, emoji, css):
 """
 
 
-FOOT = "</main>\n</body>\n</html>\n"
+FOOTER = """<footer class="site-footer">
+  <span>Runs entirely in your browser.</span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+"""
+FOOT = "</main>\n" + FOOTER + "</body>\n</html>\n"
 
 
 def write(rel, content):
     with open(path(rel), "w", encoding="utf-8") as f:
         f.write(content)
+
+
+def ensure_footer(rel):
+    """Add the site footer to a hand-written tool page that doesn't have one yet."""
+    with open(path(rel), encoding="utf-8") as f:
+        page = f.read()
+    if 'class="site-footer"' in page or "</main>" not in page:
+        return
+    write(rel, page.replace("</main>\n", "</main>\n" + FOOTER, 1))
 
 
 def is_ready(toolbox_id, slug):
@@ -167,6 +181,7 @@ def main():
         for cat in tb["categories"]:
             for t in cat["tools"]:
                 ensure_placeholder(tb, t)
+                ensure_footer(os.path.join(tb["id"], t["slug"], "index.html"))
                 t["ready"] = is_ready(tb["id"], t["slug"])
         toolbox_page(tb)
     total = sum(len(c["tools"]) for tb in toolboxes for c in tb["categories"])
