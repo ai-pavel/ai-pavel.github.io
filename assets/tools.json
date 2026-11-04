@@ -168,14 +168,163 @@
       ]
     },
     {
-      "id": "crypto",
-      "emoji": "🔑",
-      "name": "Crypto Toolbox",
-      "summary": "Bitcoin and cryptography: hashes, keys, addresses, transactions and signatures.",
-      "lead": "Bitcoin and cryptography tools that run entirely in your browser. Keys you enter never leave your device.",
+      "id": "dev",
+      "emoji": "🛠️",
+      "name": "Dev Toolbox",
+      "summary": "Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes.",
+      "lead": "Developer utilities that run entirely in your browser. Nothing you paste leaves your device.",
       "categories": [
         {
-          "name": "General",
+          "name": "Data",
+          "tools": [
+            {
+              "slug": "json-formatter",
+              "emoji": "🧾",
+              "name": "JSON Formatter",
+              "description": "Format, minify and validate JSON",
+              "keywords": "pretty print lint"
+            },
+            {
+              "slug": "json-diff",
+              "emoji": "🆚",
+              "name": "JSON Diff",
+              "description": "Compare two JSON documents",
+              "keywords": "compare"
+            },
+            {
+              "slug": "yaml-json",
+              "emoji": "🔀",
+              "name": "YAML ↔ JSON",
+              "description": "Convert between YAML and JSON",
+              "keywords": "yml convert"
+            },
+            {
+              "slug": "csv-json",
+              "emoji": "📊",
+              "name": "CSV ↔ JSON",
+              "description": "Convert between CSV and JSON",
+              "keywords": "spreadsheet table convert"
+            },
+            {
+              "slug": "sql-formatter",
+              "emoji": "🗄️",
+              "name": "SQL Formatter",
+              "description": "Format and beautify SQL queries",
+              "keywords": "query pretty"
+            }
+          ]
+        },
+        {
+          "name": "Encoding",
+          "tools": [
+            {
+              "slug": "jwt-decoder",
+              "emoji": "🎫",
+              "name": "JWT Decoder",
+              "description": "Decode and inspect JSON Web Tokens",
+              "keywords": "token jws auth"
+            },
+            {
+              "slug": "base64",
+              "emoji": "📦",
+              "name": "Base64",
+              "description": "Encode and decode Base64 text and files",
+              "keywords": "data uri"
+            },
+            {
+              "slug": "url-parser",
+              "emoji": "🔗",
+              "name": "URL Parser",
+              "description": "Split a URL and edit its query parameters",
+              "keywords": "query string encode"
+            },
+            {
+              "slug": "html-entities",
+              "emoji": "🏷️",
+              "name": "HTML Entities",
+              "description": "Escape and unescape HTML entities",
+              "keywords": "escape"
+            }
+          ]
+        },
+        {
+          "name": "Time",
+          "tools": [
+            {
+              "slug": "timestamp",
+              "emoji": "⌛",
+              "name": "Timestamp Converter",
+              "description": "Convert Unix timestamps and dates",
+              "keywords": "epoch unix time date iso"
+            },
+            {
+              "slug": "cron",
+              "emoji": "🕰️",
+              "name": "Cron Explainer",
+              "description": "Explain a cron expression and its next runs",
+              "keywords": "crontab schedule"
+            }
+          ]
+        },
+        {
+          "name": "Testing",
+          "tools": [
+            {
+              "slug": "regex-tester",
+              "emoji": "🧪",
+              "name": "Regex Tester",
+              "description": "Test regular expressions with live matches",
+              "keywords": "regexp pattern"
+            },
+            {
+              "slug": "text-diff",
+              "emoji": "📑",
+              "name": "Text Diff",
+              "description": "Compare two texts line by line",
+              "keywords": "compare diff"
+            }
+          ]
+        },
+        {
+          "name": "Generators",
+          "tools": [
+            {
+              "slug": "uuid",
+              "emoji": "🆔",
+              "name": "UUID / ULID",
+              "description": "Generate and inspect UUIDs and ULIDs",
+              "keywords": "guid id random"
+            },
+            {
+              "slug": "lorem-ipsum",
+              "emoji": "📝",
+              "name": "Lorem Ipsum",
+              "description": "Generate placeholder text",
+              "keywords": "dummy text"
+            }
+          ]
+        },
+        {
+          "name": "Web",
+          "tools": [
+            {
+              "slug": "user-agent",
+              "emoji": "🕵️",
+              "name": "User-Agent Parser",
+              "description": "Identify browser, OS and device from a User-Agent",
+              "keywords": "ua browser"
+            },
+            {
+              "slug": "http-status",
+              "emoji": "🚦",
+              "name": "HTTP Status Codes",
+              "description": "Look up HTTP status codes",
+              "keywords": "404 500 response"
+            }
+          ]
+        },
+        {
+          "name": "Bits & Bytes",
           "tools": [
             {
               "slug": "little-endian",
@@ -188,9 +337,42 @@
               "emoji": "🔢",
               "name": "Number Converter",
               "description": "Convert numbers between binary, decimal and hex"
+            },
+            {
+              "slug": "byte-ascii",
+              "emoji": "🔤",
+              "name": "Byte (ASCII)",
+              "description": "Convert between a byte and an ASCII character"
+            },
+            {
+              "slug": "byte-integer",
+              "emoji": "🔟",
+              "name": "Byte (Integer)",
+              "description": "Convert a byte between binary, hex and integer"
+            },
+            {
+              "slug": "byte",
+              "emoji": "💾",
+              "name": "Byte",
+              "description": "Show every representation of a byte"
+            },
+            {
+              "slug": "bit",
+              "emoji": "💡",
+              "name": "Bit",
+              "description": "Flip bits in an interactive editor"
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "id": "bitcoin",
+      "emoji": "🪙",
+      "name": "Bitcoin Toolbox",
+      "summary": "Bitcoin: blocks, transactions, keys, addresses, HD wallets and signatures.",
+      "lead": "Bitcoin tools that run entirely in your browser. Keys you enter never leave your device.",
+      "categories": [
         {
           "name": "Blocks",
           "tools": [
@@ -412,200 +594,6 @@
               "description": "Find a number's inverse modulo n"
             }
           ]
-        },
-        {
-          "name": "Other",
-          "tools": [
-            {
-              "slug": "byte-ascii",
-              "emoji": "🔤",
-              "name": "Byte (ASCII)",
-              "description": "Convert between a byte and an ASCII character"
-            },
-            {
-              "slug": "byte-integer",
-              "emoji": "🔟",
-              "name": "Byte (Integer)",
-              "description": "Convert a byte between binary, hex and integer"
-            },
-            {
-              "slug": "byte",
-              "emoji": "💾",
-              "name": "Byte",
-              "description": "Show every representation of a byte"
-            },
-            {
-              "slug": "bit",
-              "emoji": "💡",
-              "name": "Bit",
-              "description": "Flip bits in an interactive editor"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "dev",
-      "emoji": "🛠️",
-      "name": "Dev Toolbox",
-      "summary": "Developer utilities: JSON, encoding, tokens, regex, diffs and time.",
-      "lead": "Developer utilities that run entirely in your browser. Nothing you paste leaves your device.",
-      "categories": [
-        {
-          "name": "Data",
-          "tools": [
-            {
-              "slug": "json-formatter",
-              "emoji": "🧾",
-              "name": "JSON Formatter",
-              "description": "Format, minify and validate JSON",
-              "keywords": "pretty print lint"
-            },
-            {
-              "slug": "json-diff",
-              "emoji": "🆚",
-              "name": "JSON Diff",
-              "description": "Compare two JSON documents",
-              "keywords": "compare"
-            },
-            {
-              "slug": "yaml-json",
-              "emoji": "🔀",
-              "name": "YAML ↔ JSON",
-              "description": "Convert between YAML and JSON",
-              "keywords": "yml convert"
-            },
-            {
-              "slug": "csv-json",
-              "emoji": "📊",
-              "name": "CSV ↔ JSON",
-              "description": "Convert between CSV and JSON",
-              "keywords": "spreadsheet table convert"
-            },
-            {
-              "slug": "sql-formatter",
-              "emoji": "🗄️",
-              "name": "SQL Formatter",
-              "description": "Format and beautify SQL queries",
-              "keywords": "query pretty"
-            }
-          ]
-        },
-        {
-          "name": "Encoding",
-          "tools": [
-            {
-              "slug": "jwt-decoder",
-              "emoji": "🎫",
-              "name": "JWT Decoder",
-              "description": "Decode and inspect JSON Web Tokens",
-              "keywords": "token jws auth"
-            },
-            {
-              "slug": "base64",
-              "emoji": "📦",
-              "name": "Base64",
-              "description": "Encode and decode Base64 text and files",
-              "keywords": "data uri"
-            },
-            {
-              "slug": "url-parser",
-              "emoji": "🔗",
-              "name": "URL Parser",
-              "description": "Split a URL and edit its query parameters",
-              "keywords": "query string encode"
-            },
-            {
-              "slug": "html-entities",
-              "emoji": "🏷️",
-              "name": "HTML Entities",
-              "description": "Escape and unescape HTML entities",
-              "keywords": "escape"
-            }
-          ]
-        },
-        {
-          "name": "Time",
-          "tools": [
-            {
-              "slug": "timestamp",
-              "emoji": "⌛",
-              "name": "Timestamp Converter",
-              "description": "Convert Unix timestamps and dates",
-              "keywords": "epoch unix time date iso"
-            },
-            {
-              "slug": "cron",
-              "emoji": "🕰️",
-              "name": "Cron Explainer",
-              "description": "Explain a cron expression and its next runs",
-              "keywords": "crontab schedule"
-            }
-          ]
-        },
-        {
-          "name": "Testing",
-          "tools": [
-            {
-              "slug": "regex-tester",
-              "emoji": "🧪",
-              "name": "Regex Tester",
-              "description": "Test regular expressions with live matches",
-              "keywords": "regexp pattern"
-            },
-            {
-              "slug": "text-diff",
-              "emoji": "📑",
-              "name": "Text Diff",
-              "description": "Compare two texts line by line",
-              "keywords": "compare diff"
-            }
-          ]
-        },
-        {
-          "name": "Generators",
-          "tools": [
-            {
-              "slug": "uuid",
-              "emoji": "🆔",
-              "name": "UUID / ULID",
-              "description": "Generate and inspect UUIDs and ULIDs",
-              "keywords": "guid id random"
-            },
-            {
-              "slug": "lorem-ipsum",
-              "emoji": "📝",
-              "name": "Lorem Ipsum",
-              "description": "Generate placeholder text",
-              "keywords": "dummy text"
-            }
-          ]
-        },
-        {
-          "name": "Web",
-          "tools": [
-            {
-              "slug": "user-agent",
-              "emoji": "🕵️",
-              "name": "User-Agent Parser",
-              "description": "Identify browser, OS and device from a User-Agent",
-              "keywords": "ua browser"
-            },
-            {
-              "slug": "http-status",
-              "emoji": "🚦",
-              "name": "HTTP Status Codes",
-              "description": "Look up HTTP status codes",
-              "keywords": "404 500 response"
-            },
-            {
-              "slug": "markdown-preview",
-              "emoji": "📖",
-              "name": "Markdown Preview",
-              "description": "Write Markdown with a live preview",
-              "keywords": "md"
-            }
-          ]
         }
       ]
     },
@@ -748,6 +736,228 @@
               "name": "Mnemonic Accounts",
               "description": "Derive accounts from a mnemonic (BIP-44)",
               "keywords": "seed phrase bip39 hd wallet"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "solana",
+      "emoji": "☀️",
+      "name": "Solana Toolbox",
+      "summary": "Solana: keys, addresses, PDAs, token accounts, transactions and signatures.",
+      "lead": "Solana tools that run entirely in your browser. Keys you enter never leave your device.",
+      "categories": [
+        {
+          "name": "Units",
+          "tools": [
+            {
+              "slug": "unit-converter",
+              "emoji": "💰",
+              "name": "Unit Converter",
+              "description": "Convert between lamports and SOL",
+              "keywords": "sol lamport"
+            }
+          ]
+        },
+        {
+          "name": "Keys & Addresses",
+          "tools": [
+            {
+              "slug": "keypair-converter",
+              "emoji": "🔐",
+              "name": "Keypair Converter",
+              "description": "Convert a keypair between JSON bytes and base58",
+              "keywords": "id.json secret key private key"
+            },
+            {
+              "slug": "address-validator",
+              "emoji": "✅",
+              "name": "Address Validator",
+              "description": "Check an address and whether it is on the ed25519 curve",
+              "keywords": "pubkey public key"
+            },
+            {
+              "slug": "mnemonic-accounts",
+              "emoji": "🌱",
+              "name": "Mnemonic Accounts",
+              "description": "Derive accounts from a mnemonic (m/44'/501')",
+              "keywords": "seed phrase bip39 phantom solflare"
+            },
+            {
+              "slug": "vanity-address",
+              "emoji": "✨",
+              "name": "Vanity Address",
+              "description": "Generate an address with a chosen prefix",
+              "keywords": "grind"
+            }
+          ]
+        },
+        {
+          "name": "Programs",
+          "tools": [
+            {
+              "slug": "pda-finder",
+              "emoji": "🧭",
+              "name": "PDA Finder",
+              "description": "Find a program derived address from seeds",
+              "keywords": "program derived address bump seeds"
+            },
+            {
+              "slug": "token-account",
+              "emoji": "🏦",
+              "name": "Token Account",
+              "description": "Derive an associated token account address",
+              "keywords": "ata spl token mint"
+            },
+            {
+              "slug": "anchor-discriminator",
+              "emoji": "🎯",
+              "name": "Anchor Discriminator",
+              "description": "Compute Anchor instruction and account discriminators",
+              "keywords": "anchor idl"
+            },
+            {
+              "slug": "borsh",
+              "emoji": "🧩",
+              "name": "Borsh",
+              "description": "Encode and decode Borsh data",
+              "keywords": "serialize"
+            }
+          ]
+        },
+        {
+          "name": "Transactions",
+          "tools": [
+            {
+              "slug": "tx-decoder",
+              "emoji": "📦",
+              "name": "Transaction Decoder",
+              "description": "Decode a serialized transaction and its instructions",
+              "keywords": "v0 legacy message instruction"
+            }
+          ]
+        },
+        {
+          "name": "Signatures",
+          "tools": [
+            {
+              "slug": "sign-message",
+              "emoji": "✍️",
+              "name": "Sign Message",
+              "description": "Sign a message with an ed25519 key",
+              "keywords": "ed25519"
+            },
+            {
+              "slug": "verify-message",
+              "emoji": "✔️",
+              "name": "Verify Message",
+              "description": "Verify an ed25519 message signature",
+              "keywords": "ed25519"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ton",
+      "emoji": "💎",
+      "name": "TON Toolbox",
+      "summary": "TON: addresses, wallets, cells, messages and signatures.",
+      "lead": "TON tools that run entirely in your browser. Keys you enter never leave your device.",
+      "categories": [
+        {
+          "name": "Units",
+          "tools": [
+            {
+              "slug": "unit-converter",
+              "emoji": "💰",
+              "name": "Unit Converter",
+              "description": "Convert between nanotons and TON",
+              "keywords": "nanoton toncoin"
+            }
+          ]
+        },
+        {
+          "name": "Addresses",
+          "tools": [
+            {
+              "slug": "address-converter",
+              "emoji": "🔄",
+              "name": "Address Converter",
+              "description": "Convert between raw, bounceable and non-bounceable addresses",
+              "keywords": "friendly raw testnet"
+            },
+            {
+              "slug": "wallet-address",
+              "emoji": "🗝️",
+              "name": "Wallet Address",
+              "description": "Derive a wallet address from a public key (v3, v4, v5)",
+              "keywords": "wallet v4r2 v5r1 contract"
+            }
+          ]
+        },
+        {
+          "name": "Wallets",
+          "tools": [
+            {
+              "slug": "mnemonic-keys",
+              "emoji": "🌱",
+              "name": "Mnemonic Keys",
+              "description": "Validate a TON mnemonic and derive its keys",
+              "keywords": "seed phrase 24 words"
+            }
+          ]
+        },
+        {
+          "name": "Cells & Messages",
+          "tools": [
+            {
+              "slug": "boc-decoder",
+              "emoji": "🧱",
+              "name": "BOC Decoder",
+              "description": "Decode a bag of cells into a cell tree",
+              "keywords": "cell hash boc"
+            },
+            {
+              "slug": "comment-payload",
+              "emoji": "💬",
+              "name": "Comment Payload",
+              "description": "Encode and decode text comments in message bodies",
+              "keywords": "memo comment"
+            },
+            {
+              "slug": "op-code",
+              "emoji": "🔢",
+              "name": "Op Code",
+              "description": "Compute an op code from a TL-B scheme",
+              "keywords": "tlb crc32 opcode"
+            }
+          ]
+        },
+        {
+          "name": "Signatures",
+          "tools": [
+            {
+              "slug": "sign-message",
+              "emoji": "✍️",
+              "name": "Sign Message",
+              "description": "Sign a message with an ed25519 key",
+              "keywords": "ed25519"
+            },
+            {
+              "slug": "verify-message",
+              "emoji": "✔️",
+              "name": "Verify Message",
+              "description": "Verify an ed25519 message signature",
+              "keywords": "ed25519"
+            },
+            {
+              "slug": "ton-proof",
+              "emoji": "🔏",
+              "name": "TON Proof",
+              "description": "Verify a TON Connect ton_proof",
+              "keywords": "ton connect auth"
             }
           ]
         }

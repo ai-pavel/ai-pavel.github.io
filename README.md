@@ -8,9 +8,11 @@ Personal GitHub Pages site: https://ai-pavel.github.io/
 | Toolbox | What's inside | Tools | Folder |
 |---|---|---|---|
 | [🧰 Toolbox](https://ai-pavel.github.io/toolbox/) | Everyday utilities: time, text, files and media | 23 | [`toolbox/`](toolbox/) |
-| [🔑 Crypto Toolbox](https://ai-pavel.github.io/crypto/) | Bitcoin and cryptography: hashes, keys, addresses, transactions and signatures | 0 of 38 ready | [`crypto/`](crypto/) |
-| [🛠️ Dev Toolbox](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs and time | 0 of 18 ready | [`dev/`](dev/) |
+| [🛠️ Dev Toolbox](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 0 of 23 ready | [`dev/`](dev/) |
+| [🪙 Bitcoin Toolbox](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, keys, addresses, HD wallets and signatures | 0 of 32 ready | [`bitcoin/`](bitcoin/) |
 | [⛓️ EVM Toolbox](https://ai-pavel.github.io/evm/) | Ethereum and EVM: units, addresses, ABI, transactions and signatures | 0 of 15 ready | [`evm/`](evm/) |
+| [☀️ Solana Toolbox](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 0 of 12 ready | [`solana/`](solana/) |
+| [💎 TON Toolbox](https://ai-pavel.github.io/ton/) | TON: addresses, wallets, cells, messages and signatures | 0 of 10 ready | [`ton/`](ton/) |
 <!-- toolboxes:end -->
 
 Everything runs client-side in the browser: files and keys never leave the device.
