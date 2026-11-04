@@ -144,24 +144,6 @@
               "emoji": "🎬",
               "name": "Convert Video",
               "description": "Convert video between formats"
-            },
-            {
-              "slug": "take-photo",
-              "emoji": "📷",
-              "name": "Take Photo",
-              "description": "Snap a photo with your webcam"
-            },
-            {
-              "slug": "take-video",
-              "emoji": "📹",
-              "name": "Take Video",
-              "description": "Record a video with your webcam"
-            },
-            {
-              "slug": "record-audio",
-              "emoji": "🎙️",
-              "name": "Record Audio",
-              "description": "Record sound from your microphone"
             }
           ]
         }
