@@ -6,6 +6,11 @@
   <title>Mnemonic Accounts</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8C%B1</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/sui.css">
+  <style>
+    .acct td { vertical-align: top; }
+    .acct .mono { overflow-wrap: anywhere; font-size: 13px; }
+  </style>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +21,100 @@
 <main>
   <a class="back" href="../">← Sui</a>
   <h1>🌱 Mnemonic Accounts</h1>
-  <p class="lead">Derive accounts from a mnemonic (m/44&#x27;/784&#x27;).</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive Sui accounts from a BIP-39 mnemonic, the way Sui wallets and the CLI do.</p>
+  <div class="panel">
+    <p class="note" id="keynote"></p>
+    <label class="field">Mnemonic
+      <textarea id="mn" class="wide" rows="3" spellcheck="false" autocomplete="off" placeholder="12 or 24 words"></textarea>
+    </label>
+    <div class="row" style="margin-top:8px">
+      <button id="gen12">New 12 words</button>
+      <button id="gen24">New 24 words</button>
+    </div>
+    <div class="row">
+      <label class="field" style="flex:2;min-width:200px">Scheme
+        <select id="scheme">
+          <option value="0">Ed25519 — m/44'/784'/{i}'/0'/0'</option>
+          <option value="1">Secp256k1 — m/54'/784'/{i}'/0/0</option>
+          <option value="2">Secp256r1 — m/74'/784'/{i}'/0/0</option>
+        </select>
+      </label>
+      <label class="field" style="flex:1;min-width:110px">Start index <input id="start" class="mono" inputmode="numeric" value="0"></label>
+      <label class="field" style="flex:1;min-width:110px">Accounts <input id="count" class="mono" inputmode="numeric" value="5"></label>
+    </div>
+    <label class="field">Path ({i} is the account index)
+      <input id="path" class="mono" autocomplete="off" spellcheck="false">
+    </label>
+    <label class="row" style="flex-direction:row;gap:6px;margin-top:10px;font-size:14px;color:var(--muted)"><input type="checkbox" id="reveal"> Show private keys</label>
+    <p class="error" id="err" hidden></p>
+    <p class="muted" id="status"></p>
+    <div id="out"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">How it works</p>
+    <p class="muted">The mnemonic becomes a 64-byte seed with BIP-39 (no passphrase, as in Sui wallets). Ed25519 keys use SLIP-0010, where every path index is hardened. Secp256k1 and Secp256r1 keys use BIP-32 derivation; Sui uses the same BIP-32 tree for both and treats the resulting 32 bytes as a Secp256r1 key for the r1 scheme. The address is BLAKE2b-256(flag ‖ public key).</p>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.0 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { generateMnemonic, validateMnemonic, mnemonicToSeedSync } from '../../assets/vendor/@scure/bip39@2.4.0/index.esm.js';
+import { wordlist } from '../../assets/vendor/@scure/bip39@2.4.0/wordlists/english.esm.js';
+import { HDKey } from '../../assets/vendor/@scure/bip32@2.4.0/index.esm.js';
+import { keyInfo, slip10Ed25519, showError, esc, KEY_NOTE, wireCopy } from '../lib/sui.js';
+const $ = id => document.getElementById(id);
+$('keynote').textContent = KEY_NOTE;
+const DEFAULT_PATH = { 0: "m/44'/784'/{i}'/0'/0'", 1: "m/54'/784'/{i}'/0/0", 2: "m/74'/784'/{i}'/0/0" };
+const PURPOSE = { 0: 44, 1: 54, 2: 74 };
+$('path').value = DEFAULT_PATH[0];
+let seedCache = { phrase: null, seed: null };
+
+function checkMnemonic(phrase) {
+  const words = phrase.split(' ');
+  if (![12, 15, 18, 21, 24].includes(words.length)) throw new Error(`A mnemonic has 12, 15, 18, 21 or 24 words (got ${words.length}).`);
+  const unknown = words.filter(w => !wordlist.includes(w));
+  if (unknown.length) throw new Error(`Not in the BIP-39 English word list: ${unknown.slice(0, 5).join(', ')}${unknown.length > 5 ? '…' : ''}`);
+  if (!validateMnemonic(phrase, wordlist)) throw new Error('The words are valid but the checksum is wrong; check the order and spelling.');
+}
+
+function derive(seed, flag, path) {
+  if (flag === 0) return slip10Ed25519(seed, path);
+  if (!/^m\/\d+'\/\d+'\/\d+'\/\d+\/\d+$/.test(path)) throw new Error(`Path "${path}" must look like m/${PURPOSE[flag]}'/784'/0'/0/0 (three hardened indexes, then two normal ones).`);
+  return HDKey.fromMasterSeed(seed).derive(path).privateKey;
+}
+
+function render() {
+  showError($('err'), '');
+  $('out').innerHTML = ''; $('status').textContent = '';
+  const phrase = $('mn').value.trim().toLowerCase().split(/\s+/).filter(Boolean).join(' ');
+  if (!phrase) return;
+  try {
+    checkMnemonic(phrase);
+    const flag = Number($('scheme').value), tpl = $('path').value.trim();
+    if (!tpl.includes('{i}')) throw new Error('The path needs {i} where the account index goes.');
+    const start = $('start').value.trim(), count = $('count').value.trim();
+    if (!/^\d+$/.test(start) || +start > 2 ** 31 - 1) throw new Error('Start index must be a whole number below 2³¹.');
+    if (!/^\d+$/.test(count) || +count < 1 || +count > 50) throw new Error('Accounts must be between 1 and 50.');
+    if (seedCache.phrase !== phrase) seedCache = { phrase, seed: mnemonicToSeedSync(phrase) };
+    const reveal = $('reveal').checked, rows = [];
+    for (let i = +start; i < +start + +count; i++) {
+      const path = tpl.replaceAll('{i}', String(i));
+      const k = keyInfo(flag, derive(seedCache.seed, flag, path));
+      rows.push(`<tr><td>${i}</td><td><div class="mono">${k.address}</div><div class="muted mono">${esc(path)}</div>${reveal ? `<div class="mono" style="margin-top:4px">${k.suiprivkey}</div>` : ''}</td>
+        <td><button class="icon-btn" data-copy="${k.address}">Copy</button>${reveal ? `<button class="icon-btn" data-copy="${k.suiprivkey}" style="margin-top:4px">Key</button>` : ''}</td></tr>`);
+    }
+    $('status').textContent = 'Valid mnemonic.';
+    $('out').innerHTML = `<table class="acct"><thead><tr><th>#</th><th>Address${reveal ? ' / private key (suiprivkey)' : ''}</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  } catch (e) { showError($('err'), e.message); }
+}
+
+$('scheme').oninput = () => { $('path').value = DEFAULT_PATH[$('scheme').value]; render(); };
+for (const id of ['mn', 'path', 'start', 'count', 'reveal']) $(id).addEventListener('input', render);
+$('gen12').onclick = () => { $('mn').value = generateMnemonic(wordlist, 128); render(); };
+$('gen24').onclick = () => { $('mn').value = generateMnemonic(wordlist, 256); render(); };
+wireCopy();
+</script>
 </body>
 </html>

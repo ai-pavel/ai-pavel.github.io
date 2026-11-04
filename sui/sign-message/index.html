@@ -6,6 +6,7 @@
   <title>Sign Message</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%8D%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/sui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,71 @@
 <main>
   <a class="back" href="../">← Sui</a>
   <h1>✍️ Sign Message</h1>
-  <p class="lead">Sign a personal message with an intent.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Sign a personal message (or transaction bytes) with a Sui key, the way wallets do.</p>
+  <div class="panel">
+    <p class="note" id="keynote"></p>
+    <label class="field">Private key
+      <textarea id="key" class="wide" rows="2" spellcheck="false" autocomplete="off" placeholder="suiprivkey1… or 32-byte hex"></textarea>
+    </label>
+    <div class="row">
+      <label class="field" style="flex:1;min-width:180px">Scheme for raw keys
+        <select id="scheme"><option value="0">Ed25519</option><option value="1">Secp256k1</option><option value="2">Secp256r1</option></select>
+      </label>
+      <label class="field" style="flex:1;min-width:180px">Sign as
+        <select id="mode"><option value="3">Personal message</option><option value="0">Transaction bytes</option></select>
+      </label>
+    </div>
+    <label class="field"><span id="msg-label">Message</span>
+      <textarea id="msg" class="wide" rows="3" spellcheck="false">hello sui</textarea>
+    </label>
+    <label class="field" id="enc-wrap">Message encoding
+      <select id="enc"><option value="utf8">Text (UTF-8)</option><option value="hex">Hex</option><option value="base64">Base64</option></select>
+    </label>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">How it works</p>
+    <p class="muted">The bytes are wrapped in an intent: 3,0,0 for a personal message (whose bytes are first BCS-encoded as vector&lt;u8&gt;, i.e. prefixed with their length) or 0,0,0 for transaction data. The signature covers BLAKE2b-256 of that intent message; Secp256k1 and Secp256r1 additionally hash it with SHA-256, as ECDSA does. The result wallets return is base64 of flag ‖ 64-byte signature ‖ public key.</p>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.0 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { parsePrivateKey, keyInfo, parseMessage, parseHexOrBase64, intentMessage, blake256, signDigest, serializeSignature, schemeName, hex, base64, kvTable, wireCopy, showError, KEY_NOTE } from '../lib/sui.js';
+const $ = id => document.getElementById(id);
+$('keynote').textContent = KEY_NOTE;
+
+function render() {
+  showError($('err'), ''); $('out').innerHTML = '';
+  const tx = $('mode').value === '0';
+  $('enc-wrap').hidden = tx;
+  $('msg-label').textContent = tx ? 'Transaction bytes (base64 or hex)' : 'Message';
+  if (!$('key').value.trim()) return;
+  try {
+    const p = parsePrivateKey($('key').value, Number($('scheme').value));
+    const k = keyInfo(p.flag, p.secret);
+    const bytes = tx ? parseHexOrBase64($('msg').value, 'Transaction bytes') : parseMessage($('msg').value, $('enc').value);
+    const im = intentMessage(tx ? 0 : 3, bytes);
+    const digest = blake256(im);
+    const sig = signDigest(p.flag, p.secret, digest);
+    const serialized = serializeSignature(p.flag, sig, k.publicKey);
+    const link = `../verify-message/#` + new URLSearchParams({ m: base64.encode(bytes), s: serialized, t: tx ? '0' : '3' });
+    $('out').innerHTML = kvTable([
+      ['Signature', serialized, 'base64 of flag ‖ signature ‖ public key — what wallets return'],
+      ['Signer address', k.address],
+      ['Scheme', schemeName(p.flag)],
+      ['Raw signature (hex)', hex.encode(sig)],
+      ['Signed digest', hex.encode(digest), 'BLAKE2b-256 of the intent message'],
+      ['Intent message', hex.encode(im)],
+    ]) + `<p><a href="${link}">Verify this signature →</a></p>`;
+  } catch (e) { showError($('err'), e.message); }
+}
+for (const id of ['key', 'scheme', 'mode', 'msg', 'enc']) $(id).addEventListener('input', render);
+wireCopy();
+render();
+</script>
 </body>
 </html>

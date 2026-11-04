@@ -6,6 +6,7 @@
   <title>Multisig Address</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%91%A5</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/sui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,83 @@
 <main>
   <a class="back" href="../">← Sui</a>
   <h1>👥 Multisig Address</h1>
-  <p class="lead">Derive a multisig address from keys, weights and a threshold.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive a multisig address from public keys, weights and a threshold.</p>
+  <div class="panel">
+    <label class="field">Signers, one per line: <span class="mono">public key [weight]</span>
+      <textarea id="keys" class="wide" rows="5" spellcheck="false" placeholder="AKN4JgLDhzDw… 1&#10;AQKb7TKd…  2&#10;secp256r1:0x03ab… 1"></textarea>
+    </label>
+    <p class="muted" style="margin:6px 0 0">Use Sui public keys (base64 of flag ‖ key, as shown by wallets and <span class="mono">sui keytool</span>). For a raw key, prefix the scheme: <span class="mono">ed25519:</span>, <span class="mono">secp256k1:</span> or <span class="mono">secp256r1:</span>. Weight defaults to 1.</p>
+    <label class="field">Threshold
+      <input id="threshold" class="mono" inputmode="numeric" value="1" style="max-width:160px">
+    </label>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">How it works</p>
+    <p class="muted">Address = BLAKE2b-256(0x03 ‖ threshold as u16 little-endian ‖ for each signer: flag ‖ public key ‖ weight as u8), with signers in the order you list them. Changing the order, a weight or the threshold gives a different address. A multisig has 1–10 signers, weights 1–255, and a threshold from 1 to the total weight.</p>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.0 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { parseHexOrBase64, checkPublicKey, addressFromPublicKey, schemeName, base64, hex, concat, blake256, addr, kvTable, wireCopy, showError, esc, Writer } from '../lib/sui.js';
+const $ = id => document.getElementById(id);
+const PREFIX = { ed25519: 0, secp256k1: 1, secp256r1: 2 };
+
+function parseSigner(line, n) {
+  const parts = line.trim().split(/\s+/);
+  if (parts.length > 2) throw new Error(`Line ${n}: expected "public key [weight]".`);
+  let [key, w = '1'] = parts, flag, pub;
+  const m = /^(ed25519|secp256k1|secp256r1):(.+)$/i.exec(key);
+  try {
+    if (m) { flag = PREFIX[m[1].toLowerCase()]; pub = parseHexOrBase64(m[2], 'Key'); }
+    else {
+      const b = parseHexOrBase64(key, 'Key');
+      if (b.length === 33 && b[0] === 0) { flag = 0; pub = b.slice(1); }
+      else if (b.length === 34 && (b[0] === 1 || b[0] === 2)) { flag = b[0]; pub = b.slice(1); }
+      else throw new Error(`a ${b.length}-byte key without a scheme; use a Sui public key or prefix the scheme (e.g. secp256k1:…)`);
+    }
+    pub = checkPublicKey(flag, pub);
+  } catch (e) { throw new Error(`Line ${n}: ${e.message.replace(/\.$/, '')}.`); }
+  if (!/^\d+$/.test(w) || +w < 1 || +w > 255) throw new Error(`Line ${n}: weight must be a whole number from 1 to 255.`);
+  return { flag, pub, weight: +w };
+}
+
+function render() {
+  showError($('err'), '');
+  $('out').innerHTML = '';
+  const lines = $('keys').value.split('\n').map((l, i) => [l, i + 1]).filter(([l]) => l.trim());
+  if (!lines.length) return;
+  try {
+    const signers = lines.map(([l, n]) => parseSigner(l, n));
+    if (signers.length > 10) throw new Error(`A multisig can have at most 10 signers (got ${signers.length}).`);
+    const seen = new Set();
+    signers.forEach((s, i) => { const k = s.flag + hex.encode(s.pub); if (seen.has(k)) throw new Error(`Signer ${i + 1} repeats an earlier key.`); seen.add(k); });
+    const t = $('threshold').value.trim();
+    if (!/^\d+$/.test(t)) throw new Error('Threshold must be a whole number.');
+    const threshold = Number(t), total = signers.reduce((a, s) => a + s.weight, 0);
+    if (threshold < 1 || threshold > 65535) throw new Error('Threshold must be between 1 and 65535.');
+    if (threshold > total) throw new Error(`Threshold ${threshold} is more than the total weight ${total}, so no set of signatures could reach it.`);
+    const thr = new Writer().uint(16, threshold).toBytes();
+    const pre = concat(Uint8Array.of(3), thr, ...signers.map(s => concat(Uint8Array.of(s.flag), s.pub, Uint8Array.of(s.weight))));
+    // MultiSigPublicKey as BCS: vector<(PublicKey enum, u8 weight)>, u16 threshold; prefixed with flag 0x03.
+    const w = new Writer().u8(3).uleb(signers.length);
+    signers.forEach(s => w.uleb(s.flag).push(s.pub).u8(s.weight));
+    w.uint(16, threshold);
+    $('out').innerHTML = kvTable([
+      ['Multisig address', addr(blake256(pre))],
+      ['Multisig public key', base64.encode(w.toBytes()), 'base64 of 0x03 ‖ BCS MultiSigPublicKey'],
+      ['Threshold', `${threshold} of total weight ${total}`],
+    ]) + `<p class="section-title">Signers</p><table><thead><tr><th>#</th><th>Scheme</th><th>Weight</th><th>Address</th></tr></thead><tbody>` +
+      signers.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(schemeName(s.flag))}</td><td>${s.weight}</td><td class="mono" style="overflow-wrap:anywhere;font-size:13px">${addressFromPublicKey(s.flag, s.pub)}</td></tr>`).join('') + '</tbody></table>';
+  } catch (e) { showError($('err'), e.message); }
+}
+$('keys').oninput = render; $('threshold').oninput = render;
+wireCopy();
+render();
+</script>
 </body>
 </html>

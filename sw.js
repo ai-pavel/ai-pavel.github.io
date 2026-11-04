@@ -1,6 +1,6 @@
 // Service worker template. scripts/generate.py fills in VERSION and PRECACHE
 // and writes the result to /sw.js. Edit this file, not sw.js.
-const VERSION = '36b339781594';
+const VERSION = '8897dab60639';
 const SITE_CACHE = 'site-' + VERSION;
 // Heavy, version-pinned files that tools download on first use (the ffmpeg core,
 // the OCR engine and its language data). Cached once and kept across site updates.
@@ -29,6 +29,8 @@ const PRECACHE = [
   "/assets/vendor/@noble/curves@1.9.7/ed25519.esm.js",
   "/assets/vendor/@noble/curves@1.9.7/secp256k1.esm.js",
   "/assets/vendor/@noble/curves@2.4.0/ed25519.esm.js",
+  "/assets/vendor/@noble/curves@2.4.0/nist.esm.js",
+  "/assets/vendor/@noble/curves@2.4.0/secp256k1.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/crypto.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/hmac.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/legacy.esm.js",
@@ -36,7 +38,9 @@ const PRECACHE = [
   "/assets/vendor/@noble/hashes@1.8.0/sha2.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/sha3.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/utils.esm.js",
+  "/assets/vendor/@noble/hashes@2.4.0/blake2.esm.js",
   "/assets/vendor/@noble/hashes@2.4.0/hmac.esm.js",
+  "/assets/vendor/@noble/hashes@2.4.0/legacy.esm.js",
   "/assets/vendor/@noble/hashes@2.4.0/pbkdf2.esm.js",
   "/assets/vendor/@noble/hashes@2.4.0/sha2.esm.js",
   "/assets/vendor/@noble/hashes@2.4.0/utils.esm.js",
@@ -44,6 +48,7 @@ const PRECACHE = [
   "/assets/vendor/@scure/base@1.2.5/index.esm.js",
   "/assets/vendor/@scure/base@2.4.0/index.esm.js",
   "/assets/vendor/@scure/bip32@1.7.0/index.esm.js",
+  "/assets/vendor/@scure/bip32@2.4.0/index.esm.js",
   "/assets/vendor/@scure/bip39@1.6.0/index.esm.js",
   "/assets/vendor/@scure/bip39@1.6.0/wordlists/english.esm.js",
   "/assets/vendor/@scure/bip39@2.4.0/index.esm.js",
@@ -188,10 +193,14 @@ const PRECACHE = [
   "/solana/vanity-address/",
   "/solana/vanity-address/worker.js",
   "/solana/verify-message/",
+  "/sui/",
   "/sui/address-from-key/",
   "/sui/bcs/",
-  "/sui/",
   "/sui/keypair-converter/",
+  "/sui/lib/bcs.js",
+  "/sui/lib/sui.css",
+  "/sui/lib/sui.js",
+  "/sui/lib/tx.js",
   "/sui/mnemonic-accounts/",
   "/sui/multisig-address/",
   "/sui/object-id/",
