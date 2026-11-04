@@ -157,6 +157,137 @@
       "lead": "Developer utilities that run entirely in your browser. Nothing you paste leaves your device.",
       "categories": [
         {
+          "name": "Bits & Bytes",
+          "tools": [
+            {
+              "slug": "little-endian",
+              "emoji": "🔄",
+              "name": "Little Endian",
+              "description": "Convert a number between big-endian and little-endian bytes"
+            },
+            {
+              "slug": "number-converter",
+              "emoji": "🔢",
+              "name": "Number Converter",
+              "description": "Convert numbers between binary, decimal and hex"
+            },
+            {
+              "slug": "byte-ascii",
+              "emoji": "🔤",
+              "name": "Byte (ASCII)",
+              "description": "Convert between a byte and an ASCII character"
+            },
+            {
+              "slug": "byte-integer",
+              "emoji": "🔟",
+              "name": "Byte (Integer)",
+              "description": "Convert a byte between binary, hex and integer"
+            },
+            {
+              "slug": "byte",
+              "emoji": "💾",
+              "name": "Byte",
+              "description": "Show every representation of a byte"
+            },
+            {
+              "slug": "bit",
+              "emoji": "💡",
+              "name": "Bit",
+              "description": "Flip bits in an interactive editor"
+            }
+          ]
+        },
+        {
+          "name": "Time",
+          "tools": [
+            {
+              "slug": "timestamp",
+              "emoji": "⌛",
+              "name": "Timestamp Converter",
+              "description": "Convert Unix timestamps and dates",
+              "keywords": "epoch unix time date iso"
+            },
+            {
+              "slug": "cron",
+              "emoji": "🕰️",
+              "name": "Cron Explainer",
+              "description": "Explain a cron expression and its next runs",
+              "keywords": "crontab schedule"
+            }
+          ]
+        },
+        {
+          "name": "Encoding",
+          "tools": [
+            {
+              "slug": "jwt-decoder",
+              "emoji": "🎫",
+              "name": "JWT Decoder",
+              "description": "Decode and inspect JSON Web Tokens",
+              "keywords": "token jws auth"
+            },
+            {
+              "slug": "base64",
+              "emoji": "📦",
+              "name": "Base64",
+              "description": "Encode and decode Base64 text and files",
+              "keywords": "data uri"
+            },
+            {
+              "slug": "url-parser",
+              "emoji": "🔗",
+              "name": "URL Parser",
+              "description": "Split a URL and edit its query parameters",
+              "keywords": "query string encode"
+            },
+            {
+              "slug": "html-entities",
+              "emoji": "🏷️",
+              "name": "HTML Entities",
+              "description": "Escape and unescape HTML entities",
+              "keywords": "escape"
+            }
+          ]
+        },
+        {
+          "name": "Generators",
+          "tools": [
+            {
+              "slug": "uuid",
+              "emoji": "🆔",
+              "name": "UUID / ULID",
+              "description": "Generate and inspect UUIDs and ULIDs",
+              "keywords": "guid id random"
+            },
+            {
+              "slug": "lorem-ipsum",
+              "emoji": "📝",
+              "name": "Lorem Ipsum",
+              "description": "Generate placeholder text",
+              "keywords": "dummy text"
+            }
+          ]
+        },
+        {
+          "name": "Testing",
+          "tools": [
+            {
+              "slug": "regex-tester",
+              "emoji": "🧪",
+              "name": "Regex Tester",
+              "description": "Test regular expressions with live matches",
+              "keywords": "regexp pattern"
+            },
+            {
+              "slug": "text-diff",
+              "emoji": "📑",
+              "name": "Text Diff",
+              "description": "Compare two texts line by line",
+              "keywords": "compare diff"
+            }
+          ]
+        },
+        {
           "name": "Data",
           "tools": [
             {
@@ -197,96 +328,6 @@
           ]
         },
         {
-          "name": "Encoding",
-          "tools": [
-            {
-              "slug": "jwt-decoder",
-              "emoji": "🎫",
-              "name": "JWT Decoder",
-              "description": "Decode and inspect JSON Web Tokens",
-              "keywords": "token jws auth"
-            },
-            {
-              "slug": "base64",
-              "emoji": "📦",
-              "name": "Base64",
-              "description": "Encode and decode Base64 text and files",
-              "keywords": "data uri"
-            },
-            {
-              "slug": "url-parser",
-              "emoji": "🔗",
-              "name": "URL Parser",
-              "description": "Split a URL and edit its query parameters",
-              "keywords": "query string encode"
-            },
-            {
-              "slug": "html-entities",
-              "emoji": "🏷️",
-              "name": "HTML Entities",
-              "description": "Escape and unescape HTML entities",
-              "keywords": "escape"
-            }
-          ]
-        },
-        {
-          "name": "Time",
-          "tools": [
-            {
-              "slug": "timestamp",
-              "emoji": "⌛",
-              "name": "Timestamp Converter",
-              "description": "Convert Unix timestamps and dates",
-              "keywords": "epoch unix time date iso"
-            },
-            {
-              "slug": "cron",
-              "emoji": "🕰️",
-              "name": "Cron Explainer",
-              "description": "Explain a cron expression and its next runs",
-              "keywords": "crontab schedule"
-            }
-          ]
-        },
-        {
-          "name": "Testing",
-          "tools": [
-            {
-              "slug": "regex-tester",
-              "emoji": "🧪",
-              "name": "Regex Tester",
-              "description": "Test regular expressions with live matches",
-              "keywords": "regexp pattern"
-            },
-            {
-              "slug": "text-diff",
-              "emoji": "📑",
-              "name": "Text Diff",
-              "description": "Compare two texts line by line",
-              "keywords": "compare diff"
-            }
-          ]
-        },
-        {
-          "name": "Generators",
-          "tools": [
-            {
-              "slug": "uuid",
-              "emoji": "🆔",
-              "name": "UUID / ULID",
-              "description": "Generate and inspect UUIDs and ULIDs",
-              "keywords": "guid id random"
-            },
-            {
-              "slug": "lorem-ipsum",
-              "emoji": "📝",
-              "name": "Lorem Ipsum",
-              "description": "Generate placeholder text",
-              "keywords": "dummy text"
-            }
-          ]
-        },
-        {
           "name": "Web",
           "tools": [
             {
@@ -302,47 +343,6 @@
               "name": "HTTP Status Codes",
               "description": "Look up HTTP status codes",
               "keywords": "404 500 response"
-            }
-          ]
-        },
-        {
-          "name": "Bits & Bytes",
-          "tools": [
-            {
-              "slug": "little-endian",
-              "emoji": "🔄",
-              "name": "Little Endian",
-              "description": "Convert a number between big-endian and little-endian bytes"
-            },
-            {
-              "slug": "number-converter",
-              "emoji": "🔢",
-              "name": "Number Converter",
-              "description": "Convert numbers between binary, decimal and hex"
-            },
-            {
-              "slug": "byte-ascii",
-              "emoji": "🔤",
-              "name": "Byte (ASCII)",
-              "description": "Convert between a byte and an ASCII character"
-            },
-            {
-              "slug": "byte-integer",
-              "emoji": "🔟",
-              "name": "Byte (Integer)",
-              "description": "Convert a byte between binary, hex and integer"
-            },
-            {
-              "slug": "byte",
-              "emoji": "💾",
-              "name": "Byte",
-              "description": "Show every representation of a byte"
-            },
-            {
-              "slug": "bit",
-              "emoji": "💡",
-              "name": "Bit",
-              "description": "Flip bits in an interactive editor"
             }
           ]
         }
