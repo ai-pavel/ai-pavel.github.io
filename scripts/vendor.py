@@ -13,12 +13,15 @@ to the local copy, and assets/vendor/VENDOR.md lists what was vendored.
 Heavy assets loaded on demand (the ffmpeg core, the tesseract core and its
 language data) are not vendored; the service worker caches them on first use.
 
-Run from anywhere: python3 scripts/vendor.py
+Run from anywhere: python3 scripts/vendor.py [folder ...]
+With folders given, only pages under them are rewritten (the libraries are still
+all fetched), so sections that are still being edited are left alone.
 """
 import hashlib
 import os
 import posixpath
 import re
+import sys
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -102,20 +105,25 @@ def vendor_all():
     return done
 
 
-def site_files():
+def site_files(only=()):
     for d, dirs, files in os.walk(ROOT):
         rel = os.path.relpath(d, ROOT)
         if rel.startswith((".git", "assets/vendor", "scripts")):
             dirs[:] = []
+            continue
+        if only and rel != "." and rel.split(os.sep)[0] not in only:
+            dirs[:] = []
+            continue
+        if only and rel == ".":
             continue
         for name in files:
             if name.endswith((".html", ".js", ".mjs")):
                 yield os.path.join(rel, name) if rel != "." else name
 
 
-def rewrite_references(done):
+def rewrite_references(done, only=()):
     changed = []
-    for rel in site_files():
+    for rel in site_files(only):
         full = os.path.join(ROOT, rel)
         with open(full, encoding="utf-8") as f:
             text = f.read()
@@ -147,8 +155,9 @@ def write_manifest(done):
 
 
 def main():
+    only = tuple(a.strip("/") for a in sys.argv[1:])
     done = vendor_all()
-    changed = rewrite_references(done)
+    changed = rewrite_references(done, only)
     write_manifest(done)
     print(f"vendored {len(done)} files, rewrote references in {len(changed)} files")
 

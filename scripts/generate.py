@@ -7,7 +7,10 @@ for any tool listed in tools.json that has no page yet. A tool counts as
 ready once its page no longer contains the placeholder marker.
 
 Run from anywhere: python3 scripts/generate.py
+While some sections are still being written, pass them as --wip a,b: their tool
+pages are left untouched and shown as not ready.
 """
+import argparse
 import hashlib
 import html
 import json
@@ -242,12 +245,15 @@ def service_worker():
     print(f"sw.js: {len(urls)} files precached, {size_label(files)}")
 
 
-def build_pages(toolboxes):
+def build_pages(toolboxes, wip=()):
     for tb in toolboxes:
         os.makedirs(path(tb["id"]), exist_ok=True)
         for cat in tb["categories"]:
             for t in cat["tools"]:
                 ensure_placeholder(tb, t)
+                if tb["id"] in wip:
+                    t["ready"] = False
+                    continue
                 ensure_page_chrome(os.path.join(tb["id"], t["slug"], "index.html"))
                 t["ready"] = is_ready(tb["id"], t["slug"])
         toolbox_page(tb)
@@ -258,6 +264,9 @@ def build_pages(toolboxes):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--wip", default="", help="comma-separated sections still being written")
+    wip = {x for x in parser.parse_args().wip.split(",") if x}
     with open(path("assets", "tools.json"), encoding="utf-8") as f:
         toolboxes = json.load(f)["toolboxes"]
     # The footer shows the site's size, and the footer is part of every page, so
@@ -265,7 +274,7 @@ def main():
     label = size_label(site_files())
     for _ in range(5):
         set_footer(label)
-        build_pages(toolboxes)
+        build_pages(toolboxes, wip)
         new_label = size_label(site_files())
         if new_label == label:
             break
