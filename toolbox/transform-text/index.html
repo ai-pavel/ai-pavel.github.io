@@ -4,14 +4,104 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>🔤 Transform Text</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%A4</text></svg>">
   <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>🔤 Transform Text</h1>
-  <p class="lead">Change case, clean up and reformat text</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Change case, clean up lines and encode text. Each button transforms the text in place.</p>
+
+  <div class="panel">
+    <textarea id="text" rows="10" style="width:100%;resize:vertical" placeholder="Paste or type text here"></textarea>
+    <p class="muted" id="stats"></p>
+
+    <p class="muted">Case</p>
+    <div class="row">
+      <button data-op="upper">UPPERCASE</button>
+      <button data-op="lower">lowercase</button>
+      <button data-op="title">Title Case</button>
+      <button data-op="sentence">Sentence case</button>
+      <button data-op="camel">camelCase</button>
+      <button data-op="snake">snake_case</button>
+      <button data-op="kebab">kebab-case</button>
+    </div>
+    <p class="muted">Clean up</p>
+    <div class="row">
+      <button data-op="trim">Trim lines</button>
+      <button data-op="spaces">Collapse spaces</button>
+      <button data-op="empty">Remove empty lines</button>
+      <button data-op="sort">Sort lines</button>
+      <button data-op="unique">Unique lines</button>
+      <button data-op="reverseLines">Reverse lines</button>
+      <button data-op="reverse">Reverse text</button>
+    </div>
+    <p class="muted">Encode</p>
+    <div class="row">
+      <button data-op="b64e">Base64 encode</button>
+      <button data-op="b64d">Base64 decode</button>
+      <button data-op="urle">URL encode</button>
+      <button data-op="urld">URL decode</button>
+    </div>
+    <div class="row" style="margin-top:20px">
+      <button class="primary" id="copy">Copy</button>
+      <button id="undo" disabled>Undo</button>
+      <button id="clear">Clear</button>
+      <span class="muted" id="msg"></span>
+    </div>
+  </div>
 </main>
+<script>
+const $ = id => document.getElementById(id);
+const text = $('text');
+const undoStack = [];
+
+const words = s => s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+const lines = (s, f) => s.split('\n').map(f).join('\n');
+const OPS = {
+  upper: s => s.toUpperCase(),
+  lower: s => s.toLowerCase(),
+  title: s => s.toLowerCase().replace(/(^|[\s\-("'])(\p{L})/gu, (m, p, c) => p + c.toUpperCase()),
+  sentence: s => s.toLowerCase().replace(/(^\s*|[.!?]\s+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase()),
+  camel: s => lines(s, l => words(l).map((w, i) => i ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w.toLowerCase()).join('')),
+  snake: s => lines(s, l => words(l).join('_').toLowerCase()),
+  kebab: s => lines(s, l => words(l).join('-').toLowerCase()),
+  trim: s => lines(s, l => l.trim()),
+  spaces: s => lines(s, l => l.replace(/[ \t]+/g, ' ')),
+  empty: s => s.split('\n').filter(l => l.trim()).join('\n'),
+  sort: s => s.split('\n').sort((a, b) => a.localeCompare(b)).join('\n'),
+  unique: s => [...new Set(s.split('\n'))].join('\n'),
+  reverseLines: s => s.split('\n').reverse().join('\n'),
+  reverse: s => [...s].reverse().join(''),
+  b64e: s => { let b = ''; new TextEncoder().encode(s).forEach(c => b += String.fromCharCode(c)); return btoa(b); },
+  b64d: s => new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(atob(s.trim()), c => c.charCodeAt(0))),
+  urle: s => encodeURIComponent(s),
+  urld: s => decodeURIComponent(s),
+};
+
+function flash(m) { $('msg').textContent = m; clearTimeout(flash.t); flash.t = setTimeout(() => $('msg').textContent = '', 2000); }
+function stats() {
+  const s = text.value;
+  $('stats').textContent = `${[...s].length} characters · ${(s.match(/\S+/g) || []).length} words · ${s ? s.split('\n').length : 0} lines`;
+}
+
+document.querySelectorAll('[data-op]').forEach(b => b.onclick = () => {
+  try {
+    const out = OPS[b.dataset.op](text.value);
+    if (out === text.value) return;
+    undoStack.push(text.value); $('undo').disabled = false;
+    text.value = out; stats();
+  } catch { flash('Could not transform: the input is not valid for this operation.'); }
+});
+$('undo').onclick = () => { text.value = undoStack.pop(); $('undo').disabled = !undoStack.length; stats(); };
+$('clear').onclick = () => { if (text.value) { undoStack.push(text.value); $('undo').disabled = false; } text.value = ''; stats(); };
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(text.value); flash('Copied.'); }
+  catch { text.select(); flash('Press ⌘C / Ctrl+C to copy.'); }
+};
+text.oninput = stats;
+stats();
+</script>
 </body>
 </html>

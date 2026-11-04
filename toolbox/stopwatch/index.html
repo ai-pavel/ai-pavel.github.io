@@ -4,14 +4,71 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>⏱️ Stopwatch</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%8F%B1%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>⏱️ Stopwatch</h1>
-  <p class="lead">Measure elapsed time</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Measure elapsed time with laps. Shortcuts: <kbd>Space</kbd> start/stop, <kbd>L</kbd> lap, <kbd>R</kbd> reset.</p>
+
+  <div class="panel">
+    <div class="display" id="display">00:00.00</div>
+    <div class="row" style="justify-content:center">
+      <button class="primary" id="start">Start</button>
+      <button id="lap" disabled>Lap</button>
+      <button id="reset">Reset</button>
+    </div>
+    <table id="laps" hidden>
+      <thead><tr><th>#</th><th>Lap</th><th>Total</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </main>
+<script>
+const $ = id => document.getElementById(id);
+let startedAt = null, elapsed = 0, raf = null, laps = [];
+
+const pad = (n, w = 2) => String(n).padStart(w, '0');
+function fmt(ms) {
+  const cs = Math.floor(ms / 10) % 100, s = Math.floor(ms / 1000) % 60, m = Math.floor(ms / 60000) % 60, h = Math.floor(ms / 3600000);
+  return (h ? h + ':' + pad(m) : pad(m)) + ':' + pad(s) + '.' + pad(cs);
+}
+const now = () => elapsed + (startedAt ? performance.now() - startedAt : 0);
+function frame() { $('display').textContent = fmt(now()); raf = requestAnimationFrame(frame); }
+
+function toggle() {
+  if (startedAt) {
+    elapsed = now(); startedAt = null; cancelAnimationFrame(raf);
+    $('start').textContent = 'Start'; $('lap').disabled = true;
+    $('display').textContent = fmt(elapsed);
+  } else {
+    startedAt = performance.now(); frame();
+    $('start').textContent = 'Stop'; $('lap').disabled = false;
+  }
+}
+function lap() {
+  if (!startedAt) return;
+  const total = now(), prev = laps.length ? laps[laps.length - 1] : 0;
+  laps.push(total);
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${laps.length}</td><td class="mono">${fmt(total - prev)}</td><td class="mono">${fmt(total)}</td>`;
+  $('laps').tBodies[0].prepend(tr); $('laps').hidden = false;
+}
+function reset() {
+  cancelAnimationFrame(raf); startedAt = null; elapsed = 0; laps = [];
+  $('display').textContent = fmt(0); $('start').textContent = 'Start'; $('lap').disabled = true;
+  $('laps').tBodies[0].innerHTML = ''; $('laps').hidden = true;
+}
+$('start').onclick = toggle; $('lap').onclick = lap; $('reset').onclick = reset;
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea') || e.metaKey || e.ctrlKey) return;
+  if (e.target.tagName === 'BUTTON') e.target.blur();
+  if (e.code === 'Space') { e.preventDefault(); toggle(); }
+  else if (e.key === 'l' || e.key === 'L') lap();
+  else if (e.key === 'r' || e.key === 'R') reset();
+});
+</script>
 </body>
 </html>

@@ -4,14 +4,71 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>📅 Date Countdown</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%85</text></svg>">
   <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>📅 Date Countdown</h1>
-  <p class="lead">Count down to a date</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Count down to the dates that matter. Your countdowns are saved in this browser.</p>
+
+  <div class="panel">
+    <form class="row" id="add">
+      <label style="flex:1;min-width:180px">Event <input id="name" placeholder="e.g. Vacation" required></label>
+      <label>Date and time <input id="when" type="datetime-local" required></label>
+      <button class="primary" style="align-self:flex-end">Add</button>
+    </form>
+    <div class="list" id="list"></div>
+    <p class="muted" id="empty">No countdowns yet.</p>
+  </div>
 </main>
+<script>
+const KEY = 'toolbox.dateCountdown';
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch {} }
+let items = load();
+
+const esc = s => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function span(ms) {
+  const t = Math.floor(Math.abs(ms) / 1000);
+  const d = Math.floor(t / 86400), h = Math.floor(t % 86400 / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
+  return `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+}
+
+function render() {
+  const now = Date.now();
+  items.sort((a, b) => a.at - b.at);
+  document.getElementById('empty').hidden = items.length > 0;
+  document.getElementById('list').innerHTML = items.map((it, i) => {
+    const diff = it.at - now;
+    return `
+    <div class="item stack">
+      <div>
+        <div><strong>${esc(it.name)}</strong></div>
+        <div class="muted">${new Date(it.at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+      </div>
+      <div class="row">
+        <span class="big mono">${diff >= 0 ? span(diff) : span(diff) + ' ago'}</span>
+        <button class="icon-btn" data-remove="${i}" title="Remove">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('list').onclick = e => {
+  const i = e.target.dataset.remove;
+  if (i !== undefined) { items.splice(+i, 1); save(); render(); }
+};
+document.getElementById('add').onsubmit = e => {
+  e.preventDefault();
+  const at = new Date(document.getElementById('when').value).getTime();
+  if (isNaN(at)) return;
+  items.push({ name: document.getElementById('name').value.trim(), at });
+  save(); e.target.reset(); render();
+};
+render();
+setInterval(render, 1000);
+</script>
 </body>
 </html>

@@ -4,14 +4,91 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>🌍 World Time</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8C%8D</text></svg>">
   <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>🌍 World Time</h1>
-  <p class="lead">See the time around the world</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">See the current time in cities around the world. Your list is saved in this browser.</p>
+
+  <div class="panel">
+    <form class="row" id="add">
+      <input id="zone" list="zones" placeholder="Add a time zone, e.g. Tokyo" style="flex:1;min-width:200px" autocomplete="off">
+      <datalist id="zones"></datalist>
+      <button class="primary">Add</button>
+    </form>
+    <p class="muted" id="error" hidden>Unknown time zone. Pick one from the suggestions.</p>
+    <div class="list" id="list"></div>
+  </div>
 </main>
+<script>
+const KEY = 'toolbox.worldTime';
+const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+// Browsers often list legacy IANA names; offer the current ones instead.
+const RENAMED = { 'Asia/Calcutta': 'Asia/Kolkata', 'Europe/Kiev': 'Europe/Kyiv', 'Asia/Saigon': 'Asia/Ho_Chi_Minh',
+  'Asia/Katmandu': 'Asia/Kathmandu', 'Asia/Rangoon': 'Asia/Yangon', 'America/Godthab': 'America/Nuuk',
+  'Atlantic/Faeroe': 'Atlantic/Faroe', 'Pacific/Truk': 'Pacific/Chuuk', 'Pacific/Ponape': 'Pacific/Pohnpei' };
+const validZone = z => { try { new Intl.DateTimeFormat('en-US', { timeZone: z }); return true; } catch { return false; } };
+const allZones = (Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [])
+  .map(z => RENAMED[z] && validZone(RENAMED[z]) ? RENAMED[z] : z);
+const DEFAULTS = ['America/New_York', 'Europe/London', 'Asia/Tokyo'];
+
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || DEFAULTS; } catch { return DEFAULTS; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(zones)); } catch {} }
+let zones = load();
+
+const city = z => z.split('/').pop().replace(/_/g, ' ');
+document.getElementById('zones').innerHTML = allZones.map(z => `<option value="${z}">${city(z)}</option>`).join('');
+
+function offsetMinutes(zone, date) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric'
+  }).formatToParts(date).map(p => [p.type, p.value]));
+  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+  return Math.round((asUtc - date.getTime()) / 60000);
+}
+function diffLabel(zone, date) {
+  const d = offsetMinutes(zone, date) - offsetMinutes(localZone, date);
+  if (!d) return 'Same as local';
+  const h = Math.floor(Math.abs(d) / 60), m = Math.abs(d) % 60;
+  return (d > 0 ? '+' : '−') + h + 'h' + (m ? ' ' + m + 'm' : '') + ' from local';
+}
+
+function render() {
+  const now = new Date();
+  const rows = [localZone, ...zones.filter(z => z !== localZone)];
+  document.getElementById('list').innerHTML = rows.map(z => `
+    <div class="item">
+      <div>
+        <div><strong>${city(z)}</strong>${z === localZone ? ' <span class="muted">· local</span>' : ''}</div>
+        <div class="muted">${now.toLocaleDateString('en-US', { timeZone: z, weekday: 'short', month: 'short', day: 'numeric' })} · ${diffLabel(z, now)}</div>
+      </div>
+      <div class="row">
+        <span class="big mono">${now.toLocaleTimeString('en-GB', { timeZone: z, hour: '2-digit', minute: '2-digit' })}</span>
+        ${z === localZone ? '' : `<button class="icon-btn" data-remove="${z}" title="Remove">✕</button>`}
+      </div>
+    </div>`).join('');
+}
+
+document.getElementById('list').onclick = e => {
+  const z = e.target.dataset.remove;
+  if (z) { zones = zones.filter(x => x !== z); save(); render(); }
+};
+document.getElementById('add').onsubmit = e => {
+  e.preventDefault();
+  const input = document.getElementById('zone'), q = input.value.trim().toLowerCase();
+  const raw = input.value.trim().replace(/ /g, '_');
+  const match = allZones.find(z => z.toLowerCase() === q) || allZones.find(z => city(z).toLowerCase() === q)
+    || (raw.includes('/') && validZone(raw) ? raw : null);
+  document.getElementById('error').hidden = !!match;
+  if (!match) return;
+  if (!zones.includes(match)) { zones.push(match); save(); }
+  input.value = ''; render();
+};
+render();
+setInterval(render, 1000);
+</script>
 </body>
 </html>

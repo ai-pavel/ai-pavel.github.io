@@ -4,14 +4,92 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>⏲️ Timer</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%8F%B2%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <main>
   <a class="back" href="../">← All tools</a>
   <h1>⏲️ Timer</h1>
-  <p class="lead">Count down a set time</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Count down a set time. Keep this tab open to hear the alert.</p>
+
+  <div class="panel">
+    <div class="display" id="display">05:00</div>
+    <div class="row" id="inputs">
+      <label>Hours <input id="h" type="number" min="0" max="99" value="0" style="width:80px"></label>
+      <label>Minutes <input id="m" type="number" min="0" max="59" value="5" style="width:80px"></label>
+      <label>Seconds <input id="s" type="number" min="0" max="59" value="0" style="width:80px"></label>
+    </div>
+    <div class="row">
+      <button data-preset="60">1 min</button>
+      <button data-preset="300">5 min</button>
+      <button data-preset="600">10 min</button>
+      <button data-preset="1500">25 min</button>
+      <button data-preset="3600">1 hour</button>
+    </div>
+    <div class="row">
+      <button class="primary" id="start">Start</button>
+      <button id="reset">Reset</button>
+    </div>
+  </div>
 </main>
+<script>
+const $ = id => document.getElementById(id);
+const display = $('display'), startBtn = $('start');
+let endAt = null, remaining = 300000, tick = null;
+
+const pad = n => String(n).padStart(2, '0');
+function fmt(ms) {
+  const t = Math.ceil(ms / 1000), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
+  return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+function fromInputs() {
+  return ((+$('h').value || 0) * 3600 + (+$('m').value || 0) * 60 + (+$('s').value || 0)) * 1000;
+}
+function render() {
+  display.textContent = fmt(remaining);
+  document.title = endAt ? `${fmt(remaining)} · Timer` : '⏲️ Timer';
+}
+function setInputsDisabled(v) { document.querySelectorAll('#inputs input, [data-preset]').forEach(el => el.disabled = v); }
+
+function beep() {
+  try {
+    const ctx = new AudioContext();
+    [0, 0.4, 0.8].forEach(t => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.3, ctx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.3);
+      o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.3);
+    });
+  } catch {}
+}
+function done() {
+  stop(); remaining = 0; setInputsDisabled(false); render(); beep();
+  document.title = '⏰ Time is up!';
+  if ('Notification' in window && Notification.permission === 'granted') new Notification('⏲️ Timer', { body: 'Time is up!' });
+  startBtn.textContent = 'Start';
+}
+function stop() { clearInterval(tick); tick = null; endAt = null; }
+
+startBtn.onclick = () => {
+  if (tick) { // pause
+    remaining = endAt - Date.now(); stop(); startBtn.textContent = 'Resume'; render(); return;
+  }
+  if (remaining <= 0) remaining = fromInputs();
+  if (remaining <= 0) return;
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  endAt = Date.now() + remaining; setInputsDisabled(true); startBtn.textContent = 'Pause';
+  tick = setInterval(() => { remaining = endAt - Date.now(); remaining <= 0 ? done() : render(); }, 200);
+  render();
+};
+$('reset').onclick = () => { stop(); remaining = fromInputs(); setInputsDisabled(false); startBtn.textContent = 'Start'; render(); };
+document.querySelectorAll('#inputs input').forEach(el => el.oninput = () => { remaining = fromInputs(); startBtn.textContent = 'Start'; render(); });
+document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => {
+  const t = +b.dataset.preset; $('h').value = Math.floor(t / 3600); $('m').value = Math.floor(t % 3600 / 60); $('s').value = t % 60;
+  remaining = t * 1000; startBtn.textContent = 'Start'; render();
+});
+render();
+</script>
 </body>
 </html>
