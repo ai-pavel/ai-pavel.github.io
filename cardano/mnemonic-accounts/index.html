@@ -6,6 +6,7 @@
   <title>Mnemonic Accounts</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8C%B1</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,94 @@
 <main>
   <a class="back" href="../">← Cardano</a>
   <h1>🌱 Mnemonic Accounts</h1>
-  <p class="lead">Derive keys and addresses from a mnemonic (CIP-1852).</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive keys and addresses from a recovery phrase the way Shelley wallets do (CIP-1852: Yoroi, Eternl, Lace, Daedalus).</p>
+  <div class="panel">
+    <p class="notice">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <label class="field"><span>Recovery phrase (12, 15 or 24 words)</span>
+      <textarea id="phrase" class="mono" rows="3" autocomplete="off" spellcheck="false"></textarea></label>
+    <div class="row" style="margin-top:8px">
+      <button type="button" id="gen15">New 15 words</button>
+      <button type="button" id="gen24">New 24 words</button>
+      <button type="button" id="example">Test phrase</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label class="field" style="flex:1 1 200px"><span>Passphrase (optional, rarely used)</span><input id="pass" autocomplete="off" spellcheck="false"></label>
+      <label class="field" style="flex:0 1 130px"><span>Network</span><select id="net"><option value="1">Mainnet</option><option value="0">Testnet</option></select></label>
+      <label class="field" style="flex:0 1 110px"><span>Account</span><input id="acct" class="mono" inputmode="numeric" value="0"></label>
+      <label class="field" style="flex:0 1 150px"><span>Addresses</span><select id="role"><option value="0">Receiving (0)</option><option value="1">Change (1)</option></select></label>
+      <label class="field" style="flex:0 1 110px"><span>How many</span><input id="count" class="mono" inputmode="numeric" value="5"></label>
+    </div>
+    <label style="margin-top:12px;display:flex;flex-direction:row;align-items:center;gap:8px;color:var(--text)"><input type="checkbox" id="showKeys"> Show private keys</label>
+    <p class="error" id="err" hidden></p>
+    <div class="kv" id="out"></div>
+    <div class="list" id="addrs"></div>
+    <details class="help">
+      <summary>How it works</summary>
+      <p>The phrase's entropy goes through PBKDF2-HMAC-SHA512 (4096 rounds, the passphrase as password) to make the root key. Keys are then derived with BIP32-Ed25519 along <code>m/1852'/1815'/account'/role/index</code>: role 0 is receiving addresses, 1 is change, 2 is the stake key. Each base address combines a payment key hash with the account's stake key hash.</p>
+      <p>Legacy Byron (Daedalus) and Ledger/Trezor hardware-wallet roots use other schemes, so their addresses will differ.</p>
+    </details>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { generateMnemonic, validateMnemonic, mnemonicToEntropy } from '../../assets/vendor/@scure/bip39@1.6.0/index.esm.js';
+import { wordlist } from '../../assets/vendor/@scure/bip39@1.6.0/wordlists/english.esm.js';
+import { icarusRoot, derivePath, derivePrivate, HARDENED, blake2b224, bech32Encode, buildAddress, xprvBytes, xpubBytes, toHex } from '../lib/cardano.js';
+import { $, row, esc, showError, debounce } from '../lib/ui.js';
+
+function words(s) { return s.trim().toLowerCase().split(/\s+/).filter(Boolean); }
+function checkPhrase(s) {
+  const w = words(s);
+  if (![12, 15, 18, 21, 24].includes(w.length)) throw new Error(`A recovery phrase has 12, 15, 18, 21 or 24 words; this one has ${w.length}.`);
+  const unknown = w.filter(x => !wordlist.includes(x));
+  if (unknown.length) throw new Error('Not in the BIP-39 English word list: ' + unknown.join(', '));
+  if (!validateMnemonic(w.join(' '), wordlist)) throw new Error('The checksum doesn\'t match: one of the words is probably wrong or out of order.');
+  return w.join(' ');
+}
+function render() {
+  $('out').innerHTML = ''; $('addrs').innerHTML = '';
+  if (!$('phrase').value.trim()) { showError($('err')); return; }
+  try {
+    const phrase = checkPhrase($('phrase').value);
+    const account = Number($('acct').value), count = Number($('count').value), role = Number($('role').value), network = Number($('net').value);
+    if (!Number.isInteger(account) || account < 0 || account >= HARDENED) throw new Error('Account must be a whole number from 0.');
+    if (!Number.isInteger(count) || count < 1 || count > 100) throw new Error('Show between 1 and 100 addresses.');
+    showError($('err'));
+    const root = icarusRoot(mnemonicToEntropy(phrase, wordlist), $('pass').value);
+    const acct = derivePath(root, [1852 + HARDENED, 1815 + HARDENED, account + HARDENED]);
+    const stakeKey = derivePath(acct, [2, 0]);
+    const stakeHash = blake2b224(stakeKey.pub);
+    const stake = { type: 'key', hash: stakeHash };
+    const reward = buildAddress({ kind: 'reward', network, stake });
+    const keys = $('showKeys').checked;
+    $('out').innerHTML = [
+      keys ? row('Root private key (root_xsk)', bech32Encode('root_xsk', xprvBytes(root))) : '',
+      row(`Account public key (acct_xvk) · m/1852'/1815'/${account}'`, bech32Encode('acct_xvk', xpubBytes(acct)), 'Wallets import this to watch the account without spending.'),
+      row('Stake address', reward.bech32, `Stake key m/1852'/1815'/${account}'/2/0 · key hash ${toHex(stakeHash)}`),
+      keys ? row('Stake private key (stake_xsk)', bech32Encode('stake_xsk', xprvBytes(stakeKey))) : '',
+    ].join('');
+    const chain = derivePrivate(acct, role);
+    const items = [];
+    for (let i = 0; i < count; i++) {
+      const k = derivePrivate(chain, i), h = blake2b224(k.pub);
+      const a = buildAddress({ kind: 'base', network, payment: { type: 'key', hash: h }, stake });
+      items.push(`<div class="item stack" style="display:block">
+        <div class="muted" style="font-size:13px">m/1852'/1815'/${account}'/${role}/${i}</div>
+        <div class="kv" style="margin-top:6px">${row('Base address', a.bech32)}${row('Payment key hash', toHex(h))}${keys ? row('Payment private key (addr_xsk)', bech32Encode('addr_xsk', xprvBytes(k))) : ''}</div>
+      </div>`);
+    }
+    $('addrs').innerHTML = items.join('');
+  } catch (e) { showError($('err'), e); }
+}
+const later = debounce(render, 150);
+for (const id of ['phrase', 'pass', 'acct', 'count']) $(id).addEventListener('input', later);
+for (const id of ['net', 'role', 'showKeys']) $(id).addEventListener('input', render);
+$('gen15').onclick = () => { $('phrase').value = generateMnemonic(wordlist, 160); render(); };
+$('gen24').onclick = () => { $('phrase').value = generateMnemonic(wordlist, 256); render(); };
+$('example').onclick = () => { $('phrase').value = 'test walk nut penalty hip pave soap entry language right filter choice'; $('pass').value = ''; render(); };
+</script>
 </body>
 </html>

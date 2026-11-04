@@ -1,6 +1,6 @@
 // Service worker template. scripts/generate.py fills in VERSION and PRECACHE
 // and writes the result to /sw.js. Edit this file, not sw.js.
-const VERSION = '8897dab60639';
+const VERSION = '5f223d712b77';
 const SITE_CACHE = 'site-' + VERSION;
 // Heavy, version-pinned files that tools download on first use (the ffmpeg core,
 // the OCR engine and its language data). Cached once and kept across site updates.
@@ -31,6 +31,7 @@ const PRECACHE = [
   "/assets/vendor/@noble/curves@2.4.0/ed25519.esm.js",
   "/assets/vendor/@noble/curves@2.4.0/nist.esm.js",
   "/assets/vendor/@noble/curves@2.4.0/secp256k1.esm.js",
+  "/assets/vendor/@noble/hashes@1.8.0/blake2b.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/crypto.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/hmac.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/legacy.esm.js",
@@ -96,11 +97,15 @@ const PRECACHE = [
   "/bitcoin/txid/",
   "/bitcoin/wif-private-key/",
   "/bitcoin/wtxid/",
+  "/cardano/",
   "/cardano/address-builder/",
   "/cardano/address-inspector/",
   "/cardano/asset-fingerprint/",
   "/cardano/datum-hash/",
-  "/cardano/",
+  "/cardano/lib/cardano.js",
+  "/cardano/lib/cbor.js",
+  "/cardano/lib/ui.css",
+  "/cardano/lib/ui.js",
   "/cardano/mnemonic-accounts/",
   "/cardano/policy-id/",
   "/cardano/stake-address/",

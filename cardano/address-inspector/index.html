@@ -6,6 +6,7 @@
   <title>Address Inspector</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%8D</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,79 @@
 <main>
   <a class="back" href="../">← Cardano</a>
   <h1>🔍 Address Inspector</h1>
-  <p class="lead">Decode an address: type, network and credentials.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Decode a Cardano address: its type, network and the payment and stake credentials inside it.</p>
+  <div class="panel">
+    <label class="field"><span>Address (bech32, Byron base58 or hex)</span>
+      <textarea id="addr" class="mono" rows="3" placeholder="addr1… / stake1… / Ae2… / DdzFF…" autocomplete="off" spellcheck="false"></textarea></label>
+    <div class="row" style="margin-top:8px">
+      <button type="button" data-ex="base">Base</button>
+      <button type="button" data-ex="script">Script</button>
+      <button type="button" data-ex="enterprise">Enterprise</button>
+      <button type="button" data-ex="pointer">Pointer</button>
+      <button type="button" data-ex="stake">Stake</button>
+      <button type="button" data-ex="byron">Byron</button>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <p class="notice" id="warn" hidden style="margin-top:12px"></p>
+    <div class="kv" id="out"></div>
+    <details class="help">
+      <summary>Address types</summary>
+      <p>The first byte of a Shelley address holds the type (high 4 bits) and the network (low 4 bits: 1 = mainnet, 0 = testnets).
+        <strong>Base</strong> addresses carry a payment and a stake credential. <strong>Enterprise</strong> addresses have no stake part.
+        <strong>Pointer</strong> addresses point at the certificate that registered a stake key. <strong>Reward</strong> (stake) addresses hold only the stake credential.
+        A credential is the Blake2b-224 hash of either a public key or a script.</p>
+      <p><strong>Byron</strong> addresses (Ae2…, DdzFF…) come from Cardano's first era: base58 over CBOR with a CRC32 checksum.</p>
+    </details>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { parseAddress, stakeAddressOf, credBech32, NETWORKS, toHex } from '../lib/cardano.js';
+import { $, row, esc, showError } from '../lib/ui.js';
+
+const EXAMPLES = {
+  base: 'addr1qx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgse35a3x',
+  script: 'addr1z8phkx6acpnf78fuvxn0mkew3l0fd058hzquvz7w36x4gten0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs9yc0hh',
+  enterprise: 'addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8',
+  pointer: 'addr1gx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer5pnz75xxcrzqf96k',
+  stake: 'stake1uyehkck0lajq8gr28t9uxnuvgcqrc6070x3k9r8048z8y5gh6ffgw',
+  byron: 'DdzFFzCqrhsw3prhfMFDNFowbzUku3QmrMwarfjUbWXRisodn97R436SHc1rimp4MhPNmbdYb1aTdqtGSJixMVMi5MkArDQJ6Sc1n3Ez',
+};
+const credRows = (label, c, role) => row(`${label} credential (${c.type === 'script' ? 'script hash' : 'key hash'})`, c.hex, credBech32(c, role));
+
+function render() {
+  const v = $('addr').value.trim();
+  $('out').innerHTML = ''; $('warn').hidden = true;
+  if (!v) { showError($('err')); return; }
+  let a;
+  try { a = parseAddress(v); } catch (e) { showError($('err'), e); return; }
+  showError($('err'));
+  if (a.warning) { $('warn').textContent = a.warning; $('warn').hidden = false; }
+  const rows = [];
+  if (a.byron) {
+    rows.push(row('Type', a.typeName), row('Network', a.attributes.protocolMagic === undefined ? 'Mainnet' : `Protocol magic ${a.attributes.protocolMagic} (testnet)`));
+    rows.push(row('Address root (Blake2b-224)', a.root), row('Spending data type', a.byronType === 0 ? '0 · public key' : a.byronType === 2 ? '2 · redeem key' : String(a.byronType)));
+    if (a.attributes.derivationPath) rows.push(row('Encrypted derivation path', a.attributes.derivationPath, 'Daedalus (legacy) wallets store the encrypted HD path here.'));
+    rows.push(`<div class="kv-row"><div class="kv-label">Checksum</div><div class="kv-value ${a.crcOk ? 'ok' : 'bad'}">${a.crcOk ? 'CRC32 OK' : 'CRC32 mismatch: the address is corrupted'}</div></div>`);
+    rows.push(row('Base58', a.base58), row('Bytes (hex)', toHex(a.bytes)));
+    $('out').innerHTML = rows.join('');
+    return;
+  }
+  rows.push(row('Type', `${a.type} · ${a.typeName}`), row('Network', `${a.network} · ${NETWORKS[a.network] || 'unknown network'}`));
+  if (a.payment) rows.push(credRows('Payment', a.payment, 'payment'));
+  if (a.stake) rows.push(credRows('Stake', a.stake, 'stake'));
+  if (a.pointer) rows.push(row('Pointer', `slot ${a.pointer.slot} · transaction ${a.pointer.txIndex} · certificate ${a.pointer.certIndex}`));
+  if (a.type <= 3) rows.push(row('Stake address', stakeAddressOf(a).bech32));
+  rows.push(row('Bech32', a.bech32), row('Bytes (hex)', toHex(a.bytes), `Header byte 0x${a.header.toString(16).padStart(2, '0')} · ${a.bytes.length} bytes`));
+  $('out').innerHTML = rows.join('');
+}
+$('addr').addEventListener('input', render);
+document.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { $('addr').value = EXAMPLES[b.dataset.ex]; render(); });
+const fromUrl = new URLSearchParams(location.search).get('a');
+if (fromUrl) { $('addr').value = fromUrl; render(); }
+</script>
 </body>
 </html>

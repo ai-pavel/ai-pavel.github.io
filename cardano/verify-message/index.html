@@ -6,6 +6,7 @@
   <title>Verify Message</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%94%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,120 @@
 <main>
   <a class="back" href="../">← Cardano</a>
   <h1>✔️ Verify Message</h1>
-  <p class="lead">Verify a CIP-8 / CIP-30 signData signature.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Verify a message signed with a Cardano wallet (CIP-8 / CIP-30 <code>signData</code>), for example a "sign in with Cardano" request.</p>
+  <div class="panel">
+    <label class="field"><span>Signature (COSE_Sign1, hex)</span>
+      <textarea id="sig" class="mono" rows="4" autocomplete="off" spellcheck="false"></textarea></label>
+    <label class="field" style="margin-top:12px"><span>Key (COSE_Key hex, or a 32-byte public key in hex)</span>
+      <textarea id="key" class="mono" rows="2" autocomplete="off" spellcheck="false"></textarea></label>
+    <label class="field" style="margin-top:12px"><span>Expected message (optional)</span>
+      <textarea id="expected" rows="2" autocomplete="off" spellcheck="false"></textarea></label>
+    <div class="row" style="margin-top:8px">
+      <button type="button" id="example">Example</button>
+      <button type="button" id="tamper">Tamper with the message</button>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div id="verdict" style="margin-top:16px;font-size:18px"></div>
+    <div class="kv" id="out"></div>
+    <details class="help">
+      <summary>What gets checked</summary>
+      <p>The wallet signs a COSE structure: <code>["Signature1", protected headers, external_aad, payload]</code>. The protected headers name the algorithm (EdDSA) and the signing address.
+        This tool rebuilds that structure, checks the Ed25519 signature with the public key, and checks that the key's hash matches the address's payment (or stake) credential, so the signature really comes from that address.</p>
+    </details>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { decode, encode, fromHex, toHex, Tag, CborMap, ed25519, blake2b224, parseAddressBytes, bech32Encode } from '../lib/cardano.js';
+import { $, row, esc, showError } from '../lib/ui.js';
+
+// Signed with the public test phrase "test walk nut …" (account 0, address 0).
+const EXAMPLE = {
+  sig: "845846a2012767616464726573735839019493315cd92eb5d8c4304e67b7e16ae36d61d34502694657811a2c8e32c728d3861e164cab28cb8f006448139c8f1740ffb8e7aa9e5232dca166686173686564f458205369676e20696e20746f206578616d706c652e636f6d0a6e6f6e63653a2034325840f9550ea9f540afde463f1e8322edd1b47b89d9f9ec6d07f211b247883ec52fc0aaba4e5cf800a8a26a14f20c169350968f100d5b1b699093a71cbfbf765b7e04",
+  key: "a401010327200621582073fea80d424276ad0978d4fe5310e8bc2d485f5f6bb3bf87612989f112ad5a7d",
+  message: "Sign in to example.com\nnonce: 42"
+};
+
+function coseKeyPub(hex) {
+  const b = fromHex(hex);
+  if (b.length === 32) return b;
+  let k; try { k = decode(b); } catch (e) { throw new Error('The key is neither a 32-byte public key nor valid COSE_Key CBOR.'); }
+  if (!(k instanceof CborMap)) throw new Error('A COSE_Key is a CBOR map.');
+  const x = k.get(-2), kty = k.get(1), crv = k.get(-1);
+  if (kty !== undefined && kty !== 1) throw new Error(`COSE_Key type ${kty} isn't OKP (1).`);
+  if (crv !== undefined && crv !== 6) throw new Error(`COSE_Key curve ${crv} isn't Ed25519 (6).`);
+  if (!(x instanceof Uint8Array) || x.length !== 32) throw new Error('The COSE_Key has no 32-byte public key (label -2).');
+  return x;
+}
+
+function render() {
+  const sigHex = $('sig').value.trim(), keyHex = $('key').value.trim();
+  $('out').innerHTML = ''; $('verdict').innerHTML = '';
+  if (!sigHex) { showError($('err')); return; }
+  try {
+    let s = decode(fromHex(sigHex));
+    if (s instanceof Tag && s.tag === 18) s = s.value;
+    if (!Array.isArray(s) || s.length !== 4 || !(s[0] instanceof Uint8Array) || !(s[3] instanceof Uint8Array)) throw new Error('This isn\'t a COSE_Sign1 structure ([protected, unprotected, payload, signature]).');
+    const [protBytes, unprot, payload, signature] = s;
+    const prot = protBytes.length ? decode(protBytes) : new CborMap();
+    const alg = prot.get(1), addrBytes = prot.get('address');
+    const hashed = unprot instanceof CborMap ? unprot.get('hashed') === true : false;
+    const rows = [];
+    if (alg !== -8) rows.push(row('Algorithm', String(alg), 'Expected -8 (EdDSA).'));
+    let address = null;
+    if (addrBytes instanceof Uint8Array) {
+      try { address = parseAddressBytes(addrBytes); rows.push(row('Signing address', address.bech32 || address.base58, address.typeName)); }
+      catch { rows.push(row('Signing address (hex)', toHex(addrBytes))); }
+    }
+    if (payload === null) rows.push(row('Payload', '(detached: not included in the signature)'));
+    else {
+      let text = null; try { text = new TextDecoder('utf-8', { fatal: true }).decode(payload); } catch {}
+      if (text !== null && !hashed) rows.push(row('Message', text));
+      rows.push(row(hashed ? 'Payload (Blake2b-224 hash of the message)' : 'Payload (hex)', toHex(payload)));
+    }
+    if (!keyHex) { showError($('err')); $('out').innerHTML = rows.join(''); $('verdict').innerHTML = '<span class="muted">Add the key to verify the signature.</span>'; return; }
+    const pub = coseKeyPub(keyHex);
+    if (payload === null) throw new Error('The payload is detached; this tool needs it inside the signature.');
+    const toSign = encode(['Signature1', protBytes, new Uint8Array(0), payload]);
+    let valid = false; try { valid = ed25519.verify(signature, toSign, pub); } catch {}
+    const keyHash = blake2b224(pub);
+    let addrMatch = null;
+    if (address && !address.byron) {
+      const cred = address.payment?.type === 'key' && toHex(address.payment.hash) === toHex(keyHash) ? 'payment'
+        : address.stake?.type === 'key' && toHex(address.stake.hash) === toHex(keyHash) ? 'stake' : null;
+      addrMatch = cred;
+    }
+    let msgMatch = null;
+    const expected = $('expected').value;
+    if (expected) {
+      const exp = new TextEncoder().encode(expected);
+      msgMatch = toHex(hashed ? blake2b224(exp) : exp) === toHex(payload);
+    }
+    showError($('err'));
+    rows.push(row('Public key', toHex(pub)), row('Key hash', toHex(keyHash), bech32Encode('addr_vkh', keyHash)), row('Signature', toHex(signature)));
+    $('out').innerHTML = rows.join('');
+    const parts = [valid ? '<span class="ok">✓ Valid signature</span>' : '<span class="bad">✗ Invalid signature</span>'];
+    if (address && !address.byron) parts.push(addrMatch ? `<span class="ok">✓ Key matches the address's ${addrMatch} credential</span>` : '<span class="bad">✗ Key doesn\'t match the signing address</span>');
+    if (msgMatch !== null) parts.push(msgMatch ? '<span class="ok">✓ Message matches</span>' : '<span class="bad">✗ Message differs from the expected one</span>');
+    $('verdict').innerHTML = parts.join('<br>');
+  } catch (e) { showError($('err'), e); }
+}
+for (const id of ['sig', 'key', 'expected']) $(id).addEventListener('input', render);
+$('example').onclick = () => { $('sig').value = EXAMPLE.sig; $('key').value = EXAMPLE.key; $('expected').value = EXAMPLE.message; render(); };
+// Change one character of the signed message inside the COSE structure: the signature must then fail.
+$('tamper').onclick = () => {
+  if (!$('sig').value.trim()) $('example').click();
+  try {
+    let c = decode(fromHex($('sig').value.trim()));
+    const arr = c instanceof Tag ? c.value : c;
+    const p = arr[2].slice(); p[p.length - 1] ^= 1; arr[2] = p;
+    $('sig').value = toHex(encode(c));
+  } catch {}
+  render();
+};
+</script>
 </body>
 </html>

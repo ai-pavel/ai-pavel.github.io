@@ -11,6 +11,7 @@ Copied from jsDelivr by `scripts/vendor.py`. Do not edit by hand; rerun the scri
 | `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/ed25519.js/+esm` | `@noble/curves@2.4.0/ed25519.esm.js` | `ebdfb4fbf717955a…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/nist.js/+esm` | `@noble/curves@2.4.0/nist.esm.js` | `dbbf3c99316d85dc…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/secp256k1.js/+esm` | `@noble/curves@2.4.0/secp256k1.esm.js` | `fb9f3ae358b57055…` |
+| `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/blake2b/+esm` | `@noble/hashes@1.8.0/blake2b.esm.js` | `cc8319aedb54f380…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/crypto/+esm` | `@noble/hashes@1.8.0/crypto.esm.js` | `88a889713d826dee…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/hmac/+esm` | `@noble/hashes@1.8.0/hmac.esm.js` | `025b5b0403021129…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/hmac.js/+esm` | `@noble/hashes@1.8.0/hmac.esm.js` | `025b5b0403021129…` |

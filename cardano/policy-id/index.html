@@ -6,6 +6,7 @@
   <title>Policy ID</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%9C</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,67 @@
 <main>
   <a class="back" href="../">← Cardano</a>
   <h1>📜 Policy ID</h1>
-  <p class="lead">Compute a native script hash and policy ID.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Compute the policy ID (script hash) of a native script, the kind of minting policy most tokens and NFTs use.</p>
+  <div class="panel">
+    <label class="field"><span>Native script: cardano-cli JSON or CBOR hex</span>
+      <textarea id="script" class="mono" rows="9" autocomplete="off" spellcheck="false"></textarea></label>
+    <div class="row" style="margin-top:8px">
+      <button type="button" data-tpl="sig">Single signature</button>
+      <button type="button" data-tpl="lock">Signature + time lock</button>
+      <button type="button" data-tpl="multi">2 of 3</button>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="kv" id="out"></div>
+    <details class="help">
+      <summary>Script types</summary>
+      <p><code>sig</code> requires a signature from the key with that hash. <code>all</code>, <code>any</code> and <code>atLeast</code> combine scripts.
+        <code>before</code> allows minting only before the given slot, which is how NFT policies lock their supply; <code>after</code> only from that slot.</p>
+      <p>The policy ID is Blake2b-224 of a <code>00</code> tag byte followed by the script's CBOR. Changing anything, even the slot, gives a different policy.</p>
+    </details>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { nativeScriptToCbor, nativeScriptFromCbor, scriptHash, encode, decode, fromHex, toHex, bech32Encode } from '../lib/cardano.js';
+import { $, row, esc, showError } from '../lib/ui.js';
+
+const KEY1 = '9493315cd92eb5d8c4304e67b7e16ae36d61d34502694657811a2c8e', KEY2 = '337b62cfff6403a06a3acbc34f8c46003c69fe79a3628cefa9c47251', KEY3 = 'c37b1b5dc0669f1d3c61a6fddb2e8fde96be87b881c60bce8e8d542f';
+const TEMPLATES = {
+  sig: { type: 'sig', keyHash: KEY1 },
+  lock: { type: 'all', scripts: [{ type: 'sig', keyHash: KEY1 }, { type: 'before', slot: 150000000 }] },
+  multi: { type: 'atLeast', required: 2, scripts: [{ type: 'sig', keyHash: KEY1 }, { type: 'sig', keyHash: KEY2 }, { type: 'sig', keyHash: KEY3 }] },
+};
+function render() {
+  const v = $('script').value.trim();
+  $('out').innerHTML = '';
+  if (!v) { showError($('err')); return; }
+  try {
+    let cbor, json;
+    if (v.startsWith('{')) {
+      let obj;
+      try { obj = JSON.parse(v); } catch (e) { throw new Error('Invalid JSON: ' + e.message); }
+      cbor = encode(nativeScriptToCbor(obj)); json = obj;
+    } else {
+      const bytes = fromHex(v);
+      const d = decode(bytes);
+      json = nativeScriptFromCbor(d);
+      cbor = encode(d);
+      if (toHex(cbor) !== toHex(bytes)) throw new Error('This CBOR isn\'t in canonical form; the policy ID is computed over the exact bytes, so re-encode it first.');
+    }
+    const h = scriptHash(0, cbor);
+    showError($('err'));
+    $('out').innerHTML = [
+      row('Policy ID', toHex(h)),
+      row('Script hash (bech32)', bech32Encode('script', h)),
+      row('Script CBOR', toHex(cbor)),
+    ].join('') + `<div class="kv-row"><div class="kv-label">Script JSON</div><pre class="json" style="grid-column:1/-1;margin:0">${esc(JSON.stringify(json, null, 2))}</pre></div>`;
+  } catch (e) { showError($('err'), e); }
+}
+$('script').addEventListener('input', render);
+document.querySelectorAll('[data-tpl]').forEach(b => b.onclick = () => { $('script').value = JSON.stringify(TEMPLATES[b.dataset.tpl], null, 2); render(); });
+</script>
 </body>
 </html>

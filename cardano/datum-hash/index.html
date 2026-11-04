@@ -6,6 +6,7 @@
   <title>Datum Hash</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%23%EF%B8%8F%E2%83%A3</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,113 @@
 <main>
   <a class="back" href="../">← Cardano</a>
   <h1>#️⃣ Datum Hash</h1>
-  <p class="lead">Compute the hash of a Plutus datum.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Compute the hash of a Plutus datum, as used in transaction outputs and by smart contracts.</p>
+  <div class="panel">
+    <label class="field"><span>Datum: CBOR hex, or cardano-cli JSON (detailed schema)</span>
+      <textarea id="datum" class="mono" rows="9" autocomplete="off" spellcheck="false"></textarea></label>
+    <div class="row" style="margin-top:8px">
+      <button type="button" data-tpl="unit">Unit (Constr 0 [])</button>
+      <button type="button" data-tpl="int">Integer</button>
+      <button type="button" data-tpl="nested">Nested</button>
+      <button type="button" data-tpl="cbor">CBOR example</button>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="kv" id="out"></div>
+    <details class="help">
+      <summary>Why the same datum can have different hashes</summary>
+      <p>The hash is Blake2b-256 of the datum's exact CBOR bytes. CBOR allows several encodings of the same value (definite or indefinite-length lists, chunked byte strings), and each gives a different hash.
+        When you paste <strong>CBOR</strong>, the tool hashes those bytes as they are. When you paste <strong>JSON</strong>, it encodes it the way cardano-cli and the Haskell node do: indefinite-length lists, byte strings longer than 64 bytes split into 64-byte chunks, and big integers as CBOR bignums.</p>
+    </details>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { blake2b256, encode, decode, fromHex, toHex, Tag, CborMap } from '../lib/cardano.js';
+import { Indefinite } from '../lib/cbor.js';
+import { $, row, esc, showError } from '../lib/ui.js';
+
+const TEMPLATES = {
+  unit: { constructor: 0, fields: [] },
+  int: { int: 42 },
+  nested: { constructor: 1, fields: [{ int: 1 }, { bytes: '00ff' }, { list: [{ int: -5 }, { int: 7 }] }, { map: [{ k: { bytes: 'aa' }, v: { int: 7 } }] }] },
+};
+
+// cardano-cli detailed-schema JSON -> CBOR value, encoded like the Haskell node.
+function fromJSON(j, path = 'datum') {
+  if (!j || typeof j !== 'object' || Array.isArray(j)) throw new Error(`${path}: expected an object like {"int": …}, {"bytes": …}, {"list": …}, {"map": …} or {"constructor": …, "fields": …}.`);
+  const list = items => items.length ? new Indefinite(items) : [];
+  if ('int' in j) {
+    const v = j.int;
+    if (!(typeof v === 'number' || (typeof v === 'string' && /^-?\d+$/.test(v)))) throw new Error(`${path}.int must be an integer.`);
+    return BigInt(v);
+  }
+  if ('bytes' in j) {
+    const b = fromHex(String(j.bytes));
+    return b.length > 64 ? new Indefinite(b) : b;
+  }
+  if ('list' in j) {
+    if (!Array.isArray(j.list)) throw new Error(`${path}.list must be an array.`);
+    return list(j.list.map((x, i) => fromJSON(x, `${path}.list[${i}]`)));
+  }
+  if ('map' in j) {
+    if (!Array.isArray(j.map)) throw new Error(`${path}.map must be an array of {"k": …, "v": …}.`);
+    return new CborMap(j.map.map((e, i) => [fromJSON(e.k, `${path}.map[${i}].k`), fromJSON(e.v, `${path}.map[${i}].v`)]));
+  }
+  if ('constructor' in j) {
+    const n = j.constructor;
+    if (!Number.isInteger(n) || n < 0) throw new Error(`${path}.constructor must be a non-negative integer.`);
+    if (!Array.isArray(j.fields)) throw new Error(`${path}.fields must be an array.`);
+    const fields = list(j.fields.map((x, i) => fromJSON(x, `${path}.fields[${i}]`)));
+    if (n <= 6) return new Tag(121 + n, fields);
+    if (n <= 127) return new Tag(1280 + n - 7, fields);
+    return new Tag(102, [BigInt(n), fields]);
+  }
+  throw new Error(`${path}: unknown key. Use int, bytes, list, map or constructor.`);
+}
+
+// Decoded CBOR -> detailed-schema JSON (for display).
+function toJSON(v) {
+  if (typeof v === 'number' || typeof v === 'bigint') return { int: typeof v === 'bigint' ? v.toString() : v };
+  if (v instanceof Uint8Array) return { bytes: toHex(v) };
+  if (Array.isArray(v)) return { list: v.map(toJSON) };
+  if (v instanceof CborMap) return { map: v.entries.map(([k, x]) => ({ k: toJSON(k), v: toJSON(x) })) };
+  if (v instanceof Tag) {
+    if (v.tag >= 121 && v.tag <= 127) return { constructor: v.tag - 121, fields: v.value.map(toJSON) };
+    if (v.tag >= 1280 && v.tag <= 1400) return { constructor: v.tag - 1280 + 7, fields: v.value.map(toJSON) };
+    if (v.tag === 102) return { constructor: Number(v.value[0]), fields: v.value[1].map(toJSON) };
+  }
+  throw new Error('This CBOR is not valid Plutus data (only integers, bytes, lists, maps and constructors are allowed).');
+}
+
+function render() {
+  const v = $('datum').value.trim();
+  $('out').innerHTML = '';
+  if (!v) { showError($('err')); return; }
+  try {
+    let bytes, json, source;
+    if (v.startsWith('{')) {
+      // Keep big integers exact: JSON numbers lose precision beyond 2^53, so quote them before parsing.
+      const exact = v.replace(/("int"\s*:\s*)(-?\d{16,})/g, '$1"$2"');
+      let obj; try { obj = JSON.parse(exact); } catch (e) { throw new Error('Invalid JSON: ' + e.message); }
+      bytes = encode(fromJSON(obj)); json = toJSON(decode(bytes)); source = 'Encoded from JSON the way cardano-cli does.';
+    } else {
+      bytes = fromHex(v); json = toJSON(decode(bytes)); source = 'Hashed exactly as given.';
+    }
+    showError($('err'));
+    $('out').innerHTML = [
+      row('Datum hash', toHex(blake2b256(bytes)), source),
+      row('Datum CBOR', toHex(bytes), bytes.length + ' bytes'),
+    ].join('') + `<div class="kv-row"><div class="kv-label">Datum JSON</div><pre class="json" style="grid-column:1/-1;margin:0">${esc(JSON.stringify(json, null, 2))}</pre></div>`;
+  } catch (e) { showError($('err'), e); }
+}
+$('datum').addEventListener('input', render);
+document.querySelectorAll('[data-tpl]').forEach(b => b.onclick = () => {
+  $('datum').value = b.dataset.tpl === 'cbor' ? 'd87a9f014200ff9f24c249010000000000000180ffa141aa07ff' : JSON.stringify(TEMPLATES[b.dataset.tpl], null, 2);
+  render();
+});
+</script>
 </body>
 </html>

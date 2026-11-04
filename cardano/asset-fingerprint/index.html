@@ -6,6 +6,7 @@
   <title>Asset Fingerprint</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%96%90%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,74 @@
 <main>
   <a class="back" href="../">← Cardano</a>
   <h1>🖐️ Asset Fingerprint</h1>
-  <p class="lead">Compute a native asset fingerprint (CIP-14).</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Compute a native asset's fingerprint (CIP-14), the short <code>asset1…</code> ID that explorers and wallets show.</p>
+  <div class="panel">
+    <label class="field"><span>Policy ID (or a full asset ID: policy ID followed by the asset name in hex)</span>
+      <input id="policy" class="mono" placeholder="56 hex characters" autocomplete="off" spellcheck="false"></label>
+    <div class="row" style="margin-top:12px;align-items:flex-end">
+      <label class="field" style="flex:1 1 260px"><span>Asset name</span><input id="name" class="mono" autocomplete="off" spellcheck="false"></label>
+      <div class="segmented" role="group" aria-label="Asset name format">
+        <button type="button" id="asText" aria-pressed="true">Text</button>
+        <button type="button" id="asHex" aria-pressed="false">Hex</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:8px"><button type="button" id="example">Example</button></div>
+    <p class="error" id="err" hidden></p>
+    <div class="kv" id="out"></div>
+    <details class="help">
+      <summary>How it works</summary>
+      <p>A native asset is identified by its policy ID (the hash of its minting policy) and its name (up to 32 bytes). CIP-14 hashes the two together with Blake2b-160 and encodes the result in bech32 with the <code>asset</code> prefix. Different assets can never share a fingerprint, but the fingerprint alone doesn't tell you the policy or name.</p>
+    </details>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { assetFingerprint, assetNameText, fromHex, toHex } from '../lib/cardano.js';
+import { $, row, showError } from '../lib/ui.js';
+
+let hexMode = false;
+function setMode(hex) {
+  hexMode = hex;
+  $('asText').setAttribute('aria-pressed', String(!hex));
+  $('asHex').setAttribute('aria-pressed', String(hex));
+  $('name').placeholder = hex ? 'e.g. 504154415445' : 'e.g. PATATE';
+}
+function render() {
+  $('out').innerHTML = '';
+  let p = $('policy').value.trim().replace(/^0x/i, '');
+  if (!p) { showError($('err')); return; }
+  try {
+    if (!/^[0-9a-f]*$/i.test(p)) throw new Error('The policy ID must be hex.');
+    let nameBytes;
+    if (p.length > 56) {
+      if (p.length % 2) throw new Error('A full asset ID must have an even number of hex characters.');
+      nameBytes = fromHex(p.slice(56)); p = p.slice(0, 56);
+    } else {
+      if (p.length !== 56) throw new Error(`A policy ID is 28 bytes (56 hex characters); this one has ${p.length}.`);
+      const n = $('name').value;
+      nameBytes = hexMode ? fromHex(n.trim() || '') : new TextEncoder().encode(n);
+    }
+    if (nameBytes.length > 32) throw new Error(`An asset name can be at most 32 bytes; this one is ${nameBytes.length}.`);
+    showError($('err'));
+    const text = assetNameText(nameBytes);
+    $('out').innerHTML = [
+      row('Fingerprint', assetFingerprint(fromHex(p), nameBytes)),
+      row('Policy ID', p.toLowerCase()),
+      row('Asset name (hex)', toHex(nameBytes) || '(empty)', nameBytes.length + ' bytes'),
+      text !== null && nameBytes.length ? row('Asset name (text)', text) : '',
+      row('Asset ID (policy ID + name)', p.toLowerCase() + toHex(nameBytes)),
+    ].join('');
+  } catch (e) { showError($('err'), e); }
+}
+$('asText').onclick = () => { if (hexMode) { try { $('name').value = new TextDecoder().decode(fromHex($('name').value || '')); } catch {} } setMode(false); render(); };
+$('asHex').onclick = () => { if (!hexMode) $('name').value = toHex(new TextEncoder().encode($('name').value)); setMode(true); render(); };
+$('policy').addEventListener('input', render);
+$('name').addEventListener('input', render);
+$('example').onclick = () => { $('policy').value = '7eae28af2208be856f7a119668ae52a49b73725e326dc16579dcc373'; setMode(false); $('name').value = 'PATATE'; render(); };
+setMode(false);
+</script>
 </body>
 </html>
