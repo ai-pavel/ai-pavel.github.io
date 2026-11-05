@@ -6,6 +6,7 @@
   <title>ECDH</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A4%9D</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -17,11 +18,114 @@
   <a class="back" href="../">← Cryptography</a>
   <h1>🤝 ECDH</h1>
   <p class="lead">Compute a shared secret with X25519, P-256 or secp256k1.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- tool:start -->
+  <div class="panel">
+    <p class="note" id="keynote"></p>
+    <div class="field-row">
+      <label class="field">Curve
+        <select id="curve"><option>X25519</option><option>P-256</option><option>P-384</option><option>secp256k1</option></select>
+      </label>
+      <button id="demo">Demo: generate both sides</button>
+    </div>
+    <label class="field">Your private key (hex, PEM or JWK)
+      <textarea id="priv" class="wide" rows="2" spellcheck="false" autocomplete="off"></textarea>
+    </label>
+    <label class="field">Peer’s public key (hex, PEM or JWK)
+      <textarea id="pub" class="wide" rows="2" spellcheck="false" autocomplete="off"></textarea>
+    </label>
+    <label class="inline" style="margin-top:12px"><input type="checkbox" id="useHkdf" checked> Derive a key with HKDF-SHA256</label>
+    <div class="field-row" id="hkdfRow">
+      <label class="field">Salt (hex, optional)<input id="salt" class="mono" spellcheck="false" autocomplete="off"></label>
+      <label class="field">Info (text)<input id="info" spellcheck="false" autocomplete="off" value="example key v1"></label>
+      <label class="field">Length (bytes)<input id="len" type="number" min="1" max="255" value="32"></label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div id="out" class="out"></div>
+    <div id="demoOut" class="out"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">How it works</p>
+    <p class="muted">Each side multiplies its own private key by the other side’s public key; both land on the same point, and its x-coordinate is the shared secret. Use the raw secret only as input to a KDF such as HKDF, never directly as a key. For the NIST curves and secp256k1 the secret is the 32/48-byte x-coordinate (what WebCrypto and OpenSSL return).</p>
+  </div>
+  <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<!-- script:start -->
+<script type="module">
+import { parseHex, kvTable, wireCopy, showError, KEY_NOTE, hex, utf8, debounce } from '../lib/common.js';
+import { parseAnyKey, generate, TYPES } from '../lib/keys.js';
+import { extract, expand } from '../../assets/vendor/@noble/hashes@2.4.0/hkdf.esm.js';
+import { sha256 } from '../../assets/vendor/@noble/hashes@2.4.0/sha2.esm.js';
+
+const $ = id => document.getElementById(id);
+$('keynote').textContent = KEY_NOTE;
+
+function shared(type, priv, pub) {
+  const t = TYPES[type];
+  if (type === 'X25519') {
+    const s = t.lib.getSharedSecret(priv, pub);
+    if (s.every(b => b === 0)) throw new Error('The shared secret is all zeros: the peer key is a low-order point.');
+    return s;
+  }
+  return t.lib.getSharedSecret(priv, pub).subarray(1);
+}
+
+async function load(text, kind) {
+  const type = $('curve').value;
+  const k = await parseAnyKey(text, type, kind);
+  if (k.type !== type) throw new Error(`That is a ${k.type} key, but the curve is ${type}.`);
+  if (kind === 'private' && !k.priv) throw new Error('“Your private key” contains only a public key.');
+  return k;
+}
+
+function derive(secret) {
+  if (!$('useHkdf').checked) return [];
+  const salt = $('salt').value.trim() ? parseHex($('salt').value, 'Salt') : new Uint8Array();
+  const len = Number($('len').value);
+  if (!Number.isInteger(len) || len < 1 || len > 255 * 32) throw new Error('Length must be 1–8160 bytes.');
+  const key = expand(sha256, extract(sha256, secret, salt), utf8.encode($('info').value), len);
+  return [['Derived key (HKDF-SHA256)', hex.encode(key)]];
+}
+
+let run = 0;
+async function render() {
+  const my = ++run;
+  showError($('err'), ''); $('out').innerHTML = '';
+  $('hkdfRow').hidden = !$('useHkdf').checked;
+  if (!$('priv').value.trim() || !$('pub').value.trim()) return;
+  try {
+    const me = await load($('priv').value, 'private');
+    const peer = await load($('pub').value, 'public');
+    if (my !== run) return;
+    const s = shared(me.type, me.priv, peer.pub);
+    $('out').innerHTML = kvTable([['Your public key', hex.encode(me.type === 'X25519' ? me.pub : TYPES[me.type].lib.Point.fromBytes(me.pub).toBytes(true))], ['Shared secret', hex.encode(s)], ...derive(s)]);
+  } catch (e) { if (my === run) showError($('err'), e.message); }
+}
+
+$('demo').onclick = () => {
+  const type = $('curve').value;
+  const a = generate(type), b = generate(type);
+  const pubHex = k => hex.encode(type === 'X25519' ? k.pub : TYPES[type].lib.Point.fromBytes(k.pub).toBytes(true));
+  $('priv').value = hex.encode(a.priv);
+  $('pub').value = pubHex(b);
+  const sa = shared(type, a.priv, b.pub), sb = shared(type, b.priv, a.pub);
+  $('demoOut').innerHTML = `<p class="section-title">Both sides</p>` + kvTable([
+    ['Alice private', hex.encode(a.priv)], ['Alice public', pubHex(a)],
+    ['Bob private', hex.encode(b.priv)], ['Bob public', pubHex(b)],
+    ['Alice computes', hex.encode(sa), 'Alice private × Bob public'],
+    ['Bob computes', hex.encode(sb), 'Bob private × Alice public'],
+  ]) + `<p class="big-result ${hex.encode(sa) === hex.encode(sb) ? 'ok">✅ Same shared secret on both sides.' : 'bad">❌ Secrets differ.'}</p>`;
+  render();
+};
+const later = debounce(render, 120);
+for (const id of ['curve', 'priv', 'pub', 'useHkdf', 'salt', 'info', 'len']) $(id).addEventListener('input', later);
+$('curve').addEventListener('input', () => { $('demoOut').innerHTML = ''; });
+wireCopy();
+$('demo').click();
+</script>
+<!-- script:end -->
 </body>
 </html>

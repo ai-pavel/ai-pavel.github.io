@@ -6,6 +6,7 @@
   <title>Hash</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%23%EF%B8%8F%E2%83%A3</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,187 @@
 <main>
   <a class="back" href="../">← Cryptography</a>
   <h1>#️⃣ Hash</h1>
-  <p class="lead">Hash text, hex or files with MD5, SHA-1/2/3, Keccak, BLAKE2/3 and RIPEMD-160.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Hash text or files, and verify a download’s checksum. MD5, SHA-1/2/3, Keccak, BLAKE2/3 and RIPEMD-160.</p>
+  <!-- tool:start -->
+  <div class="panel">
+    <div class="row">
+      <div class="seg" id="mode" role="group" aria-label="Input">
+        <button data-v="utf8" aria-pressed="true">Text</button>
+        <button data-v="hex" aria-pressed="false">Hex</button>
+        <button data-v="base64" aria-pressed="false">Base64</button>
+        <button data-v="file" aria-pressed="false">File</button>
+      </div>
+    </div>
+    <label class="field" id="textField">Input
+      <textarea id="input" class="wide" rows="4" spellcheck="false" placeholder="Type or paste text">abc</textarea>
+    </label>
+    <div id="fileField" hidden>
+      <label class="drop" id="drop">
+        <input type="file" id="file" hidden>
+        <strong>Drop a file here</strong> <span class="muted">or click to choose. It is read locally, in chunks.</span>
+        <div class="muted" id="fileInfo"></div>
+      </label>
+      <progress id="progress" max="1" value="0" hidden style="width:100%;margin-top:8px"></progress>
+    </div>
+    <label class="field">Expected checksum (optional)
+      <input id="expected" class="mono" spellcheck="false" autocomplete="off" placeholder="Paste the published checksum, or a line from sha256sum / shasum">
+    </label>
+    <p id="match" class="big-result" hidden></p>
+    <div class="row" style="margin-top:12px">
+      <div class="seg" id="outEnc" role="group" aria-label="Output encoding">
+        <button data-v="hex" aria-pressed="true">Hex</button>
+        <button data-v="base64" aria-pressed="false">Base64</button>
+      </div>
+      <button id="toggleAll" style="margin-left:auto">Choose algorithms</button>
+    </div>
+    <div id="algos" class="row" hidden style="margin-top:8px"></div>
+    <p class="error" id="err" hidden></p>
+    <div id="out" class="out"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">Notes</p>
+    <p class="muted"><b>Keccak-256</b> is the original Keccak used by Ethereum; <b>SHA3-256</b> is the NIST standard with different padding, so their outputs differ. MD5 and SHA-1 are broken for collision resistance; use them only to check old checksums. Files are hashed in 4 MB chunks, so large files work without loading them into memory.</p>
+  </div>
+  <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<!-- script:start -->
+<script type="module">
+import { parseBytes, encodeBytes, esc, wireCopy, showError, getHashWasm, setPressed, hex, base64 } from '../lib/common.js';
+import { sha512_256 } from '../../assets/vendor/@noble/hashes@2.4.0/sha2.esm.js';
+
+const $ = id => document.getElementById(id);
+const ALGOS = [
+  ['md5', 'MD5', h => h.createMD5()],
+  ['sha1', 'SHA-1', h => h.createSHA1()],
+  ['sha224', 'SHA-224', h => h.createSHA224()],
+  ['sha256', 'SHA-256', h => h.createSHA256()],
+  ['sha384', 'SHA-384', h => h.createSHA384()],
+  ['sha512', 'SHA-512', h => h.createSHA512()],
+  ['sha512_256', 'SHA-512/256', () => { const s = sha512_256.create(); return { init() {}, update(d) { s.update(d); }, digest() { return s.digest(); } }; }],
+  ['sha3_256', 'SHA3-256', h => h.createSHA3(256)],
+  ['sha3_512', 'SHA3-512', h => h.createSHA3(512)],
+  ['keccak256', 'Keccak-256', h => h.createKeccak(256)],
+  ['keccak512', 'Keccak-512', h => h.createKeccak(512)],
+  ['blake2b', 'BLAKE2b-512', h => h.createBLAKE2b(512)],
+  ['blake2s', 'BLAKE2s-256', h => h.createBLAKE2s(256)],
+  ['blake3', 'BLAKE3-256', h => h.createBLAKE3(256)],
+  ['ripemd160', 'RIPEMD-160', h => h.createRIPEMD160()],
+];
+let mode = 'utf8', outEnc = 'hex', file = null, results = [], run = 0;
+// Text input shows every algorithm; files default to the usual checksum algorithms.
+const enabledFor = { text: new Set(ALGOS.map(a => a[0])), file: new Set(['md5', 'sha1', 'sha256', 'sha512']) };
+const current = () => enabledFor[mode === 'file' ? 'file' : 'text'];
+function drawAlgos() {
+  const en = current();
+  $('algos').innerHTML = ALGOS.map(([id, name]) => `<label class="inline"><input type="checkbox" data-id="${id}"${en.has(id) ? ' checked' : ''}> ${name}</label>`).join('');
+}
+drawAlgos();
+
+async function makeHashers() {
+  const hw = await getHashWasm();
+  const list = [];
+  for (const [id, name, make] of ALGOS) {
+    if (!current().has(id)) continue;
+    const h = await make(hw);
+    h.init?.();
+    list.push({ id, name, h });
+  }
+  return list;
+}
+const digestBytes = h => { const d = h.digest('binary'); return d instanceof Uint8Array ? d : new Uint8Array(d); };
+
+async function compute() {
+  const my = ++run;
+  showError($('err'), '');
+  try {
+    let hashers;
+    if (mode === 'file') {
+      if (!file) { results = []; render(); return; }
+      hashers = await makeHashers();
+      const CHUNK = 4 << 20;
+      $('progress').hidden = false;
+      for (let off = 0; off < file.size || off === 0; off += CHUNK) {
+        const chunk = new Uint8Array(await file.slice(off, off + CHUNK).arrayBuffer());
+        if (my !== run) return;
+        for (const x of hashers) x.h.update(chunk);
+        $('progress').value = file.size ? Math.min(1, (off + CHUNK) / file.size) : 1;
+        if (!file.size) break;
+      }
+      $('progress').hidden = true;
+    } else {
+      const data = parseBytes($('input').value, mode, 'Input');
+      hashers = await makeHashers();
+      for (const x of hashers) x.h.update(data);
+    }
+    if (my !== run) return;
+    results = hashers.map(x => ({ id: x.id, name: x.name, bytes: digestBytes(x.h) }));
+    render();
+  } catch (e) { if (my === run) { results = []; render(); showError($('err'), e.message); } }
+}
+
+// Accepts a bare hash, "hash  filename" (sha256sum/md5sum) or "SHA256 (file) = hash" (BSD/shasum --tag).
+function normExpected() {
+  let t = $('expected').value.trim();
+  if (!t) return null;
+  const bsd = t.match(/=\s*([0-9a-fA-F]+)\s*$/);
+  if (bsd) t = bsd[1];
+  else if (/\s/.test(t) && /^[0-9a-fA-F]{8,}\s/.test(t)) t = t.split(/\s+/)[0];
+  const h = t.replace(/^0x/i, '').replace(/[\s:]+/g, '').toLowerCase();
+  if (/^[0-9a-f]+$/.test(h) && h.length % 2 === 0) return { hex: h };
+  try { return { hex: hex.encode(base64.decode(t.replace(/\s+/g, ''))) }; } catch { return { bad: true }; }
+}
+
+function render() {
+  const exp = normExpected();
+  const matched = exp && !exp.bad ? results.filter(r => hex.encode(r.bytes) === exp.hex) : [];
+  $('out').innerHTML = results.length ? `<table class="kv"><tbody>${results.map(r => {
+    const v = encodeBytes(r.bytes, outEnc);
+    const cls = exp && !exp.bad ? (matched.includes(r) ? 'hl-match' : '') : '';
+    return `<tr class="${cls}"><th>${esc(r.name)}<div class="muted">${r.bytes.length * 8} bits</div></th><td class="mono">${esc(v)}</td><td><button class="icon-btn copy" data-copy="${esc(v)}">Copy</button></td></tr>`;
+  }).join('')}</tbody></table>` : '';
+  const m = $('match');
+  if (!exp || !results.length) { m.hidden = true; return; }
+  m.hidden = false;
+  if (exp.bad) { m.className = 'big-result bad'; m.textContent = 'The expected hash is not hex or base64.'; return; }
+  if (matched.length) { m.className = 'big-result ok'; m.textContent = `✅ Match: ${matched.map(r => r.name).join(', ')}`; return; }
+  const bits = exp.hex.length * 4;
+  const same = ALGOS.filter(a => results.find(r => r.id === a[0] && r.bytes.length * 8 === bits)).map(a => a[1]);
+  m.className = 'big-result bad';
+  const hint = { 128: 'MD5', 160: 'SHA-1 or RIPEMD-160', 224: 'SHA-224', 256: 'SHA-256, SHA3-256, Keccak-256, BLAKE2s, BLAKE3 or SHA-512/256', 384: 'SHA-384', 512: 'SHA-512, SHA3-512, Keccak-512 or BLAKE2b' }[bits];
+  m.textContent = `❌ Mismatch.` + (same.length ? ` A ${bits}-bit checksum is ${same.join(' / ')} here, and it differs — the data is not the same.` : hint ? ` A ${bits}-bit checksum is usually ${hint}; turn it on under “Choose algorithms”.` : ` No common algorithm gives a ${bits}-bit hash.`);
+}
+
+const recompute = () => compute();
+$('input').oninput = recompute;
+$('expected').oninput = render;
+$('mode').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  mode = b.dataset.v; setPressed($('mode'), mode);
+  $('textField').hidden = mode === 'file'; $('fileField').hidden = mode !== 'file';
+  $('input').placeholder = { utf8: 'Type or paste text', hex: 'Hex bytes, e.g. 616263', base64: 'Base64 bytes' }[mode] || '';
+  drawAlgos();
+  recompute();
+};
+$('outEnc').onclick = e => { const b = e.target.closest('button'); if (!b) return; outEnc = b.dataset.v; setPressed($('outEnc'), outEnc); render(); };
+$('toggleAll').onclick = () => { $('algos').hidden = !$('algos').hidden; };
+$('algos').oninput = e => { const c = e.target; if (c.dataset.id) { c.checked ? current().add(c.dataset.id) : current().delete(c.dataset.id); recompute(); } };
+function setFile(f) { file = f; $('fileInfo').textContent = f ? `${f.name} · ${f.size.toLocaleString()} bytes` : ''; recompute(); }
+$('file').onchange = () => setFile($('file').files[0]);
+// A file dropped anywhere on the page switches to file mode.
+document.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+document.addEventListener('drop', e => {
+  if (!e.dataTransfer.files[0]) return;
+  e.preventDefault();
+  if (mode !== 'file') $('mode').querySelector('[data-v="file"]').click();
+  setFile(e.dataTransfer.files[0]);
+});
+wireCopy();
+compute();
+</script>
+<!-- script:end -->
 </body>
 </html>

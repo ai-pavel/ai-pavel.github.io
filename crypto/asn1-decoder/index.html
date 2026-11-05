@@ -6,6 +6,7 @@
   <title>ASN.1 Decoder</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8C%B3</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -17,11 +18,93 @@
   <a class="back" href="../">← Cryptography</a>
   <h1>🌳 ASN.1 Decoder</h1>
   <p class="lead">Decode ASN.1 DER or PEM into a tree.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- tool:start -->
+  <div class="panel">
+    <label class="field">ASN.1 data (PEM, or DER/BER as hex or base64)
+      <textarea id="input" class="wide" rows="6" spellcheck="false" placeholder="-----BEGIN …----- or 30 82 …"></textarea>
+    </label>
+    <div class="row" style="margin-top:8px">
+      <button id="example">Load example</button>
+      <button id="expand">Expand all</button>
+      <button id="collapse">Collapse all</button>
+      <span class="muted" id="summary"></span>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div id="out" class="out tree"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">Reading the tree</p>
+    <p class="muted">Each line shows the byte offset, header and content length, then the type. Context-specific tags appear as <span class="mono">[0]</span>, <span class="mono">[1]</span>…. When a BIT STRING or OCTET STRING contains a complete DER structure (as with public keys and extensions), it is decoded underneath as “encapsulated”. Indefinite-length (BER) encodings are accepted.</p>
+  </div>
+  <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<!-- script:start -->
+<script type="module">
+import { showError, esc, hex, debounce } from '../lib/common.js';
+import { parseNode, parseDer, readDerInput, typeName, decodeOid, decodeInteger, decodeTime, decodeString, isStringTag, oidName } from '../lib/asn1.js';
+
+const $ = id => document.getElementById(id);
+const EXAMPLE = 'MIIBwzCCAWmgAwIBAgIUFU5OiXSD7If2KqskmiLO1WLYV0QwCgYIKoZIzj0EAwIwPjELMAkGA1UEBhMCVVMxFTATBgNVBAoMDEV4YW1wbGUgTGFiczEYMBYGA1UEAwwPRXhhbXBsZSBSb290IENBMB4XDTI2MTEwNTAwMTczN1oXDTM2MTEwMjAwMTczN1owPjELMAkGA1UEBhMCVVMxFTATBgNVBAoMDEV4YW1wbGUgTGFiczEYMBYGA1UEAwwPRXhhbXBsZSBSb290IENBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEr4SNETtxaQbJtjvTf8Hzb5ow8q3NRjDhgg6wH5M3t+vGWMm1U7KdyjKurdtRPYBZIBzNUxus6SVUHE9E+iLPQaNFMEMwHQYDVR0OBBYEFDLCaeRm99cR+9zRP0ImwAoyEYBTMBIGA1UdEwEB/wQIMAYBAf8CAQAwDgYDVR0PAQH/BAQDAgEGMAoGCCqGSM49BAMCA0gAMEUCIDA6ivp0JJb9OuuLn790E0uX0pAlIwEF78tPKgjTBhm3AiEAxHPfTCHM7uwYpURCxrrgKPokk42q5JHodySGSwQC6ig=';
+let count = 0;
+
+function tryInner(v) {
+  if (v.length < 2) return null;
+  try { const n = parseDer(v); return n.constructed || n.tag === 6 || n.tag === 2 ? n : null; } catch { return null; }
+}
+
+function valueText(n) {
+  if (n.cls !== 0 || n.constructed) return '';
+  const v = n.value;
+  switch (n.tag) {
+    case 1: return v[0] ? 'TRUE' : 'FALSE';
+    case 2: case 10: { const i = decodeInteger(v); return v.length <= 8 ? i.toString() : `${v.length * 8 - (v[0] === 0 ? 8 : 0)}-bit: ${hex.encode(v)}`; }
+    case 5: return '';
+    case 6: { const o = decodeOid(v); return oidName(o) ? `${o} (${oidName(o)})` : o; }
+    case 23: case 24: { const d = decodeTime(n); return d ? d.toISOString() : new TextDecoder().decode(v); }
+    case 3: return `${v[0]} unused bits · ${v.length - 1} bytes${v.length > 1 ? ': ' + hex.encode(v.subarray(1, 65)) + (v.length > 65 ? '…' : '') : ''}`;
+    case 4: return `${v.length} bytes: ${hex.encode(v.subarray(0, 64))}${v.length > 64 ? '…' : ''}`;
+    default: return isStringTag(n.tag) ? JSON.stringify(decodeString(n)) : hex.encode(v.subarray(0, 64)) + (v.length > 64 ? '…' : '');
+  }
+}
+
+function nodeHtml(n, base, depth) {
+  if (++count > 5000) return '';
+  const head = `<span class="k">@${base + n.offset} h${n.headerLen} l${n.indefinite ? '∞' : n.length}</span> <b>${esc(typeName(n))}</b>`;
+  const val = valueText(n);
+  let kids = n.children;
+  let encap = null;
+  if (!n.constructed && n.cls === 0 && (n.tag === 3 || n.tag === 4)) {
+    const inner = tryInner(n.tag === 3 ? n.value.subarray(1) : n.value);
+    if (inner) encap = { node: inner, base: base + n.offset + n.headerLen + (n.tag === 3 ? 1 : 0) };
+  }
+  if (!kids && !encap) return `<div class="leaf">${head} ${val ? `<span class="mono">${esc(val)}</span>` : ''}</div>`;
+  const inner = (kids || []).map(c => nodeHtml(c, base, depth + 1)).join('')
+    + (encap ? `<div class="muted" style="margin-top:4px">encapsulated:</div>${nodeHtml(encap.node, encap.base - encap.node.offset, depth + 1)}` : '');
+  return `<details ${depth < 4 ? 'open' : ''}><summary>${head}${kids ? ` <span class="muted">(${kids.length})</span>` : ` <span class="mono">${esc(val)}</span>`}</summary><div class="kids">${inner}</div></details>`;
+}
+
+function render() {
+  showError($('err'), ''); $('summary').textContent = '';
+  const t = $('input').value.trim();
+  if (!t) { $('out').innerHTML = ''; return; }
+  try {
+    const bytes = readDerInput(t);
+    const root = parseNode(bytes, 0);
+    count = 0;
+    $('out').innerHTML = nodeHtml(root, 0, 0);
+    const trailing = bytes.length - root.end;
+    $('summary').textContent = `${bytes.length} bytes, ${count} elements` + (trailing ? ` · ${trailing} trailing bytes not decoded` : '') + (count > 5000 ? ' · showing the first 5000' : '');
+  } catch (e) { $('out').innerHTML = ''; showError($('err'), e.message); }
+}
+$('input').addEventListener('input', debounce(render, 120));
+$('example').onclick = () => { $('input').value = EXAMPLE; render(); };
+$('expand').onclick = () => $('out').querySelectorAll('details').forEach(d => d.open = true);
+$('collapse').onclick = () => $('out').querySelectorAll('details').forEach(d => d.open = false);
+</script>
+<!-- script:end -->
 </body>
 </html>

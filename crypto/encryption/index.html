@@ -6,6 +6,7 @@
   <title>Encryption</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%9B%A1%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -17,11 +18,191 @@
   <a class="back" href="../">← Cryptography</a>
   <h1>🛡️ Encryption</h1>
   <p class="lead">Encrypt and decrypt with AES (GCM, CBC, CTR) and ChaCha20-Poly1305.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- tool:start -->
+  <div class="panel">
+    <p class="note" id="keynote"></p>
+    <div class="row">
+      <div class="seg" id="dir" role="group" aria-label="Direction">
+        <button data-v="enc" aria-pressed="true">Encrypt</button>
+        <button data-v="dec" aria-pressed="false">Decrypt</button>
+      </div>
+    </div>
+    <div class="field-row">
+      <label class="field">Cipher
+        <select id="cipher">
+          <option value="aes-gcm">AES-GCM</option>
+          <option value="aes-cbc">AES-CBC (PKCS#7)</option>
+          <option value="aes-ctr">AES-CTR</option>
+          <option value="chacha">ChaCha20-Poly1305</option>
+          <option value="xchacha">XChaCha20-Poly1305</option>
+        </select>
+      </label>
+      <label class="field" id="sizeField">Key size
+        <select id="size"><option value="32">256-bit</option><option value="24">192-bit</option><option value="16">128-bit</option></select>
+      </label>
+      <label class="field">Key from
+        <select id="keySrc"><option value="key">Key (hex / base64)</option><option value="pw">Password (PBKDF2)</option></select>
+      </label>
+    </div>
+    <div class="field-row" id="keyRow">
+      <label class="field" style="flex:3">Key
+        <input id="key" class="mono" spellcheck="false" autocomplete="off">
+      </label>
+      <button id="genKey">Random key</button>
+    </div>
+    <div class="field-row" id="pwRow" hidden>
+      <label class="field" style="flex:2">Password<input id="pw" spellcheck="false" autocomplete="off" value="correct horse battery staple"></label>
+      <label class="field" style="flex:2">Salt (hex)<input id="pwSalt" class="mono" spellcheck="false" autocomplete="off"></label>
+      <label class="field">Iterations<input id="pwIter" type="number" min="1" value="600000"></label>
+    </div>
+    <div class="field-row">
+      <label class="field" style="flex:3"><span id="ivLabel">IV / nonce (hex)</span>
+        <input id="iv" class="mono" spellcheck="false" autocomplete="off">
+      </label>
+      <button id="genIv">Random IV</button>
+    </div>
+    <div class="field-row" id="aadRow">
+      <label class="field" style="flex:3">Associated data (optional, authenticated but not encrypted)
+        <input id="aad" spellcheck="false" autocomplete="off">
+      </label>
+      <label class="field">Encoding<select id="aadEnc"></select></label>
+    </div>
+    <div class="field-row">
+      <label class="field" style="flex:3"><span id="inLabel">Plaintext</span>
+        <textarea id="input" class="wide" rows="4" spellcheck="false">Attack at dawn</textarea>
+      </label>
+      <label class="field">Encoding<select id="inEnc"></select></label>
+    </div>
+    <label class="inline" id="prefixRow" hidden><input type="checkbox" id="prefixed"> IV is prepended to the ciphertext</label>
+    <div class="row" style="margin-top:12px"><button class="primary" id="go">Encrypt</button><span class="muted" id="status"></span></div>
+    <p id="verdict" class="big-result" hidden></p>
+    <p class="error" id="err" hidden></p>
+    <div id="out" class="out"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">Notes</p>
+    <p class="muted">GCM and the ChaCha20 ciphers are <b>authenticated</b>: decryption fails if the ciphertext, tag, IV or associated data were changed. CBC and CTR are not; anyone can flip bits without detection, so pair them with a MAC. Never reuse an IV/nonce with the same key — with GCM, CTR and ChaCha20 that leaks the XOR of the plaintexts. XChaCha20’s 24-byte nonce is large enough to pick at random safely. The authentication tag (16 bytes) is appended to the ciphertext, which is the usual layout (WebCrypto, libsodium, Go).</p>
+  </div>
+  <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<!-- script:start -->
+<script type="module">
+import { parseHex, parseBytes, parseBase64, encodeBytes, kvTable, wireCopy, showError, setPressed, randomBytes, ENCODING_OPTIONS, KEY_NOTE, hex, base64, concat, utf8d } from '../lib/common.js';
+import { gcm, cbc, ctr } from '../../assets/vendor/@noble/ciphers@2.4.0/aes.esm.js';
+import { chacha20poly1305, xchacha20poly1305 } from '../../assets/vendor/@noble/ciphers@2.4.0/chacha.esm.js';
+
+const $ = id => document.getElementById(id);
+$('keynote').textContent = KEY_NOTE;
+$('aadEnc').innerHTML = ENCODING_OPTIONS;
+const C = {
+  'aes-gcm': { iv: 12, aead: true, make: (k, n, aad) => gcm(k, n, aad) },
+  'aes-cbc': { iv: 16, make: (k, n) => cbc(k, n) },
+  'aes-ctr': { iv: 16, make: (k, n) => ctr(k, n) },
+  'chacha': { iv: 12, aead: true, key: 32, make: (k, n, aad) => chacha20poly1305(k, n, aad) },
+  'xchacha': { iv: 24, aead: true, key: 32, make: (k, n, aad) => xchacha20poly1305(k, n, aad) },
+};
+let dir = 'enc';
+
+function sync() {
+  const c = C[$('cipher').value];
+  $('sizeField').hidden = !!c.key;
+  $('aadRow').hidden = !c.aead;
+  $('keyRow').hidden = $('keySrc').value !== 'key';
+  $('pwRow').hidden = $('keySrc').value !== 'pw';
+  $('ivLabel').textContent = `${c.aead && $('cipher').value !== 'aes-gcm' ? 'Nonce' : 'IV'} (hex, ${c.iv} bytes)`;
+  $('inLabel').textContent = dir === 'enc' ? 'Plaintext' : `Ciphertext${c.aead ? ' with tag' : ''}`;
+  $('prefixRow').hidden = dir !== 'dec';
+  $('go').textContent = dir === 'enc' ? 'Encrypt' : 'Decrypt';
+  const encs = dir === 'enc' ? ENCODING_OPTIONS : '<option value="base64">Base64</option><option value="hex">Hex</option>';
+  if ($('inEnc').dataset.dir !== dir) { $('inEnc').innerHTML = encs; $('inEnc').dataset.dir = dir; }
+}
+const keyLen = () => C[$('cipher').value].key || Number($('size').value);
+
+async function getKey() {
+  if ($('keySrc').value === 'key') {
+    const t = $('key').value.trim();
+    const k = /^(0x)?[0-9a-fA-F\s]+$/.test(t) ? parseHex(t, 'Key') : parseBase64(t, 'Key');
+    if (k.length !== keyLen()) throw new Error(`Key must be ${keyLen()} bytes (${keyLen() * 8}-bit); got ${k.length}.`);
+    return { key: k };
+  }
+  if (!$('pwSalt').value.trim()) $('pwSalt').value = hex.encode(randomBytes(16));
+  const salt = parseHex($('pwSalt').value, 'Salt');
+  const iterations = Number($('pwIter').value);
+  if (!Number.isInteger(iterations) || iterations < 1) throw new Error('Iterations must be a positive whole number.');
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode($('pw').value), 'PBKDF2', false, ['deriveBits']);
+  const key = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, base, keyLen() * 8));
+  return { key, derived: [['Derived key (PBKDF2-SHA256)', hex.encode(key), `salt ${hex.encode(salt)}, ${iterations.toLocaleString()} iterations`]] };
+}
+
+async function go() {
+  showError($('err'), ''); $('out').innerHTML = ''; $('verdict').hidden = true;
+  try {
+    const c = C[$('cipher').value];
+    $('status').textContent = $('keySrc').value === 'pw' ? 'Deriving key…' : '';
+    const { key, derived = [] } = await getKey();
+    $('status').textContent = '';
+    const aad = c.aead && $('aad').value ? parseBytes($('aad').value, $('aadEnc').value, 'Associated data') : undefined;
+    if (dir === 'enc') {
+      if (!$('iv').value.trim()) $('iv').value = hex.encode(randomBytes(c.iv));
+      const iv = parseHex($('iv').value, 'IV');
+      if (iv.length !== c.iv) throw new Error(`IV/nonce must be ${c.iv} bytes; got ${iv.length}.`);
+      const pt = parseBytes($('input').value, $('inEnc').value, 'Plaintext');
+      const ct = c.make(key, iv, aad).encrypt(pt);
+      const body = c.aead ? ct.subarray(0, ct.length - 16) : ct;
+      const tag = c.aead ? ct.subarray(ct.length - 16) : null;
+      $('out').innerHTML = kvTable([
+        ...derived,
+        ['IV / nonce', hex.encode(iv)],
+        ['Ciphertext' + (c.aead ? ' + tag' : '') + ' (base64)', base64.encode(ct)],
+        ['Ciphertext' + (c.aead ? ' + tag' : '') + ' (hex)', hex.encode(ct)],
+        c.aead && ['Ciphertext only (hex)', hex.encode(body)],
+        c.aead && ['Tag (hex)', hex.encode(tag), '16-byte authentication tag'],
+        ['IV ‖ ciphertext' + (c.aead ? ' ‖ tag' : '') + ' (base64)', base64.encode(concat(iv, ct)), 'Single string to store or send'],
+      ]);
+    } else {
+      let ct = parseBytes($('input').value, $('inEnc').value, 'Ciphertext');
+      let iv;
+      if ($('prefixed').checked) { iv = ct.subarray(0, c.iv); ct = ct.subarray(c.iv); $('iv').value = hex.encode(iv); }
+      else iv = parseHex($('iv').value, 'IV');
+      if (iv.length !== c.iv) throw new Error(`IV/nonce must be ${c.iv} bytes; got ${iv.length}.`);
+      if (c.aead && ct.length < 16) throw new Error('Ciphertext is shorter than the 16-byte tag.');
+      let pt;
+      try { pt = c.make(key, iv, aad).decrypt(ct); }
+      catch (e) {
+        const v = $('verdict'); v.hidden = false; v.className = 'big-result bad';
+        v.textContent = c.aead ? '❌ Authentication failed: wrong key, IV, associated data, or the data was modified.' : `❌ Decryption failed: ${e.message.includes('padding') || /pkcs|invalid/i.test(e.message) ? 'bad padding — likely a wrong key or IV' : e.message}.`;
+        return;
+      }
+      let text = null;
+      try { text = utf8d.decode(pt); } catch {}
+      if (c.aead) { const v = $('verdict'); v.hidden = false; v.className = 'big-result ok'; v.textContent = '✅ Authenticated and decrypted.'; }
+      $('out').innerHTML = kvTable([...derived, text !== null && ['Plaintext (text)', text], ['Plaintext (hex)', hex.encode(pt)]]);
+    }
+  } catch (e) { $('status').textContent = ''; showError($('err'), e.message); }
+}
+
+$('dir').onclick = e => {
+  const b = e.target.closest('button'); if (!b || b.dataset.v === dir) return;
+  dir = b.dataset.v; setPressed($('dir'), dir);
+  // Move the last ciphertext into the input so a round trip is one click.
+  const last = [...$('out').querySelectorAll('[data-copy]')].find(x => x.closest('tr').querySelector('th').textContent.startsWith('Ciphertext') && x.closest('tr').querySelector('th').textContent.includes('base64'));
+  sync();
+  if (dir === 'dec' && last) { $('input').value = last.dataset.copy; $('inEnc').value = 'base64'; }
+  else if (dir === 'enc') { $('inEnc').value = 'utf8'; }
+  $('out').innerHTML = ''; $('verdict').hidden = true;
+};
+$('genKey').onclick = () => { $('key').value = hex.encode(randomBytes(keyLen())); };
+$('genIv').onclick = () => { $('iv').value = hex.encode(randomBytes(C[$('cipher').value].iv)); };
+$('go').onclick = go;
+for (const id of ['cipher', 'size', 'keySrc']) $(id).addEventListener('input', () => { sync(); $('iv').value = ''; if ($('keySrc').value === 'key' && keyLen() * 2 !== $('key').value.trim().length) $('key').value = hex.encode(randomBytes(keyLen())); });
+$('key').value = hex.encode(randomBytes(32));
+sync();
+wireCopy();
+</script>
+<!-- script:end -->
 </body>
 </html>

@@ -6,6 +6,7 @@
   <title>Sign &amp; Verify</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%8D%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/ui.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -17,11 +18,208 @@
   <a class="back" href="../">← Cryptography</a>
   <h1>✍️ Sign &amp; Verify</h1>
   <p class="lead">Sign and verify with ECDSA, EdDSA, Schnorr (BIP340) and RSA-PSS.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- tool:start -->
+  <div class="panel">
+    <p class="note" id="keynote"></p>
+    <div class="row">
+      <div class="seg" id="mode" role="group" aria-label="Mode">
+        <button data-v="sign" aria-pressed="true">Sign</button>
+        <button data-v="verify" aria-pressed="false">Verify</button>
+      </div>
+    </div>
+    <div class="field-row">
+      <label class="field">Algorithm
+        <select id="algo">
+          <option value="ecdsa-p256">ECDSA P-256 (SHA-256)</option>
+          <option value="ecdsa-p384">ECDSA P-384 (SHA-384)</option>
+          <option value="ecdsa-k1">ECDSA secp256k1 (SHA-256)</option>
+          <option value="ed25519">Ed25519</option>
+          <option value="schnorr">Schnorr BIP340 (secp256k1)</option>
+          <option value="rsa-pss">RSA-PSS (SHA-256)</option>
+          <option value="rsa-pkcs1">RSASSA-PKCS1-v1_5 (SHA-256)</option>
+        </select>
+      </label>
+      <button id="gen">New random key</button>
+    </div>
+    <label class="field"><span id="keyLabel">Private key (hex, PEM or JWK)</span>
+      <textarea id="key" class="wide" rows="3" spellcheck="false" autocomplete="off"></textarea>
+    </label>
+    <div class="field-row">
+      <label class="field" style="flex:3">Message
+        <textarea id="msg" class="wide" rows="2" spellcheck="false">hello</textarea>
+      </label>
+      <label class="field">Encoding<select id="msgEnc"></select></label>
+    </div>
+    <div class="row" id="ecdsaOpts" style="margin-top:8px">
+      <label class="inline"><input type="checkbox" id="prehashed"> Message is already a hash (sign the digest as-is)</label>
+      <label class="inline"><input type="checkbox" id="lowS" checked> <span id="lowSLabel">Low-S</span></label>
+    </div>
+    <label class="field" id="sigField" hidden>Signature (hex or base64; raw r‖s or DER)
+      <textarea id="sig" class="wide" rows="2" spellcheck="false"></textarea>
+    </label>
+    <p id="verdict" class="big-result" hidden></p>
+    <p class="error" id="err" hidden></p>
+    <div id="out" class="out"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">Notes</p>
+    <p class="muted">ECDSA hashes the message with the listed hash first (tick “already a hash” to sign a 32/48-byte digest directly, as Bitcoin and Ethereum do). Signatures are deterministic (RFC 6979) except Schnorr, which mixes in fresh randomness, and RSA-PSS, which uses a random salt (32 bytes here). <b>Low-S</b>: for every ECDSA signature (r, s) the pair (r, n − s) is also valid; Bitcoin and Ethereum only accept the low one. Schnorr BIP340 uses 32-byte x-only public keys. RSA keys must be PEM or JWK; use Key Generator to make one.</p>
+  </div>
+  <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.1 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<!-- script:start -->
+<script type="module">
+import { parseBytes, kvTable, wireCopy, showError, setPressed, ENCODING_OPTIONS, KEY_NOTE, hex, base64, debounce } from '../lib/common.js';
+import { parseAnyKey, generate, generateRsa, TYPES, pkcs8, spki, toPem, secp256k1 } from '../lib/keys.js';
+import { schnorr } from '../../assets/vendor/@noble/curves@2.4.0/secp256k1.esm.js';
+
+const $ = id => document.getElementById(id);
+$('keynote').textContent = KEY_NOTE;
+$('msgEnc').innerHTML = ENCODING_OPTIONS;
+const A = {
+  'ecdsa-p256': { type: 'P-256', ecdsa: true, digest: 32 },
+  'ecdsa-p384': { type: 'P-384', ecdsa: true, digest: 48 },
+  'ecdsa-k1': { type: 'secp256k1', ecdsa: true, digest: 32 },
+  'ed25519': { type: 'Ed25519' },
+  'schnorr': { type: 'secp256k1', schnorr: true },
+  'rsa-pss': { type: 'RSA', rsa: { name: 'RSA-PSS', saltLength: 32 } },
+  'rsa-pkcs1': { type: 'RSA', rsa: { name: 'RSASSA-PKCS1-v1_5' } },
+};
+let mode = 'sign', run = 0;
+
+function readSig(t) {
+  const s = t.trim().replace(/^0x/i, '');
+  if (!s) throw new Error('Paste a signature.');
+  const compact = s.replace(/\s+/g, '');
+  if (/^[0-9a-fA-F]+$/.test(compact) && compact.length % 2 === 0) return hex.decode(compact.toLowerCase());
+  try { return base64.decode(compact.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '').padEnd(Math.ceil(compact.replace(/=+$/, '').length / 4) * 4, '=')); }
+  catch { throw new Error('Signature is not hex or base64.'); }
+}
+
+async function rsaKey(key, usage) {
+  const a = A[$('algo').value].rsa;
+  const algo = { name: a.name, hash: 'SHA-256' };
+  if (usage === 'sign') return crypto.subtle.importKey('pkcs8', pkcs8(key), algo, false, ['sign']);
+  return crypto.subtle.importKey('spki', spki(key), algo, false, ['verify']);
+}
+
+function pubInfo(a, key) {
+  if (a.schnorr) return ['Public key (x-only)', hex.encode(schnorr.getPublicKey(key.priv))];
+  if (a.type === 'RSA') return ['Public key (SPKI PEM)', toPem('PUBLIC KEY', spki(key))];
+  if (a.type === 'Ed25519') return ['Public key', hex.encode(key.pub)];
+  return ['Public key (compressed)', hex.encode(TYPES[a.type].lib.Point.fromBytes(key.pub).toBytes(true))];
+}
+
+async function render() {
+  const my = ++run;
+  showError($('err'), ''); $('out').innerHTML = ''; $('verdict').hidden = true;
+  const a = A[$('algo').value];
+  try {
+    if (!$('key').value.trim()) return;
+    const msg = parseBytes($('msg').value, $('msgEnc').value, 'Message');
+    const pre = a.ecdsa && $('prehashed').checked;
+    if (pre && msg.length !== a.digest) throw new Error(`A ${a.type} digest must be ${a.digest} bytes; got ${msg.length}.`);
+    let key;
+    if (a.schnorr && mode === 'verify' && /^(0x)?[0-9a-fA-F]{64}$/.test($('key').value.trim())) key = { xonly: hex.decode($('key').value.trim().replace(/^0x/i, '')) };
+    else {
+      key = await parseAnyKey($('key').value, a.type, mode === 'sign' ? 'private' : 'public');
+      if (key.type !== a.type) throw new Error(`That is a ${key.type} key; ${$('algo').selectedOptions[0].text} needs ${a.type}.`);
+    }
+    if (mode === 'sign') {
+      if (!key.priv) throw new Error('Signing needs a private key.');
+      let rows = [];
+      if (a.ecdsa) {
+        const lib = TYPES[a.type].lib;
+        const opts = { prehash: !pre, lowS: $('lowS').checked };
+        const compact = lib.sign(msg, key.priv, { ...opts, format: 'compact' });
+        const der = lib.sign(msg, key.priv, { ...opts, format: 'der' });
+        const S = lib.Signature.fromBytes(compact, 'compact');
+        rows = [['Signature r‖s (hex)', hex.encode(compact)], ['Signature DER (hex)', hex.encode(der)], ['Signature DER (base64)', base64.encode(der)],
+          ['r', S.r.toString(16).padStart(a.digest * 2, '0')], ['s', S.s.toString(16).padStart(a.digest * 2, '0'), S.hasHighS() ? 'high-S' : 'low-S']];
+      } else if (a.type === 'Ed25519') {
+        const s = TYPES.Ed25519.lib.sign(msg, key.priv);
+        rows = [['Signature (hex)', hex.encode(s)], ['Signature (base64)', base64.encode(s)]];
+      } else if (a.schnorr) {
+        const s = schnorr.sign(msg, key.priv);
+        rows = [['Signature (hex)', hex.encode(s)], ['Signature (base64)', base64.encode(s)]];
+      } else {
+        const s = new Uint8Array(await crypto.subtle.sign(a.rsa, await rsaKey(key, 'sign'), msg));
+        rows = [['Signature (hex)', hex.encode(s)], ['Signature (base64)', base64.encode(s)]];
+      }
+      if (my !== run) return;
+      $('out').innerHTML = kvTable([pubInfo(a, key), ...rows]);
+    } else {
+      if (!$('sig').value.trim()) return;
+      const sig = readSig($('sig').value);
+      let ok;
+      if (a.ecdsa) {
+        const lib = TYPES[a.type].lib;
+        const format = sig[0] === 0x30 && sig.length !== a.digest * 2 ? 'der' : 'compact';
+        if (format === 'compact' && sig.length !== a.digest * 2) throw new Error(`A raw ${a.type} signature is ${a.digest * 2} bytes; got ${sig.length}.`);
+        try { ok = lib.verify(sig, msg, key.pub, { prehash: !pre, lowS: $('lowS').checked, format }); } catch (e) { throw new Error('Malformed signature: ' + e.message); }
+        if (!ok && $('lowS').checked) {
+          try { if (lib.verify(sig, msg, key.pub, { prehash: !pre, lowS: false, format })) ok = 'high'; } catch {}
+        }
+      } else if (a.type === 'Ed25519') {
+        if (sig.length !== 64) throw new Error(`An Ed25519 signature is 64 bytes; got ${sig.length}.`);
+        ok = TYPES.Ed25519.lib.verify(sig, msg, key.pub);
+      } else if (a.schnorr) {
+        if (sig.length !== 64) throw new Error(`A BIP340 signature is 64 bytes; got ${sig.length}.`);
+        const xonly = key.xonly || (key.priv ? schnorr.getPublicKey(key.priv) : key.pub.subarray(1, 33));
+        ok = schnorr.verify(sig, msg, xonly);
+      } else {
+        ok = await crypto.subtle.verify(a.rsa, await rsaKey(key, 'verify'), sig, msg);
+      }
+      if (my !== run) return;
+      const v = $('verdict'); v.hidden = false;
+      if (ok === 'high') { v.className = 'big-result bad'; v.textContent = '⚠️ Mathematically valid, but high-S: rejected because low-S is required.'; }
+      else { v.className = 'big-result ' + (ok ? 'ok' : 'bad'); v.textContent = ok ? '✅ Valid signature.' : '❌ Invalid signature.'; }
+    }
+  } catch (e) { if (my === run) showError($('err'), e.message); }
+}
+
+function syncAlgo() {
+  const a = A[$('algo').value];
+  $('ecdsaOpts').hidden = !a.ecdsa;
+  $('lowS').checked = a.type === 'secp256k1';
+  $('lowSLabel').textContent = mode === 'sign' ? 'Low-S (normalize s ≤ n/2)' : 'Require low-S';
+  $('keyLabel').textContent = mode === 'sign' ? 'Private key (hex, PEM or JWK)' : `Public key (${a.schnorr ? '32-byte x-only hex, ' : ''}hex, PEM or JWK; a private key also works)`;
+  $('sigField').hidden = mode !== 'verify';
+}
+
+$('gen').onclick = async () => {
+  const a = A[$('algo').value];
+  showError($('err'), '');
+  try {
+    if (a.type === 'RSA') { $('key').value = '…'; const k = await generateRsa(2048); $('key').value = toPem('PRIVATE KEY', pkcs8(k)); }
+    else $('key').value = hex.encode(generate(a.type).priv);
+    if (mode === 'verify') setMode('sign');
+    render();
+  } catch (e) { showError($('err'), e.message); }
+};
+function setMode(m) {
+  // Moving from Sign to Verify carries the signature over.
+  if (m === 'verify' && mode === 'sign') {
+    const rows = [...$('out').querySelectorAll('tr')];
+    const val = prefix => rows.find(r => r.querySelector('th').textContent.startsWith(prefix))?.querySelector('[data-copy]')?.dataset.copy;
+    const sig = val('Signature'), pub = val('Public key');
+    if (sig) $('sig').value = sig;
+    if (pub) $('key').value = pub;
+  }
+  mode = m; setPressed($('mode'), m); syncAlgo();
+}
+$('mode').onclick = e => { const b = e.target.closest('button'); if (!b) return; setMode(b.dataset.v); render(); };
+$('algo').addEventListener('input', () => { syncAlgo(); $('key').value = ''; $('sig').value = ''; $('gen').click(); });
+const later = debounce(render, 120);
+for (const id of ['key', 'msg', 'msgEnc', 'prehashed', 'lowS', 'sig']) $(id).addEventListener('input', later);
+syncAlgo();
+wireCopy();
+$('gen').click();
+</script>
+<!-- script:end -->
 </body>
 </html>

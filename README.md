@@ -7,9 +7,9 @@ Local-first browser tools — everyday, dev & crypto. Nothing leaves your device
 <!-- toolboxes:start -->
 | Toolbox | What's inside | Tools | Folder |
 |---|---|---|---|
-| [🪄 Utilities](https://ai-pavel.github.io/utilities/) | Everyday utilities: time, text, files and media | 18 | [`utilities/`](utilities/) |
+| [🪄 Utilities](https://ai-pavel.github.io/utilities/) | Everyday utilities: time, text, files and media | 17 | [`utilities/`](utilities/) |
 | [🧑‍💻 Developer](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 21 | [`dev/`](dev/) |
-| [🔐 Cryptography](https://ai-pavel.github.io/crypto/) | Hashes, HMAC, key derivation, encryption, keys, signatures, certificates and secrets | 0 of 16 ready | [`crypto/`](crypto/) |
+| [🔐 Cryptography](https://ai-pavel.github.io/crypto/) | Hashes, HMAC, key derivation, encryption, keys, signatures, certificates and secrets | 16 | [`crypto/`](crypto/) |
 | [🪙 Bitcoin](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, PSBTs, keys, addresses and HD wallets | 18 | [`bitcoin/`](bitcoin/) |
 | [💠 EVM](https://ai-pavel.github.io/evm/) | Ethereum and EVM: units, addresses, ABI, transactions and signatures | 12 | [`evm/`](evm/) |
 | [🌞 Solana](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 11 | [`solana/`](solana/) |

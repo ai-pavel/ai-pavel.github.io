@@ -4,6 +4,8 @@ Copied from jsDelivr by `scripts/vendor.py`. Do not edit by hand; rerun the scri
 
 | Source | Local file | SHA-256 |
 |---|---|---|
+| `https://cdn.jsdelivr.net/npm/@noble/ciphers@2.4.0/aes.js/+esm` | `@noble/ciphers@2.4.0/aes.esm.js` | `7633b77cd3014d93…` |
+| `https://cdn.jsdelivr.net/npm/@noble/ciphers@2.4.0/chacha.js/+esm` | `@noble/ciphers@2.4.0/chacha.esm.js` | `3ef9ddde4834753f…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@1.9.0/abstract/modular/+esm` | `@noble/curves@1.9.0/abstract/modular.esm.js` | `455398fa82bf85e7…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@1.9.0/secp256k1/+esm` | `@noble/curves@1.9.0/secp256k1.esm.js` | `6beb4074394fb200…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@1.9.1/secp256k1.js/+esm` | `@noble/curves@1.9.1/secp256k1.esm.js` | `0dd64c865eec83af…` |
@@ -13,7 +15,7 @@ Copied from jsDelivr by `scripts/vendor.py`. Do not edit by hand; rerun the scri
 | `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/nist.js/+esm` | `@noble/curves@2.4.0/nist.esm.js` | `dbbf3c99316d85dc…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/secp256k1.js/+esm` | `@noble/curves@2.4.0/secp256k1.esm.js` | `fb9f3ae358b57055…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/blake2b/+esm` | `@noble/hashes@1.8.0/blake2b.esm.js` | `cc8319aedb54f380…` |
-| `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/crypto/+esm` | `@noble/hashes@1.8.0/crypto.esm.js` | `2ae9a34a813c8e66…` |
+| `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/crypto/+esm` | `@noble/hashes@1.8.0/crypto.esm.js` | `88a889713d826dee…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/hmac/+esm` | `@noble/hashes@1.8.0/hmac.esm.js` | `025b5b0403021129…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/hmac.js/+esm` | `@noble/hashes@1.8.0/hmac.esm.js` | `025b5b0403021129…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/legacy.js/+esm` | `@noble/hashes@1.8.0/legacy.esm.js` | `637a79f13bea3e57…` |
@@ -25,10 +27,12 @@ Copied from jsDelivr by `scripts/vendor.py`. Do not edit by hand; rerun the scri
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/utils/+esm` | `@noble/hashes@1.8.0/utils.esm.js` | `d321ea3738a50c79…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/utils.js/+esm` | `@noble/hashes@1.8.0/utils.esm.js` | `d321ea3738a50c79…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/blake2.js/+esm` | `@noble/hashes@2.4.0/blake2.esm.js` | `d906d497e74b1904…` |
+| `https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/hkdf.js/+esm` | `@noble/hashes@2.4.0/hkdf.esm.js` | `fce17d726d70d4bf…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/hmac.js/+esm` | `@noble/hashes@2.4.0/hmac.esm.js` | `6a439f1ada47c8cd…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/legacy.js/+esm` | `@noble/hashes@2.4.0/legacy.esm.js` | `d855b62a0cdb61ca…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/pbkdf2.js/+esm` | `@noble/hashes@2.4.0/pbkdf2.esm.js` | `54f0b178c0d7859c…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/sha2.js/+esm` | `@noble/hashes@2.4.0/sha2.esm.js` | `bc9c723eb5bca565…` |
+| `https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/sha3.js/+esm` | `@noble/hashes@2.4.0/sha3.esm.js` | `b8d30b716a7b3618…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/utils.js/+esm` | `@noble/hashes@2.4.0/utils.esm.js` | `558cc6077d2cfab7…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@2.4.0/webcrypto.js/+esm` | `@noble/hashes@2.4.0/webcrypto.esm.js` | `38497b4d498fa116…` |
 | `https://cdn.jsdelivr.net/npm/@scure/base@1.2.5/+esm` | `@scure/base@1.2.5/index.esm.js` | `c581c94e4d57fc1c…` |
