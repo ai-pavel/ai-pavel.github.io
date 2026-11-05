@@ -7,7 +7,7 @@ Local-first browser tools — everyday, dev & crypto. Nothing leaves your device
 <!-- toolboxes:start -->
 | Toolbox | What's inside | Tools | Folder |
 |---|---|---|---|
-| [🪄 Utilities](https://ai-pavel.github.io/utilities/) | Everyday utilities: time, text, files and media | 20 | [`utilities/`](utilities/) |
+| [🪄 Utils](https://ai-pavel.github.io/utilities/) | Everyday utilities: time, text, files and media | 20 | [`utilities/`](utilities/) |
 | [🧑‍💻 Dev](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 23 | [`dev/`](dev/) |
 | [🔐 Crypto](https://ai-pavel.github.io/crypto/) | Hashes, HMAC, key derivation, encryption, keys, signatures, certificates and secrets | 0 of 16 ready | [`crypto/`](crypto/) |
 | [🪙 BTC](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, PSBTs, keys, addresses and HD wallets | 19 | [`bitcoin/`](bitcoin/) |
