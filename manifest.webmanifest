@@ -37,6 +37,10 @@
       "url": "/dev/"
     },
     {
+      "name": "Cryptography",
+      "url": "/crypto/"
+    },
+    {
       "name": "Bitcoin",
       "url": "/bitcoin/"
     },

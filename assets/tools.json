@@ -172,22 +172,11 @@
               "description": "Convert numbers between binary, decimal and hex"
             },
             {
-              "slug": "byte-ascii",
-              "emoji": "🔤",
-              "name": "Byte (ASCII)",
-              "description": "Convert between a byte and an ASCII character"
-            },
-            {
-              "slug": "byte-integer",
-              "emoji": "🔟",
-              "name": "Byte (Integer)",
-              "description": "Convert a byte between binary, hex and integer"
-            },
-            {
               "slug": "byte",
               "emoji": "💾",
               "name": "Byte",
-              "description": "Show every representation of a byte"
+              "description": "Every representation of a byte: bits, hex, integer and ASCII",
+              "keywords": "ascii table signed unsigned"
             },
             {
               "slug": "bit",
@@ -363,10 +352,171 @@
       ]
     },
     {
+      "id": "crypto",
+      "emoji": "🔐",
+      "name": "Cryptography",
+      "summary": "Hashes, HMAC, key derivation, encryption, keys, signatures, certificates and secrets.",
+      "lead": "Cryptography tools that run entirely in your browser. Keys and secrets you enter never leave your device.",
+      "categories": [
+        {
+          "name": "Hashing",
+          "tools": [
+            {
+              "slug": "hash",
+              "emoji": "#️⃣",
+              "name": "Hash",
+              "description": "Hash text, hex or files with MD5, SHA-1/2/3, Keccak, BLAKE2/3 and RIPEMD-160",
+              "keywords": "sha256 sha512 sha3 keccak blake2 blake3 ripemd160 md5 sha1 checksum"
+            },
+            {
+              "slug": "hmac",
+              "emoji": "🔏",
+              "name": "HMAC",
+              "description": "Compute an HMAC with any hash",
+              "keywords": "mac sha256 authentication"
+            },
+            {
+              "slug": "password-hash",
+              "emoji": "🧂",
+              "name": "Password Hash",
+              "description": "Hash and verify passwords with bcrypt, scrypt and Argon2",
+              "keywords": "bcrypt scrypt argon2 argon2id"
+            }
+          ]
+        },
+        {
+          "name": "Key Derivation",
+          "tools": [
+            {
+              "slug": "kdf",
+              "emoji": "🧬",
+              "name": "Key Derivation",
+              "description": "Derive keys with PBKDF2 and HKDF",
+              "keywords": "pbkdf2 hkdf bip39 seed"
+            }
+          ]
+        },
+        {
+          "name": "Encryption",
+          "tools": [
+            {
+              "slug": "encryption",
+              "emoji": "🛡️",
+              "name": "Encryption",
+              "description": "Encrypt and decrypt with AES (GCM, CBC, CTR) and ChaCha20-Poly1305",
+              "keywords": "aes gcm cbc ctr chacha20 poly1305 cipher"
+            }
+          ]
+        },
+        {
+          "name": "Keys",
+          "tools": [
+            {
+              "slug": "key-generator",
+              "emoji": "🗝️",
+              "name": "Key Generator",
+              "description": "Generate Ed25519, X25519, P-256/384, secp256k1 and RSA keys",
+              "keywords": "keypair rsa ecdsa ed25519 pem jwk"
+            },
+            {
+              "slug": "key-converter",
+              "emoji": "🔄",
+              "name": "Key Converter",
+              "description": "Convert keys between PEM, DER, JWK and raw bytes",
+              "keywords": "pem der jwk pkcs8 spki"
+            },
+            {
+              "slug": "ecdh",
+              "emoji": "🤝",
+              "name": "ECDH",
+              "description": "Compute a shared secret with X25519, P-256 or secp256k1",
+              "keywords": "key agreement diffie hellman x25519"
+            }
+          ]
+        },
+        {
+          "name": "Signatures",
+          "tools": [
+            {
+              "slug": "sign-verify",
+              "emoji": "✍️",
+              "name": "Sign & Verify",
+              "description": "Sign and verify with ECDSA, EdDSA, Schnorr (BIP340) and RSA-PSS",
+              "keywords": "ecdsa eddsa ed25519 schnorr bip340 rsa signature secp256k1"
+            },
+            {
+              "slug": "der-signature",
+              "emoji": "🖋️",
+              "name": "DER Signature",
+              "description": "Convert a signature between raw (r, s) and DER",
+              "keywords": "der asn1 low-s"
+            }
+          ]
+        },
+        {
+          "name": "Certificates",
+          "tools": [
+            {
+              "slug": "x509-decoder",
+              "emoji": "📜",
+              "name": "X.509 / CSR Decoder",
+              "description": "Decode a certificate or signing request",
+              "keywords": "certificate csr pem tls ssl fingerprint"
+            },
+            {
+              "slug": "asn1-decoder",
+              "emoji": "🌳",
+              "name": "ASN.1 Decoder",
+              "description": "Decode ASN.1 DER or PEM into a tree",
+              "keywords": "asn1 der ber"
+            }
+          ]
+        },
+        {
+          "name": "Secrets",
+          "tools": [
+            {
+              "slug": "random-generator",
+              "emoji": "🎲",
+              "name": "Random Generator",
+              "description": "Generate random bytes, passwords and passphrases",
+              "keywords": "password passphrase entropy random bytes"
+            },
+            {
+              "slug": "secret-sharing",
+              "emoji": "🧩",
+              "name": "Secret Sharing",
+              "description": "Split a secret into shares and recover it (Shamir)",
+              "keywords": "shamir sss shares threshold"
+            },
+            {
+              "slug": "totp",
+              "emoji": "⏱️",
+              "name": "TOTP / HOTP",
+              "description": "Generate one-time codes from a secret",
+              "keywords": "2fa otp authenticator otpauth"
+            }
+          ]
+        },
+        {
+          "name": "Math",
+          "tools": [
+            {
+              "slug": "modular-arithmetic",
+              "emoji": "➗",
+              "name": "Modular Arithmetic",
+              "description": "Modular inverse, power and GCD with big integers",
+              "keywords": "mod inverse pow gcd bigint secp256k1"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "bitcoin",
       "emoji": "🪙",
       "name": "Bitcoin",
-      "summary": "Bitcoin: blocks, transactions, keys, addresses, HD wallets and signatures.",
+      "summary": "Bitcoin: blocks, transactions, PSBTs, keys, addresses and HD wallets.",
       "lead": "Bitcoin tools that run entirely in your browser. Keys you enter never leave your device.",
       "categories": [
         {
@@ -422,14 +572,9 @@
             {
               "slug": "txid",
               "emoji": "🆔",
-              "name": "TXID",
-              "description": "Compute a TXID from raw transaction data"
-            },
-            {
-              "slug": "wtxid",
-              "emoji": "🪪",
-              "name": "wTXID",
-              "description": "Compute a wTXID from raw transaction data"
+              "name": "TXID / wTXID",
+              "description": "Compute the TXID and wTXID of a raw transaction",
+              "keywords": "wtxid witness"
             },
             {
               "slug": "script",
@@ -441,13 +586,8 @@
               "slug": "sequence",
               "emoji": "🔁",
               "name": "Sequence",
-              "description": "Decode an input's sequence field"
-            },
-            {
-              "slug": "relative-locktime",
-              "emoji": "⏳",
-              "name": "Relative Locktime",
-              "description": "Build a relative locktime for an input"
+              "description": "Decode or build an input's sequence: RBF and relative locktime",
+              "keywords": "nsequence csv relative locktime bip68"
             },
             {
               "slug": "psbt-decoder",
@@ -464,7 +604,8 @@
               "slug": "address",
               "emoji": "📬",
               "name": "Address",
-              "description": "Encode a P2WPKH, P2WSH or P2TR script as an address"
+              "description": "Encode and decode P2PKH, P2SH, P2WPKH, P2WSH and P2TR addresses",
+              "keywords": "bech32 bech32m base58 scriptpubkey"
             },
             {
               "slug": "wif-private-key",
@@ -473,22 +614,11 @@
               "description": "Convert a private key to and from WIF"
             },
             {
-              "slug": "base58",
-              "emoji": "🔡",
-              "name": "Base58",
-              "description": "Convert between hex and Base58"
-            },
-            {
               "slug": "base58check",
               "emoji": "☑️",
               "name": "Base58Check",
-              "description": "Add a checksum and encode to Base58"
-            },
-            {
-              "slug": "bech32",
-              "emoji": "🔣",
-              "name": "Bech32",
-              "description": "Convert between a ScriptPubKey and a Bech32 address"
+              "description": "Convert between hex and Base58, with or without a checksum",
+              "keywords": "base58"
             }
           ]
         },
@@ -528,66 +658,8 @@
               "slug": "hash160",
               "emoji": "🔗",
               "name": "HASH160",
-              "description": "SHA-256 followed by RIPEMD-160"
-            },
-            {
-              "slug": "ripemd160",
-              "emoji": "🌀",
-              "name": "RIPEMD-160",
-              "description": "Hash bytes with RIPEMD-160"
-            },
-            {
-              "slug": "sha256",
-              "emoji": "🔒",
-              "name": "SHA-256",
-              "description": "Hash text with SHA-256"
-            },
-            {
-              "slug": "pbkdf2",
-              "emoji": "🧂",
-              "name": "PBKDF2",
-              "description": "Turn a mnemonic and passphrase into a seed"
-            }
-          ]
-        },
-        {
-          "name": "Cryptography",
-          "tools": [
-            {
-              "slug": "ecdsa-sign",
-              "emoji": "✍️",
-              "name": "ECDSA Sign",
-              "description": "Sign a message hash with a private key"
-            },
-            {
-              "slug": "ecdsa-verify",
-              "emoji": "✔️",
-              "name": "ECDSA Verify",
-              "description": "Verify an ECDSA signature"
-            },
-            {
-              "slug": "der-signature",
-              "emoji": "🖋️",
-              "name": "DER Signature",
-              "description": "Convert a signature to and from DER"
-            },
-            {
-              "slug": "schnorr-sign",
-              "emoji": "✒️",
-              "name": "Schnorr Sign",
-              "description": "Sign a message with Schnorr (BIP 340)"
-            },
-            {
-              "slug": "schnorr-verify",
-              "emoji": "🛡️",
-              "name": "Schnorr Verify",
-              "description": "Verify a Schnorr signature"
-            },
-            {
-              "slug": "modular-inverse",
-              "emoji": "➗",
-              "name": "Modular Inverse",
-              "description": "Find a number's inverse modulo n"
+              "description": "SHA-256 then RIPEMD-160, with each step shown",
+              "keywords": "ripemd160"
             }
           ]
         }
