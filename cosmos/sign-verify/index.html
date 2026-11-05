@@ -6,6 +6,7 @@
   <title>Sign &amp; Verify</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%8D%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/cosmos.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,181 @@
 <main>
   <a class="back" href="../">← Cosmos</a>
   <h1>✍️ Sign &amp; Verify</h1>
-  <p class="lead">Sign and verify arbitrary data (ADR-36).</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Sign arbitrary data and verify signatures the way Keplr's signArbitrary does it (ADR-36).</p>
+  <div class="mode-tabs" role="tablist"><button type="button" role="tab" data-tab="sign">Sign</button><button type="button" role="tab" data-tab="verify">Verify</button></div>
+  <section id="tab-sign" data-tab-panel="sign">
+    <p class="note" id="keynote"></p>
+    <div class="panel">
+      <label class="field">Private key (hex or base64) or mnemonic
+        <textarea id="s-key" class="wide" rows="2" spellcheck="false" autocomplete="off" placeholder="64 hex characters, or 12/24 words"></textarea>
+      </label>
+      <div class="row" style="margin-top:8px"><button type="button" id="s-random">Random key</button></div>
+      <div class="inline-row">
+        <label class="field">Chain <select id="s-chain"></select></label>
+        <label class="field" id="s-indexWrap" hidden>Account index (m/44'/118'/0'/0/i) <input id="s-index" type="number" min="0" step="1" value="0"></label>
+      </div>
+      <label class="field">Data to sign
+        <textarea id="s-data" class="wide" rows="3" spellcheck="false">Sign in to example.com</textarea>
+      </label>
+      <label class="field">Data encoding
+        <select id="s-enc"><option value="text">Text (UTF-8)</option><option value="base64">Base64 bytes</option><option value="hex">Hex bytes</option></select>
+      </label>
+      <p class="error" id="s-err" hidden></p>
+      <div id="s-out"></div>
+    </div>
+  </section>
+  <section id="tab-verify" data-tab-panel="verify" hidden>
+    <div class="panel">
+      <label class="field">Signer address
+        <input id="v-addr" class="mono wide" spellcheck="false" autocomplete="off" placeholder="cosmos1…">
+      </label>
+      <label class="field">Signed data
+        <textarea id="v-data" class="wide" rows="3" spellcheck="false"></textarea>
+      </label>
+      <label class="field">Data encoding
+        <select id="v-enc"><option value="text">Text (UTF-8)</option><option value="base64">Base64 bytes</option><option value="hex">Hex bytes</option></select>
+      </label>
+      <label class="field">Signature (base64), or the whole StdSignature JSON from the wallet
+        <textarea id="v-sig" class="wide" rows="3" spellcheck="false" placeholder='{"pub_key":{"type":"tendermint/PubKeySecp256k1","value":"…"},"signature":"…"}'></textarea>
+      </label>
+      <label class="field">Public key (base64 or hex) — not needed if the JSON above includes it
+        <input id="v-pub" class="mono wide" spellcheck="false" autocomplete="off">
+      </label>
+      <p class="error" id="v-err" hidden></p>
+      <div id="v-out"></div>
+    </div>
+  </section>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">How it works</p>
+    <p class="muted">ADR-36 wraps the data in an amino sign document that can never be a valid transaction: empty chain ID, zero account number and sequence, no fee, and a single <code>sign/MsgSignData</code> message with the signer address and the base64 data. The document is serialized as JSON with sorted keys, hashed with SHA-256 and signed with secp256k1 (low-S, 64 bytes r‖s). Verification rebuilds the same document, checks the signature, and checks that the public key really belongs to the signer address.</p>
+    <p class="muted">This covers standard secp256k1 accounts. Chains with Ethereum-style keys (Injective, Evmos) sign arbitrary data differently.</p>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { generateMnemonic, validateMnemonic, mnemonicToSeedSync } from '../../assets/vendor/@scure/bip39@2.4.0/index.esm.js';
+import { wordlist } from '../../assets/vendor/@scure/bip39@2.4.0/wordlists/english.esm.js';
+import { HDKey } from '../../assets/vendor/@scure/bip32@2.4.0/index.esm.js';
+import { sha256, secp256k1, base64, hex, utf8, toHex, parseHex, parseBase64, parseHexOrBase64, cosmosAddressBytes, encodeBech32, decodeBech32, splitPrefix, chainOptions, equal, kvTable, wireCopy, showError, esc, KEY_NOTE } from '../lib/cosmos.js';
+const $ = id => document.getElementById(id);
+$('keynote').textContent = KEY_NOTE;
+$('s-chain').innerHTML = chainOptions('cosmos');
+
+// ---------- tabs (?mode=sign|verify) ----------
+const tabs = [...document.querySelectorAll('.mode-tabs [data-tab]')];
+function showTab(mode, push) {
+  if (!tabs.some(t => t.dataset.tab === mode)) mode = 'sign';
+  for (const t of tabs) { const on = t.dataset.tab === mode; t.setAttribute('aria-selected', String(on)); $('tab-' + t.dataset.tab).hidden = !on; }
+  if (push) { const u = new URL(location.href); u.searchParams.set('mode', mode); history.replaceState(null, '', u); }
+}
+tabs.forEach(t => t.addEventListener('click', () => showTab(t.dataset.tab, true)));
+showTab(new URLSearchParams(location.search).get('mode'), false);
+
+// ---------- ADR-36 ----------
+const escapeJson = s => s.replace(/&/g, '\\u0026').replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+function sortedJson(v) {
+  if (Array.isArray(v)) return '[' + v.map(sortedJson).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + sortedJson(v[k])).join(',') + '}';
+  return JSON.stringify(v);
+}
+function signDoc(signer, data) {
+  return escapeJson(sortedJson({
+    chain_id: '', account_number: '0', sequence: '0', fee: { gas: '0', amount: [] }, memo: '',
+    msgs: [{ type: 'sign/MsgSignData', value: { signer, data: base64.encode(data) } }],
+  }));
+}
+function dataBytes(text, enc) {
+  if (enc === 'text') return utf8.encode(text);
+  if (!text.trim()) return new Uint8Array();
+  return enc === 'hex' ? parseHex(text, 'Data') : parseBase64(text, 'Data');
+}
+
+// ---------- Sign ----------
+function privateKey() {
+  const t = $('s-key').value.trim();
+  const words = t.toLowerCase().split(/\s+/).filter(Boolean);
+  $('s-indexWrap').hidden = words.length < 12;
+  if (words.length >= 12) {
+    const m = words.join(' ');
+    if (!validateMnemonic(m, wordlist)) throw new Error('This mnemonic is not valid BIP39 (unknown word or wrong checksum).');
+    const i = Number($('s-index').value);
+    if (!Number.isInteger(i) || i < 0) throw new Error('Account index must be a whole number.');
+    return { key: HDKey.fromMasterSeed(mnemonicToSeedSync(m)).derive(`m/44'/118'/0'/0/${i}`).privateKey, from: `mnemonic, m/44'/118'/0'/0/${i}` };
+  }
+  const key = parseHexOrBase64(t, 'Private key');
+  if (key.length !== 32) throw new Error(`Private key is ${key.length} bytes; secp256k1 private keys are 32 bytes.`);
+  if (!secp256k1.utils.isValidSecretKey(key)) throw new Error('Private key is out of range for secp256k1.');
+  return { key, from: 'private key' };
+}
+let lastSigned = null;
+function sign() {
+  showError($('s-err'), ''); $('s-out').innerHTML = ''; lastSigned = null;
+  if (!$('s-key').value.trim()) { $('s-indexWrap').hidden = true; return; }
+  try {
+    const { key } = privateKey();
+    const pub = secp256k1.getPublicKey(key, true);
+    const signer = encodeBech32($('s-chain').value, cosmosAddressBytes(pub));
+    const data = dataBytes($('s-data').value, $('s-enc').value);
+    const doc = signDoc(signer, data);
+    const hash = sha256(utf8.encode(doc));
+    const sig = secp256k1.sign(hash, key, { prehash: false, lowS: true });
+    const std = { pub_key: { type: 'tendermint/PubKeySecp256k1', value: base64.encode(pub) }, signature: base64.encode(sig) };
+    lastSigned = { signer, data: $('s-data').value, enc: $('s-enc').value, std };
+    $('s-out').innerHTML = kvTable([
+      ['Signer address', signer],
+      ['Signature (base64)', std.signature, '64 bytes r‖s, low-S'],
+      ['Public key (base64)', std.pub_key.value],
+      ['StdSignature JSON', JSON.stringify(std), 'What Keplr\'s signArbitrary returns'],
+      ['Sign doc', doc, 'Sorted-key JSON that was hashed'],
+      ['SHA-256 of sign doc', toHex(hash)],
+    ]) + '<div class="row" style="margin-top:12px"><button type="button" class="primary" id="toVerify">Verify this signature →</button></div>';
+    $('toVerify').onclick = () => {
+      $('v-addr').value = lastSigned.signer; $('v-data').value = lastSigned.data; $('v-enc').value = lastSigned.enc;
+      $('v-sig').value = JSON.stringify(lastSigned.std); $('v-pub').value = '';
+      showTab('verify', true); verify();
+    };
+  } catch (e) { showError($('s-err'), e.message); }
+}
+$('s-random').onclick = () => { $('s-key').value = toHex(secp256k1.utils.randomSecretKey()); sign(); };
+for (const id of ['s-key', 's-chain', 's-index', 's-data', 's-enc']) $(id).oninput = sign;
+
+// ---------- Verify ----------
+function verify() {
+  showError($('v-err'), ''); $('v-out').innerHTML = '';
+  const addr = $('v-addr').value.trim(), sigText = $('v-sig').value.trim();
+  if (!addr || !sigText) return;
+  try {
+    const { prefix, bytes: addrBytes } = decodeBech32(addr, 'Signer address');
+    if (splitPrefix(prefix).kind) throw new Error('Use the signer\'s account address, not a validator address.');
+    let sigB64 = sigText, pubB64 = $('v-pub').value.trim();
+    if (sigText.startsWith('{')) {
+      let j; try { j = JSON.parse(sigText); } catch { throw new Error('Signature looks like JSON but isn\'t valid JSON.'); }
+      sigB64 = j.signature; pubB64 = pubB64 || j.pub_key?.value || j.pub_key?.key || '';
+      if (typeof sigB64 !== 'string') throw new Error('The JSON has no "signature" field.');
+    }
+    if (!pubB64) throw new Error('A public key is needed to verify. Paste the StdSignature JSON or the public key.');
+    const sig = parseHexOrBase64(sigB64, 'Signature');
+    if (sig.length !== 64) throw new Error(`Signature is ${sig.length} bytes; ADR-36 signatures are 64 bytes (r‖s).`);
+    const pub = parseHexOrBase64(pubB64, 'Public key');
+    let point; try { point = secp256k1.Point.fromBytes(pub); } catch { throw new Error('Public key is not a valid secp256k1 point.'); }
+    const derived = cosmosAddressBytes(point.toBytes(true));
+    const keyMatches = equal(derived, addrBytes);
+    const data = dataBytes($('v-data').value, $('v-enc').value);
+    const hash = sha256(utf8.encode(signDoc(addr.toLowerCase(), data)));
+    let sigOk = false;
+    try { sigOk = secp256k1.verify(sig, hash, point.toBytes(true), { prehash: false, lowS: false }); } catch {}
+    const valid = sigOk && keyMatches;
+    $('v-out').innerHTML = `<p style="font-size:18px;margin:14px 0 6px" class="${valid ? 'ok' : 'bad'}">${valid ? '✅ Valid signature' : '❌ Invalid'}</p>` + kvTable([
+      ['Signature', sigOk ? 'Matches the data and public key' : 'Does not match the data and public key', sigOk ? '' : 'Check the data, its encoding and the signer address — all three are part of what was signed'],
+      ['Public key → address', encodeBech32(prefix, derived), keyMatches ? 'Matches the signer address' : 'Does NOT match the signer address'],
+    ]);
+  } catch (e) { showError($('v-err'), e.message); }
+}
+for (const id of ['v-addr', 'v-data', 'v-enc', 'v-sig', 'v-pub']) $(id).oninput = verify;
+wireCopy(); sign(); verify();
+</script>
 </body>
 </html>

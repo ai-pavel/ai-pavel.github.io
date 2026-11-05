@@ -11,9 +11,11 @@ Copied from jsDelivr by `scripts/vendor.py`. Do not edit by hand; rerun the scri
 | `https://cdn.jsdelivr.net/npm/@noble/curves@1.9.1/secp256k1.js/+esm` | `@noble/curves@1.9.1/secp256k1.esm.js` | `0dd64c865eec83af…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@1.9.7/ed25519/+esm` | `@noble/curves@1.9.7/ed25519.esm.js` | `c117703933b55a0e…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@1.9.7/secp256k1/+esm` | `@noble/curves@1.9.7/secp256k1.esm.js` | `8fc523574c581c71…` |
+| `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/abstract/modular.js/+esm` | `@noble/curves@2.4.0/abstract/modular.esm.js` | `dadd699bbcf48416…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/ed25519.js/+esm` | `@noble/curves@2.4.0/ed25519.esm.js` | `ebdfb4fbf717955a…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/nist.js/+esm` | `@noble/curves@2.4.0/nist.esm.js` | `dbbf3c99316d85dc…` |
 | `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/secp256k1.js/+esm` | `@noble/curves@2.4.0/secp256k1.esm.js` | `fb9f3ae358b57055…` |
+| `https://cdn.jsdelivr.net/npm/@noble/curves@2.4.0/utils.js/+esm` | `@noble/curves@2.4.0/utils.esm.js` | `6be00015c3ca1cf6…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/blake2b/+esm` | `@noble/hashes@1.8.0/blake2b.esm.js` | `cc8319aedb54f380…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/crypto/+esm` | `@noble/hashes@1.8.0/crypto.esm.js` | `88a889713d826dee…` |
 | `https://cdn.jsdelivr.net/npm/@noble/hashes@1.8.0/hmac/+esm` | `@noble/hashes@1.8.0/hmac.esm.js` | `025b5b0403021129…` |
@@ -46,6 +48,7 @@ Copied from jsDelivr by `scripts/vendor.py`. Do not edit by hand; rerun the scri
 | `https://cdn.jsdelivr.net/npm/@scure/bip39@2.4.0/index.js/+esm` | `@scure/bip39@2.4.0/index.esm.js` | `3fd2094b4f912ccd…` |
 | `https://cdn.jsdelivr.net/npm/@scure/bip39@2.4.0/wordlists/english.js/+esm` | `@scure/bip39@2.4.0/wordlists/english.esm.js` | `8bf740bfc4b45274…` |
 | `https://cdn.jsdelivr.net/npm/@scure/btc-signer@1.8.1/+esm` | `@scure/btc-signer@1.8.1/index.esm.js` | `7a91f09c73a066ba…` |
+| `https://cdn.jsdelivr.net/npm/@scure/sr25519@2.4.0/index.js/+esm` | `@scure/sr25519@2.4.0/index.esm.js` | `9123322b3c11ad54…` |
 | `https://cdn.jsdelivr.net/npm/barcode-detector@3.2.3/dist/iife/ponyfill.js` | `barcode-detector@3.2.3/dist/iife/ponyfill.js` | `915a6febe3edd6da…` |
 | `https://cdn.jsdelivr.net/npm/fflate@0.8.3/esm/browser.js` | `fflate@0.8.3/esm/browser.js` | `b7ca4450b19559a1…` |
 | `https://cdn.jsdelivr.net/npm/fflate@0.8.3/umd/index.js` | `fflate@0.8.3/umd/index.js` | `462ef8041fc970e3…` |

@@ -6,6 +6,7 @@
   <title>Derived Addresses</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%A6</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/cosmos.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,68 @@
 <main>
   <a class="back" href="../">← Cosmos</a>
   <h1>🏦 Derived Addresses</h1>
-  <p class="lead">Derive module accounts and IBC escrow addresses.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive module account addresses and IBC transfer escrow addresses — no keys involved.</p>
+  <div class="panel">
+    <label class="field">Chain prefix
+      <select id="chain"></select>
+    </label>
+    <p class="section-title">Module account</p>
+    <div class="inline-row">
+      <label class="field">Module name
+        <input id="module" class="mono" list="modules" spellcheck="false" autocomplete="off" value="distribution">
+        <datalist id="modules"></datalist>
+      </label>
+    </div>
+    <p class="error" id="errModule" hidden></p>
+    <div id="outModule"></div>
+    <p class="section-title">IBC transfer escrow (ICS-20)</p>
+    <div class="inline-row">
+      <label class="field">Port <input id="port" class="mono" spellcheck="false" value="transfer"></label>
+      <label class="field">Channel <input id="channel" class="mono" spellcheck="false" value="channel-0"></label>
+      <label class="field">Version <input id="version" class="mono" spellcheck="false" value="ics20-1"></label>
+    </div>
+    <p class="error" id="errEscrow" hidden></p>
+    <div id="outEscrow"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">How it works</p>
+    <p class="muted"><strong>Module accounts</strong> hold funds for SDK modules (fee collector, staking pools, community pool…). Their address is the first 20 bytes of SHA-256(module name) — <code>authtypes.NewModuleAddress</code> in the SDK.</p>
+    <p class="muted"><strong>Escrow accounts</strong> hold tokens sent out over an IBC channel until they come back. The address is the first 20 bytes of SHA-256(version ‖ 0x00 ‖ "port/channel") — <code>GetEscrowAddress</code> in ibc-go, with version "ics20-1".</p>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { sha256, utf8, concat, encodeBech32, chainOptions, toHex, kvTable, wireCopy, showError } from '../lib/cosmos.js';
+const $ = id => document.getElementById(id);
+const MODULES = ['fee_collector', 'distribution', 'bonded_tokens_pool', 'not_bonded_tokens_pool', 'gov', 'mint', 'transfer', 'ibc', 'auth', 'bank', 'staking', 'interchainaccounts', 'icahost', 'wasm', 'feeibc', 'consensus', 'upgrade', 'crisis', 'evidence', 'feegrant', 'authz'];
+$('chain').innerHTML = chainOptions('cosmos');
+$('modules').innerHTML = MODULES.map(m => `<option value="${m}">`).join('');
+
+function render() {
+  const prefix = $('chain').value;
+  showError($('errModule'), ''); $('outModule').innerHTML = '';
+  try {
+    const name = $('module').value.trim();
+    if (name) {
+      const b = sha256(utf8.encode(name)).slice(0, 20);
+      $('outModule').innerHTML = kvTable([['Address', encodeBech32(prefix, b)], ['Bytes (hex)', toHex(b)]]);
+    }
+  } catch (e) { showError($('errModule'), e.message); }
+  showError($('errEscrow'), ''); $('outEscrow').innerHTML = '';
+  try {
+    const port = $('port').value.trim(), channel = $('channel').value.trim(), version = $('version').value.trim();
+    if (port && channel) {
+      if (!/^channel-\d+$/.test(channel)) showError($('errEscrow'), 'Note: channel IDs normally look like "channel-123".');
+      const b = sha256(concat(utf8.encode(version), Uint8Array.of(0), utf8.encode(`${port}/${channel}`))).slice(0, 20);
+      $('outEscrow').innerHTML = kvTable([['Escrow address', encodeBech32(prefix, b), `${port}/${channel}`], ['Bytes (hex)', toHex(b)]]);
+    }
+  } catch (e) { showError($('errEscrow'), e.message); }
+}
+for (const id of ['chain', 'module', 'port', 'channel', 'version']) $(id).oninput = render;
+wireCopy(); render();
+</script>
 </body>
 </html>

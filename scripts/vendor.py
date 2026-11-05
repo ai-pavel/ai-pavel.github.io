@@ -39,6 +39,8 @@ ENTRIES = [
     "/npm/@noble/hashes@1.8.0/pbkdf2/+esm",
     "/npm/@noble/hashes@2.4.0/hmac.js/+esm",
     "/npm/@noble/hashes@2.4.0/sha2.js/+esm",
+    "/npm/@scure/sr25519@2.4.0/index.js/+esm",
+    "/npm/@noble/hashes@2.4.0/pbkdf2.js/+esm",
     "/npm/@noble/ciphers@2.4.0/aes.js/+esm",
     "/npm/@noble/ciphers@2.4.0/chacha.js/+esm",
     "/npm/@noble/hashes@2.4.0/hkdf.js/+esm",

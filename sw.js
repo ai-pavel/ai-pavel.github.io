@@ -1,6 +1,6 @@
 // Service worker template. scripts/generate.py fills in VERSION and PRECACHE
 // and writes the result to /sw.js. Edit this file, not sw.js.
-const VERSION = '53da7a69b52e';
+const VERSION = '8b5a7fe8e213';
 const SITE_CACHE = 'site-' + VERSION;
 // Heavy, version-pinned files that tools download on first use (the ffmpeg core,
 // the OCR engine and its language data). Cached once and kept across site updates.
@@ -34,6 +34,8 @@ const PRECACHE = [
   "/assets/vendor/@noble/curves@2.4.0/ed25519.esm.js",
   "/assets/vendor/@noble/curves@2.4.0/nist.esm.js",
   "/assets/vendor/@noble/curves@2.4.0/secp256k1.esm.js",
+  "/assets/vendor/@noble/curves@2.4.0/utils.esm.js",
+  "/assets/vendor/@noble/curves@2.4.0/abstract/modular.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/blake2b.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/crypto.esm.js",
   "/assets/vendor/@noble/hashes@1.8.0/hmac.esm.js",
@@ -61,6 +63,7 @@ const PRECACHE = [
   "/assets/vendor/@scure/bip39@2.4.0/index.esm.js",
   "/assets/vendor/@scure/bip39@2.4.0/wordlists/english.esm.js",
   "/assets/vendor/@scure/btc-signer@1.8.1/index.esm.js",
+  "/assets/vendor/@scure/sr25519@2.4.0/index.esm.js",
   "/assets/vendor/barcode-detector@3.2.3/dist/iife/ponyfill.js",
   "/assets/vendor/fflate@0.8.3/esm/browser.js",
   "/assets/vendor/fflate@0.8.3/umd/index.js",
@@ -119,6 +122,9 @@ const PRECACHE = [
   "/cosmos/address-from-key/",
   "/cosmos/derived-addresses/",
   "/cosmos/ibc-denom/",
+  "/cosmos/lib/cosmos.css",
+  "/cosmos/lib/cosmos.js",
+  "/cosmos/lib/proto.js",
   "/cosmos/mnemonic-accounts/",
   "/cosmos/sign-verify/",
   "/cosmos/tx-decoder/",
@@ -198,6 +204,10 @@ const PRECACHE = [
   "/polkadot/",
   "/polkadot/address-from-key/",
   "/polkadot/hasher/",
+  "/polkadot/lib/dot.css",
+  "/polkadot/lib/dot.js",
+  "/polkadot/lib/scale.js",
+  "/polkadot/lib/ui.js",
   "/polkadot/mnemonic-accounts/",
   "/polkadot/multisig-address/",
   "/polkadot/pure-proxy/",

@@ -16,8 +16,8 @@ Local-first browser tools — everyday, dev & crypto. Nothing leaves your device
 | [💎 TON](https://ai-pavel.github.io/ton/) | TON: addresses, wallets, cells, messages and signatures | 9 | [`ton/`](ton/) |
 | [🔵 Cardano](https://ai-pavel.github.io/cardano/) | Cardano: addresses, stake keys, native assets, CBOR transactions and signatures | 9 | [`cardano/`](cardano/) |
 | [💧 Sui](https://ai-pavel.github.io/sui/) | Sui: addresses, keys, BCS, transactions, object IDs and signatures | 9 | [`sui/`](sui/) |
-| [⚛️ Cosmos](https://ai-pavel.github.io/cosmos/) | Cosmos SDK chains: addresses across chains, IBC, keys, transactions and signatures | 0 of 8 ready | [`cosmos/`](cosmos/) |
-| [🟣 Polkadot](https://ai-pavel.github.io/polkadot/) | Polkadot and Substrate chains: SS58 addresses, SCALE, storage keys, keys and signatures | 0 of 11 ready | [`polkadot/`](polkadot/) |
+| [⚛️ Cosmos](https://ai-pavel.github.io/cosmos/) | Cosmos SDK chains: addresses across chains, IBC, keys, transactions and signatures | 8 | [`cosmos/`](cosmos/) |
+| [🟣 Polkadot](https://ai-pavel.github.io/polkadot/) | Polkadot and Substrate chains: SS58 addresses, SCALE, storage keys, keys and signatures | 11 | [`polkadot/`](polkadot/) |
 <!-- toolboxes:end -->
 
 Everything runs client-side in the browser: files and keys never leave the device.

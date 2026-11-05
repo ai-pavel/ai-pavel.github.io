@@ -6,6 +6,7 @@
   <title>Sovereign Account</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8F%9B%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/dot.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,11 +17,49 @@
 <main>
   <a class="back" href="../">← Polkadot</a>
   <h1>🏛️ Sovereign Account</h1>
-  <p class="lead">Derive a parachain&#x27;s sovereign account.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Get a parachain's sovereign accounts: the account it controls on the relay chain and on sibling parachains.</p>
+<!-- tool -->
+  <div class="panel">
+    <div class="grid2">
+      <label class="field">Parachain ID
+        <input id="para" class="mono" inputmode="numeric" value="1000">
+      </label>
+      <label class="field">Address format
+        <select id="net"></select>
+      </label>
+      <label class="field" id="customWrap" hidden>Custom SS58 prefix
+        <input id="custom" class="mono" inputmode="numeric" value="42">
+      </label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+    <p class="muted">Account id = the ASCII tag (<code>para</code> on the relay chain, <code>sibl</code> on other parachains) followed by the parachain ID as a little-endian u32, padded with zeros to 32 bytes. These are the accounts XCM uses when a parachain acts on another chain.</p>
+  </div>
+<script type="module">
+import { $, kv, showError, fillNetworks } from '../lib/ui.js';
+import { NETWORKS, ss58Encode, utf8, uintLE, toHex } from '../lib/dot.js';
+fillNetworks($('net'), NETWORKS, 0);
+const prefix = () => $('net').value === 'custom' ? parseInt($('custom').value, 10) : NETWORKS[+$('net').value].prefix;
+const account = (tag, id) => { const b = new Uint8Array(32); b.set(utf8(tag)); b.set(uintLE(id, 4), 4); return b; };
+function render() {
+  $('customWrap').hidden = $('net').value !== 'custom';
+  try {
+    const s = $('para').value.trim();
+    if (!/^\d+$/.test(s) || BigInt(s) > 0xffffffffn) throw new Error('Parachain ID must be a whole number from 0 to 4294967295.');
+    const id = Number(s), p = prefix();
+    const relay = account('para', id), sib = account('sibl', id);
+    showError($('err'), null);
+    $('out').innerHTML = `<p class="section-title">On the relay chain</p>` + kv([['Address', ss58Encode(relay, p)], ['Account id', toHex(relay)]])
+      + `<p class="section-title">On sibling parachains</p>` + kv([['Address', ss58Encode(sib, p)], ['Account id', toHex(sib)]]);
+  } catch (e) { showError($('err'), e); $('out').innerHTML = ''; }
+}
+['para', 'net', 'custom'].forEach(id => $(id).addEventListener('input', render));
+render();
+</script>
+<!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

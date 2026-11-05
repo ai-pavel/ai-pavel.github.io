@@ -6,6 +6,7 @@
   <title>Mnemonic Accounts</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8C%B1</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/dot.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,11 +17,93 @@
 <main>
   <a class="back" href="../">← Polkadot</a>
   <h1>🌱 Mnemonic Accounts</h1>
-  <p class="lead">Derive accounts from a mnemonic and derivation path.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive accounts from a mnemonic and a derivation path, the way Polkadot.js, Talisman and SubWallet do (substrate-bip39 with //hard and /soft junctions).</p>
+<!-- tool -->
+  <div class="panel">
+    <label class="field">Mnemonic or 0x seed
+      <textarea id="phrase" class="wide" rows="3" spellcheck="false" autocomplete="off">bottom drive obey lake curtain smoke basket hold race lonely fit walk</textarea>
+    </label>
+    <div class="row">
+      <button type="button" id="gen12">New 12 words</button>
+      <button type="button" id="gen24">New 24 words</button>
+      <button type="button" id="dev">Dev phrase</button>
+    </div>
+    <div class="grid2">
+      <label class="field">Derivation path
+        <input id="path" class="mono" spellcheck="false" value="//Alice" placeholder="//hard/soft">
+      </label>
+      <label class="field">Password (///password)
+        <input id="pass" type="password" autocomplete="off">
+      </label>
+      <label class="field">Key type
+        <select id="type"><option value="sr25519">Sr25519 (default)</option><option value="ed25519">Ed25519</option><option value="ecdsa">ECDSA (secp256k1)</option></select>
+      </label>
+      <label class="field">Address format
+        <select id="net"></select>
+      </label>
+      <label class="field" id="customWrap" hidden>Custom SS58 prefix
+        <input id="custom" class="mono" inputmode="numeric" value="42">
+      </label>
+    </div>
+    <div class="presets" id="presets"></div>
+    <label class="check"><input type="checkbox" id="list"> Also list <input id="count" type="number" min="1" max="50" value="5" style="width:64px"> numbered accounts (path + //0, //1, …)</label>
+    <label class="check"><input type="checkbox" id="reveal"> Show secret keys</label>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+    <div class="note">Runs locally in your browser. Don't paste keys that hold real funds. The dev phrase is public: anyone can use //Alice, //Bob and the others.</div>
+    <p class="muted">The 32-byte seed (mini-secret) is PBKDF2-HMAC-SHA512 with the mnemonic's entropy as the password, "mnemonic" + password as the salt and 2048 rounds — not the BIP-39 seed. Hard junctions (//) can't be linked to the parent key; soft junctions (/) can, and exist only for Sr25519. Numeric junctions are encoded as u64, others as SCALE strings.</p>
+  </div>
+<script type="module">
+import { $, kv, esc, showError, fillNetworks } from '../lib/ui.js';
+import { NETWORKS, ss58Encode, keypairFromSuri, accountIdOf, toHex, generateMnemonic, wordlist } from '../lib/dot.js';
+const DEV = 'bottom drive obey lake curtain smoke basket hold race lonely fit walk';
+fillNetworks($('net'), NETWORKS, 0);
+$('presets').innerHTML = ['', '//Alice', '//Bob', '//Charlie', '//Alice//stash', '//polkadot//0', '//0'].map(p => `<button type="button" data-path="${p}">${p || '(no path)'}</button>`).join('');
+const prefix = () => $('net').value === 'custom' ? parseInt($('custom').value, 10) : NETWORKS[+$('net').value].prefix;
+function render() {
+  $('customWrap').hidden = $('net').value !== 'custom';
+  try {
+    const phrase = $('phrase').value.trim().split(/\s+/).join(' ');
+    if (!phrase) throw new Error('Enter a mnemonic or a 0x-prefixed 32-byte seed.');
+    const path = $('path').value.trim();
+    if (path && !/^(\/\/?[^/]+)+$/.test(path)) throw new Error('A path is a list of junctions like //hard or /soft, e.g. //polkadot//0.');
+    const pass = $('pass').value;
+    const type = $('type').value, p = prefix(), reveal = $('reveal').checked;
+    const suri = phrase + path + (pass ? '///' + pass : '');
+    const kp = keypairFromSuri(type, suri);
+    const id = accountIdOf(type, kp.publicKey);
+    showError($('err'), null);
+    let html = kv([
+      ['Address', ss58Encode(id, p)],
+      ['Public key', toHex(kp.publicKey)],
+      type === 'ecdsa' ? ['Account id', toHex(id), { note: 'Blake2b-256 of the compressed public key' }] : null,
+      ['Path', (path || '(none)') + (pass ? ' + password' : ''), { copy: false }],
+      reveal ? ['Seed (mini-secret)', toHex(kp.seed), { note: 'before derivation' }] : null,
+      reveal ? [type === 'sr25519' ? 'Secret key (64 bytes)' : 'Private key', toHex(kp.secret)] : null,
+    ]);
+    if ($('list').checked) {
+      const n = Math.max(1, Math.min(50, parseInt($('count').value, 10) || 1));
+      const rows = [];
+      for (let i = 0; i < n; i++) {
+        const k = keypairFromSuri(type, phrase + path + '//' + i + (pass ? '///' + pass : ''));
+        rows.push([`${path}//${i}`, ss58Encode(accountIdOf(type, k.publicKey), p)]);
+      }
+      html += `<p class="section-title">Numbered accounts</p>` + kv(rows);
+    }
+    $('out').innerHTML = html;
+  } catch (e) { showError($('err'), e); $('out').innerHTML = ''; }
+}
+$('presets').addEventListener('click', e => { const b = e.target.closest('[data-path]'); if (b) { $('path').value = b.dataset.path; render(); } });
+$('gen12').onclick = () => { $('phrase').value = generateMnemonic(wordlist, 128); $('path').value = ''; render(); };
+$('gen24').onclick = () => { $('phrase').value = generateMnemonic(wordlist, 256); $('path').value = ''; render(); };
+$('dev').onclick = () => { $('phrase').value = DEV; $('path').value = '//Alice'; render(); };
+['phrase', 'path', 'pass', 'type', 'net', 'custom', 'list', 'count', 'reveal'].forEach(id => $(id).addEventListener('input', render));
+render();
+</script>
+<!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

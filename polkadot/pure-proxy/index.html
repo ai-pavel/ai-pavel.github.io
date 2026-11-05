@@ -6,6 +6,7 @@
   <title>Pure Proxy</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8E%AD</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/dot.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,11 +17,70 @@
 <main>
   <a class="back" href="../">← Polkadot</a>
   <h1>🎭 Pure Proxy</h1>
-  <p class="lead">Derive a pure proxy address.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive the address of a pure proxy (formerly "anonymous proxy") from the transaction that created it.</p>
+<!-- tool -->
+  <div class="panel">
+    <label class="field">Spawner (the account that called proxy.createPure)
+      <input id="who" class="mono" spellcheck="false" autocomplete="off" value="15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5">
+    </label>
+    <div class="grid2">
+      <label class="field">Proxy type
+        <select id="ptype"></select>
+      </label>
+      <label class="field" id="pcustomWrap" hidden>Proxy type index
+        <input id="pcustom" class="mono" inputmode="numeric" value="0">
+      </label>
+      <label class="field">Index (disambiguation)
+        <input id="idx" class="mono" inputmode="numeric" value="0">
+      </label>
+      <label class="field">Block number
+        <input id="height" class="mono" inputmode="numeric" value="22000000">
+      </label>
+      <label class="field">Extrinsic index in the block
+        <input id="ext" class="mono" inputmode="numeric" value="2">
+      </label>
+      <label class="field">Address format
+        <select id="net"></select>
+      </label>
+      <label class="field" id="customWrap" hidden>Custom SS58 prefix
+        <input id="custom" class="mono" inputmode="numeric" value="42">
+      </label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+    <div class="note">Proxy type indexes are defined by each runtime and have changed over time (for example when IdentityJudgement was removed). The list above is for the Polkadot and Kusama relay chains; Asset Hub and other parachains have their own <code>ProxyType</code> enum — pick “Other index…” and check your chain's metadata if the address doesn't match.</div>
+    <p class="muted">Account id = Blake2b-256("modlpy/proxy____" ‖ spawner ‖ block number as u32 ‖ extrinsic index as u32 ‖ proxy type as u8 ‖ index as u16), as in <code>pallet_proxy::pure_account</code>.</p>
+  </div>
+<script type="module">
+import { $, kv, showError, fillNetworks } from '../lib/ui.js';
+import { NETWORKS, ss58Encode, accountIdFrom, blake2, concat, utf8, uintLE, toHex } from '../lib/dot.js';
+const TYPES = [
+  ['Polkadot relay chain', ['Any', 'NonTransfer', 'Governance', 'Staking', null, null, 'CancelProxy', 'Auction', 'NominationPools', 'ParaRegistration']],
+  ['Kusama relay chain', ['Any', 'NonTransfer', 'Governance', 'Staking', null, 'CancelProxy', 'Auction', 'Society', 'NominationPools', 'Spokesperson', 'ParaRegistration']],
+];
+$('ptype').innerHTML = TYPES.map(([net, names]) => `<optgroup label="${net}">${names.map((n, i) => n ? `<option value="${i}">${n} (${i})</option>` : '').join('')}</optgroup>`).join('') + '<option value="custom">Other index…</option>';
+fillNetworks($('net'), NETWORKS, 0);
+const prefix = () => $('net').value === 'custom' ? parseInt($('custom').value, 10) : NETWORKS[+$('net').value].prefix;
+const intIn = (id, max, what) => { const s = $(id).value.trim(); if (!/^\d+$/.test(s) || BigInt(s) > BigInt(max)) throw new Error(`${what} must be a whole number from 0 to ${max}.`); return Number(s); };
+function render() {
+  $('customWrap').hidden = $('net').value !== 'custom';
+  $('pcustomWrap').hidden = $('ptype').value !== 'custom';
+  try {
+    const who = accountIdFrom($('who').value, 'spawner');
+    const ptype = $('ptype').value === 'custom' ? intIn('pcustom', 255, 'Proxy type index') : +$('ptype').value;
+    const id = blake2(concat(utf8('modlpy/proxy____'), who, uintLE(intIn('height', 4294967295, 'Block number'), 4),
+      uintLE(intIn('ext', 4294967295, 'Extrinsic index'), 4), new Uint8Array([ptype]), uintLE(intIn('idx', 65535, 'Index'), 2)), 256);
+    showError($('err'), null);
+    $('out').innerHTML = kv([['Pure proxy address', ss58Encode(id, prefix())], ['Account id', toHex(id)]]);
+  } catch (e) { showError($('err'), e); $('out').innerHTML = ''; }
+}
+['who', 'ptype', 'pcustom', 'idx', 'height', 'ext', 'net', 'custom'].forEach(id => $(id).addEventListener('input', render));
+render();
+</script>
+<!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

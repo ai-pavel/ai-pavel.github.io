@@ -6,6 +6,7 @@
   <title>Sign &amp; Verify</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%8D%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/dot.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,11 +17,115 @@
 <main>
   <a class="back" href="../">← Polkadot</a>
   <h1>✍️ Sign &amp; Verify</h1>
-  <p class="lead">Sign and verify messages (sr25519, ed25519, ECDSA).</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Sign a message with an Sr25519, Ed25519 or ECDSA key, or check a signature the way Polkadot.js signatureVerify does.</p>
+<!-- tool -->
+  <div class="mode-tabs" role="tablist"><button type="button" role="tab" data-tab="sign">Sign</button><button type="button" role="tab" data-tab="verify">Verify</button></div>
+  <section id="tab-sign" class="panel">
+    <label class="field">Mnemonic or 0x seed
+      <textarea id="s-phrase" class="wide" rows="3" spellcheck="false" autocomplete="off">bottom drive obey lake curtain smoke basket hold race lonely fit walk</textarea>
+    </label>
+    <div class="grid2">
+      <label class="field">Derivation path
+        <input id="s-path" class="mono" spellcheck="false" value="//Alice">
+      </label>
+      <label class="field">Key type
+        <select id="s-type"><option value="sr25519">Sr25519 (default)</option><option value="ed25519">Ed25519</option><option value="ecdsa">ECDSA (secp256k1)</option></select>
+      </label>
+      <label class="field">Message format
+        <select id="s-enc"><option value="text">Text (UTF-8)</option><option value="hex">Hex</option></select>
+      </label>
+    </div>
+    <label class="field">Message
+      <textarea id="s-msg" class="wide" rows="3" spellcheck="false">Hello Polkadot</textarea>
+    </label>
+    <label class="check"><input type="checkbox" id="s-wrap" checked> Wrap in &lt;Bytes&gt;…&lt;/Bytes&gt; like wallet signRaw</label>
+    <p class="error" id="s-err" hidden></p>
+    <div id="s-out"></div>
+    <div class="note">Runs locally in your browser. Don't paste keys that hold real funds. The dev phrase above is public.</div>
+    <p class="muted">Wallets (Polkadot.js, Talisman, SubWallet) wrap messages in &lt;Bytes&gt;…&lt;/Bytes&gt; before signing, so a signed message can never be a valid transaction. Sr25519 signatures include randomness, so signing the same message twice gives different signatures; both are valid. ECDSA signs the Blake2b-256 hash of the message and appends a recovery byte (65 bytes).</p>
+  </section>
+  <section id="tab-verify" class="panel" hidden>
+    <label class="field">Signer address or 0x public key
+      <input id="v-addr" class="mono" spellcheck="false" autocomplete="off">
+    </label>
+    <label class="field">Message format
+      <select id="v-enc"><option value="text">Text (UTF-8)</option><option value="hex">Hex</option></select>
+    </label>
+    <label class="field">Message
+      <textarea id="v-msg" class="wide" rows="3" spellcheck="false"></textarea>
+    </label>
+    <label class="field">Signature (hex)
+      <textarea id="v-sig" class="wide" rows="2" spellcheck="false"></textarea>
+    </label>
+    <p class="error" id="v-err" hidden></p>
+    <div id="v-out"></div>
+    <p class="muted">Tries Sr25519, Ed25519 and ECDSA, with and without the &lt;Bytes&gt; wrapper, and accepts signatures that start with a MultiSignature type byte (00 Ed25519, 01 Sr25519, 02 ECDSA).</p>
+  </section>
+<script type="module">
+import { $, kv, esc, showError } from '../lib/ui.js';
+import { utf8, fromHex, toHex, keypairFromSuri, accountIdOf, ss58Encode, ss58Decode, sign, verifyAny, wrapBytes, isWrapped, blake2 } from '../lib/dot.js';
+const tabs = [...document.querySelectorAll('.mode-tabs [data-tab]')];
+function show(mode) {
+  if (!tabs.some(t => t.dataset.tab === mode)) mode = 'sign';
+  for (const t of tabs) { const on = t.dataset.tab === mode; t.setAttribute('aria-selected', String(on)); $('tab-' + t.dataset.tab).hidden = !on; }
+  const u = new URL(location.href); u.searchParams.set('mode', mode); history.replaceState(null, '', u);
+}
+tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.tab)));
+const msgBytes = (enc, v) => enc === 'hex' ? fromHex(v, 'message') : utf8(v);
+let lastSig = null;
+function renderSign() {
+  try {
+    const phrase = $('s-phrase').value.trim().split(/\s+/).join(' ');
+    const path = $('s-path').value.trim();
+    if (path && !/^(\/\/?[^/]+)+(\/\/\/.*)?$/.test(path)) throw new Error('A path is a list of junctions like //hard or /soft.');
+    const type = $('s-type').value;
+    const kp = keypairFromSuri(type, phrase + path);
+    const raw = msgBytes($('s-enc').value, $('s-msg').value);
+    const signed = $('s-wrap').checked && !isWrapped(raw) ? wrapBytes(raw) : raw;
+    const sig = sign(kp, signed);
+    const id = accountIdOf(type, kp.publicKey);
+    const addr = ss58Encode(id, 42);
+    lastSig = { addr, sig: toHex(sig) };
+    showError($('s-err'), null);
+    $('s-out').innerHTML = kv([
+      ['Signature', toHex(sig), { note: `${sig.length} bytes, ${type}` }],
+      ['Signer', addr, { note: 'generic Substrate format (prefix 42)' }],
+      ['Public key', toHex(kp.publicKey)],
+      ['Signed bytes', toHex(signed), { note: signed === raw ? 'the message as is' : 'the message wrapped in <Bytes>…</Bytes>' }],
+      type === 'ecdsa' ? ['Signed hash', toHex(blake2(signed, 256)), { note: 'Blake2b-256 of the signed bytes' }] : null,
+    ]) + '<p class="row"><button type="button" id="toVerify">Verify this signature →</button></p>';
+    $('toVerify').onclick = () => { $('v-addr').value = lastSig.addr; $('v-enc').value = $('s-enc').value; $('v-msg').value = $('s-msg').value; $('v-sig').value = lastSig.sig; show('verify'); renderVerify(); };
+  } catch (e) { showError($('s-err'), e); $('s-out').innerHTML = ''; }
+}
+function renderVerify() {
+  const a = $('v-addr').value.trim(), s = $('v-sig').value.trim();
+  if (!a || !s) { showError($('v-err'), null); $('v-out').innerHTML = '<p class="muted">Enter the signer, the message and the signature.</p>'; return; }
+  try {
+    let id;
+    if (/^0x/i.test(a)) { id = fromHex(a, 'public key'); if (id.length === 33) id = blake2(id, 256); if (id.length !== 32) throw new Error('A public key must be 32 bytes (or 33 for ECDSA).'); }
+    else id = ss58Decode(a).payload;
+    if (id.length !== 32) throw new Error('Expected a 32-byte account.');
+    const msg = msgBytes($('v-enc').value, $('v-msg').value);
+    const sig = fromHex(s, 'signature');
+    if (![64, 65, 66].includes(sig.length)) throw new Error(`Signatures are 64 bytes (Sr25519/Ed25519) or 65 bytes (ECDSA, or with a type byte); got ${sig.length}.`);
+    const r = verifyAny(msg, sig, id);
+    showError($('v-err'), null);
+    $('v-out').innerHTML = r
+      ? `<p class="status ok">✅ Valid signature</p>` + kv([['Key type', r.type, { copy: false }], ['Message', r.wrapped === true ? 'signed wrapped in <Bytes>…</Bytes>' : r.wrapped === 'unwrapped' ? 'signed without the <Bytes> wrapper you entered' : 'signed as entered', { copy: false }], r.multi ? ['Format', 'MultiSignature with a type byte', { copy: false }] : null, ['Signer', ss58Encode(id, 42)]])
+      : `<p class="status bad">❌ Not a valid signature</p><p class="muted">No combination of key type and &lt;Bytes&gt; wrapping matches this signer and message.</p>`;
+  } catch (e) { showError($('v-err'), e); $('v-out').innerHTML = ''; }
+}
+['s-phrase', 's-path', 's-type', 's-enc', 's-msg', 's-wrap'].forEach(id => $(id).addEventListener('input', renderSign));
+['v-addr', 'v-enc', 'v-msg', 'v-sig'].forEach(id => $(id).addEventListener('input', renderVerify));
+const q = new URLSearchParams(location.search);
+for (const [k, id] of [['address', 'v-addr'], ['message', 'v-msg'], ['signature', 'v-sig']]) if (q.get(k)) $(id).value = q.get(k);
+show(q.get('mode') || 'sign');
+renderSign(); renderVerify();
+</script>
+<!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

@@ -6,6 +6,7 @@
   <title>Multisig Address</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%91%A5</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/dot.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,11 +17,61 @@
 <main>
   <a class="back" href="../">← Polkadot</a>
   <h1>👥 Multisig Address</h1>
-  <p class="lead">Derive a multisig address from signatories and a threshold.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive the address of a multisig account from its signatories and threshold, as pallet_multisig does.</p>
+<!-- tool -->
+  <div class="panel">
+    <label class="field">Signatories (one address or 0x account id per line)
+      <textarea id="who" class="wide" rows="4" spellcheck="false">15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5
+14E5nqKAp3oAJcmzgZhUD2RcptBeUBScxKHgJKU4HPNcKVf3
+14Gjs1TD93gnwEBfDMHoCgsuf1s2TVKUP6Z1qKmAZnZ8cW5q</textarea>
+    </label>
+    <div class="grid2">
+      <label class="field">Threshold
+        <input id="thr" class="mono" inputmode="numeric" value="2">
+      </label>
+      <label class="field">Address format
+        <select id="net"></select>
+      </label>
+      <label class="field" id="customWrap" hidden>Custom SS58 prefix
+        <input id="custom" class="mono" inputmode="numeric" value="42">
+      </label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+    <p class="muted">Account id = Blake2b-256("modlpy/utilisuba" ‖ Compact(number of signatories) ‖ account ids sorted by bytes ‖ threshold as u16). The order you list them in doesn't matter.</p>
+  </div>
+<script type="module">
+import { $, kv, esc, showError, fillNetworks } from '../lib/ui.js';
+import { NETWORKS, ss58Encode, accountIdFrom, blake2, concat, utf8, compact, uintLE, toHex } from '../lib/dot.js';
+fillNetworks($('net'), NETWORKS, 0);
+const prefix = () => $('net').value === 'custom' ? parseInt($('custom').value, 10) : NETWORKS[+$('net').value].prefix;
+const cmp = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i]; return 0; };
+function render() {
+  $('customWrap').hidden = $('net').value !== 'custom';
+  try {
+    const lines = $('who').value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (lines.length < 2) throw new Error('Enter at least two signatories.');
+    if (lines.length > 100) throw new Error('pallet_multisig allows at most 100 signatories.');
+    const ids = lines.map((l, i) => { try { return accountIdFrom(l); } catch (e) { throw new Error(`Line ${i + 1}: ${e.message}`); } });
+    const sorted = [...ids].sort(cmp);
+    const dup = sorted.some((x, i) => i && cmp(x, sorted[i - 1]) === 0);
+    if (dup) throw new Error('The same account is listed twice; signatories must be unique.');
+    const t = $('thr').value.trim();
+    if (!/^\d+$/.test(t) || +t < 1 || +t > ids.length) throw new Error(`Threshold must be between 1 and ${ids.length}.`);
+    const id = blake2(concat(utf8('modlpy/utilisuba'), compact(sorted.length), ...sorted, uintLE(+t, 2)), 256);
+    const p = prefix();
+    showError($('err'), null);
+    $('out').innerHTML = kv([['Multisig address', ss58Encode(id, p)], ['Account id', toHex(id)], ['Threshold', `${t} of ${ids.length}`, { copy: false }]])
+      + `<p class="section-title">Signatories in the order the chain uses</p>` + kv(sorted.map((x, i) => [`#${i + 1}`, ss58Encode(x, p)]));
+  } catch (e) { showError($('err'), e); $('out').innerHTML = ''; }
+}
+['who', 'thr', 'net', 'custom'].forEach(id => $(id).addEventListener('input', render));
+render();
+</script>
+<!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

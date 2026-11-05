@@ -6,6 +6,7 @@
   <title>IBC Denom</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%23%EF%B8%8F%E2%83%A3</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/cosmos.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,81 @@
 <main>
   <a class="back" href="../">← Cosmos</a>
   <h1>#️⃣ IBC Denom</h1>
-  <p class="lead">Convert between an IBC denom hash and its trace.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Turn an IBC denom trace into its <code>ibc/…</code> hash, or look up a well-known hash.</p>
+  <div class="panel">
+    <label class="field">Denom trace or ibc/ hash
+      <input id="q" class="mono wide" spellcheck="false" autocomplete="off" placeholder="transfer/channel-0/uatom  or  ibc/27394FB0…">
+    </label>
+    <p class="muted" style="margin:6px 0 0">Multi-hop traces work too, e.g. <code>transfer/channel-141/transfer/channel-0/uatom</code>.</p>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">Well-known IBC denoms</p>
+    <div id="known"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">How it works</p>
+    <p class="muted">When a token travels over IBC, the receiving chain records its path ("port/channel" for every hop) plus the original base denom, and names the voucher <code>ibc/</code> + uppercase hex SHA-256 of that full trace. Hashing only works one way: getting the trace from a hash needs the chain's <code>denom_traces</code> query, which this offline tool can't make — but well-known hashes are listed above.</p>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { sha256, utf8, toHex, kvTable, wireCopy, showError, esc } from '../lib/cosmos.js';
+const $ = id => document.getElementById(id);
+const ibcHash = trace => 'ibc/' + toHex(sha256(utf8.encode(trace))).toUpperCase();
+
+// [description, chain it lives on, trace] — hashes are computed, not stored.
+const KNOWN = [
+  ['ATOM', 'Osmosis', 'transfer/channel-0/uatom'],
+  ['OSMO', 'Cosmos Hub', 'transfer/channel-141/uosmo'],
+  ['USDC (Noble)', 'Osmosis', 'transfer/channel-750/uusdc'],
+  ['TIA', 'Osmosis', 'transfer/channel-6994/utia'],
+  ['ATOM', 'Neutron', 'transfer/channel-1/uatom'],
+  ['USDC (Noble)', 'Cosmos Hub', 'transfer/channel-536/uusdc'],
+  ['NTRN', 'Osmosis', 'transfer/channel-874/untrn'],
+  ['STARS', 'Osmosis', 'transfer/channel-75/ustars'],
+  ['AKT', 'Osmosis', 'transfer/channel-1/uakt'],
+  ['JUNO', 'Osmosis', 'transfer/channel-42/ujuno'],
+].map(([d, chain, trace]) => ({ d, chain, trace, hash: ibcHash(trace) }));
+
+$('known').innerHTML = `<table class="kv"><thead><tr><th>Token</th><th>Trace and hash</th><th></th></tr></thead><tbody>${KNOWN.map(k =>
+  `<tr><th>${esc(k.d)}<div class="muted">on ${esc(k.chain)}</div></th><td class="mono">${esc(k.hash)}<div class="muted">${esc(k.trace)}</div></td><td><button class="icon-btn copy" data-copy="${esc(k.hash)}">Copy</button></td></tr>`).join('')}</tbody></table>`;
+
+function render() {
+  showError($('err'), ''); $('out').innerHTML = '';
+  const q = $('q').value.trim();
+  if (!q) return;
+  try {
+    const m = q.match(/^ibc\/([0-9a-f]{64})$/i);
+    if (m) {
+      const hash = 'ibc/' + m[1].toUpperCase();
+      const hit = KNOWN.find(k => k.hash === hash);
+      if (hit) $('out').innerHTML = kvTable([['Trace', hit.trace, `${hit.d} on ${hit.chain}`], ['Base denom', hit.trace.split('/').pop()]]);
+      else showError($('err'), 'This hash isn\'t in the built-in list. Hashing is one-way, so finding its trace needs a query to the chain (/ibc/apps/transfer/v1/denom_traces/' + m[1].toUpperCase() + ').');
+      return;
+    }
+    if (/^ibc\//i.test(q)) throw new Error('An ibc/ denom is "ibc/" followed by 64 hex characters.');
+    const parts = q.replace(/^\/+|\/+$/g, '').split('/');
+    if (parts.length < 3 || parts.length % 2 === 0) throw new Error('A trace is one or more "port/channel" pairs followed by the base denom, e.g. transfer/channel-0/uatom.');
+    const hops = [];
+    for (let i = 0; i < parts.length - 1; i += 2) {
+      if (!/^channel-\d+$/.test(parts[i + 1])) throw new Error(`"${parts[i + 1]}" doesn't look like a channel ID (channel-N).`);
+      hops.push(`${parts[i]}/${parts[i + 1]}`);
+    }
+    const trace = parts.join('/');
+    $('out').innerHTML = kvTable([
+      ['IBC denom', ibcHash(trace)],
+      ['Path', hops.join(' → '), hops.length > 1 ? `${hops.length} hops, newest first` : '1 hop'],
+      ['Base denom', parts[parts.length - 1]],
+    ]);
+  } catch (e) { showError($('err'), e.message); }
+}
+$('q').oninput = render;
+wireCopy(); render();
+</script>
 </body>
 </html>

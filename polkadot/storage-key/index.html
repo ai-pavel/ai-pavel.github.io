@@ -6,6 +6,7 @@
   <title>Storage Key</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%97%84%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/dot.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,11 +17,122 @@
 <main>
   <a class="back" href="../">← Polkadot</a>
   <h1>🗄️ Storage Key</h1>
-  <p class="lead">Build a storage key from pallet, item and keys.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Build the raw storage key for a pallet's storage item and its map keys, or split an existing key back into its parts.</p>
+<!-- tool -->
+  <div class="panel">
+    <div class="presets" id="presets"></div>
+    <div class="grid2">
+      <label class="field">Pallet
+        <input id="pallet" class="mono" spellcheck="false" value="System">
+      </label>
+      <label class="field">Storage item
+        <input id="item" class="mono" spellcheck="false" value="Account">
+      </label>
+    </div>
+    <div id="keys"></div>
+    <div class="row" style="margin-top:12px"><button type="button" id="add">+ Add map key</button></div>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+    <p class="section-title">Split a storage key</p>
+    <label class="field">Storage key (hex) — uses the pallet, item and key types above
+      <textarea id="raw" class="wide" rows="3" spellcheck="false"></textarea>
+    </label>
+    <p class="error" id="err2" hidden></p>
+    <div id="out2"></div>
+    <p class="muted">Key = Twox128(pallet) ‖ Twox128(item) ‖ hasher(SCALE(key)) for each map key. Only the <code>Blake2_128Concat</code>, <code>Twox64Concat</code> and <code>Identity</code> hashers keep the key readable, so only those can be split back.</p>
+  </div>
+<script type="module">
+import { $, kv, esc, showError } from '../lib/ui.js';
+import { utf8, fromHex, toHex, blake2, twox, concat, uintLE, readUintLE, accountIdFrom, ss58Encode, equal } from '../lib/dot.js';
+const HASHERS = {
+  Blake2_128Concat: { hash: b => concat(blake2(b, 128), b), prefix: 16, readable: true },
+  Twox64Concat: { hash: b => concat(twox(b, 64), b), prefix: 8, readable: true },
+  Identity: { hash: b => b, prefix: 0, readable: true },
+  Blake2_128: { hash: b => blake2(b, 128), size: 16 },
+  Blake2_256: { hash: b => blake2(b, 256), size: 32 },
+  Twox128: { hash: b => twox(b, 128), size: 16 },
+  Twox256: { hash: b => twox(b, 256), size: 32 },
+};
+const TYPES = {
+  AccountId32: { size: 32, enc: v => accountIdFrom(v), show: b => ss58Encode(b, 42) + '  (' + toHex(b) + ')', placeholder: 'SS58 address or 0x…' },
+  u32: { size: 4, enc: v => intLE(v, 4), show: b => readUintLE(b).toString(), placeholder: '1000' },
+  u64: { size: 8, enc: v => intLE(v, 8), show: b => readUintLE(b).toString(), placeholder: '42' },
+  u128: { size: 16, enc: v => intLE(v, 16), show: b => readUintLE(b).toString(), placeholder: '0' },
+  H256: { size: 32, enc: v => { const b = fromHex(v, 'H256'); if (b.length !== 32) throw new Error('H256 must be 32 bytes.'); return b; }, show: toHex, placeholder: '0x…' },
+  'Raw SCALE hex': { size: null, enc: v => fromHex(v, 'key'), show: toHex, placeholder: '0x…' },
+};
+function intLE(v, n) { const s = String(v).trim(); if (!/^\d+$/.test(s)) throw new Error(`Expected a whole number, got "${s}".`); return uintLE(BigInt(s), n); }
+const PRESETS = [
+  ['System.Account', 'System', 'Account', [['Blake2_128Concat', 'AccountId32', '15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5']]],
+  ['Balances.TotalIssuance', 'Balances', 'TotalIssuance', []],
+  ['Staking.Ledger', 'Staking', 'Ledger', [['Blake2_128Concat', 'AccountId32', '15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5']]],
+  ['Timestamp.Now', 'Timestamp', 'Now', []],
+  ['Paras.Heads', 'Paras', 'Heads', [['Twox64Concat', 'u32', '1000']]],
+  ['Assets.Account', 'Assets', 'Account', [['Blake2_128Concat', 'u32', '1984'], ['Blake2_128Concat', 'AccountId32', '15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5']]],
+];
+$('presets').innerHTML = PRESETS.map(([n], i) => `<button type="button" data-i="${i}">${esc(n)}</button>`).join('');
+let keys = PRESETS[0][3].map(k => [...k]);
+function drawKeys() {
+  $('keys').innerHTML = keys.map(([h, t, v], i) => `
+    <div class="grid2" data-k="${i}" style="margin-top:4px">
+      <label class="field">Key ${i + 1} hasher<select data-f="h">${Object.keys(HASHERS).map(x => `<option${x === h ? ' selected' : ''}>${x}</option>`).join('')}</select></label>
+      <label class="field">Key ${i + 1} type<select data-f="t">${Object.keys(TYPES).map(x => `<option${x === t ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+      <label class="field">Key ${i + 1} value<input data-f="v" class="mono" spellcheck="false" value="${esc(v)}" placeholder="${esc(TYPES[t].placeholder)}"></label>
+      <div class="row" style="align-items:flex-end"><button type="button" class="icon-btn" data-del="${i}">Remove</button></div>
+    </div>`).join('');
+}
+const prefix = () => concat(twox(utf8($('pallet').value.trim()), 128), twox(utf8($('item').value.trim()), 128));
+function render() {
+  try {
+    if (!$('pallet').value.trim() || !$('item').value.trim()) throw new Error('Enter the pallet and storage item names, e.g. System and Account.');
+    const parts = [['Twox128(pallet)', toHex(twox(utf8($('pallet').value.trim()), 128))], ['Twox128(item)', toHex(twox(utf8($('item').value.trim()), 128))]];
+    const hashed = keys.map(([h, t, v], i) => { let enc; try { enc = TYPES[t].enc(v); } catch (e) { throw new Error(`Key ${i + 1}: ${e.message}`); } const out = HASHERS[h].hash(enc); parts.push([`${h}(key ${i + 1})`, toHex(out)]); return out; });
+    const full = concat(prefix(), ...hashed);
+    showError($('err'), null);
+    $('out').innerHTML = kv([['Storage key', toHex(full), { note: `${full.length} bytes` }]]) + `<p class="section-title">Parts</p>` + kv(parts);
+  } catch (e) { showError($('err'), e); $('out').innerHTML = ''; }
+  split();
+}
+function split() {
+  const s = $('raw').value.trim();
+  if (!s) { showError($('err2'), null); $('out2').innerHTML = ''; return; }
+  try {
+    const b = fromHex(s, 'storage key');
+    if (b.length < 32) throw new Error('A storage key is at least 32 bytes (the pallet and item prefixes).');
+    const rows = [['Pallet prefix', toHex(b.subarray(0, 16)), { note: equal(b.subarray(0, 16), twox(utf8($('pallet').value.trim()), 128)) ? `matches Twox128("${$('pallet').value.trim()}")` : 'does not match the pallet name above' }],
+      ['Item prefix', toHex(b.subarray(16, 32)), { note: equal(b.subarray(16, 32), twox(utf8($('item').value.trim()), 128)) ? `matches Twox128("${$('item').value.trim()}")` : 'does not match the item name above' }]];
+    let off = 32;
+    keys.forEach(([h, t], i) => {
+      const H = HASHERS[h], T = TYPES[t];
+      if (!H.readable) { rows.push([`Key ${i + 1}`, toHex(b.subarray(off, off + H.size)), { note: `${h} hides the key; it can't be recovered` }]); off += H.size; return; }
+      const hashPart = b.subarray(off, off + H.prefix); off += H.prefix;
+      const size = T.size ?? (i === keys.length - 1 ? b.length - off : null);
+      if (size === null) throw new Error(`Key ${i + 1}: raw keys can only be split when they are the last key.`);
+      if (off + size > b.length) throw new Error(`Key ${i + 1}: the storage key is too short.`);
+      const key = b.subarray(off, off + size); off += size;
+      const ok = equal(H.hash(key).subarray(0, H.prefix), hashPart);
+      rows.push([`Key ${i + 1} (${t})`, T.show(key), { note: H.prefix ? (ok ? `${h} hash checks out` : `${h} hash does not match — wrong hasher or type?`) : 'Identity' }]);
+    });
+    if (off < b.length) rows.push(['Left over', toHex(b.subarray(off)), { note: 'more bytes than the keys above describe' }]);
+    showError($('err2'), null); $('out2').innerHTML = kv(rows);
+  } catch (e) { showError($('err2'), e); $('out2').innerHTML = ''; }
+}
+$('keys').addEventListener('input', e => {
+  const row = e.target.closest('[data-k]'); if (!row) return;
+  const k = keys[+row.dataset.k], f = e.target.dataset.f;
+  if (f === 'h') k[0] = e.target.value; if (f === 't') { k[1] = e.target.value; drawKeys(); } if (f === 'v') k[2] = e.target.value;
+  render();
+});
+$('keys').addEventListener('click', e => { const d = e.target.closest('[data-del]'); if (d) { keys.splice(+d.dataset.del, 1); drawKeys(); render(); } });
+$('add').onclick = () => { keys.push(['Blake2_128Concat', 'AccountId32', '']); drawKeys(); render(); };
+$('presets').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; const [, p, it, ks] = PRESETS[+b.dataset.i]; $('pallet').value = p; $('item').value = it; keys = ks.map(k => [...k]); drawKeys(); render(); });
+['pallet', 'item', 'raw'].forEach(id => $(id).addEventListener('input', render));
+drawKeys(); render();
+</script>
+<!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

@@ -6,6 +6,7 @@
   <title>Unit Converter</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%92%B0</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/cosmos.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,104 @@
 <main>
   <a class="back" href="../">← Cosmos</a>
   <h1>💰 Unit Converter</h1>
-  <p class="lead">Convert between base denoms and display units.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Convert between a base denom (like uatom) and its display unit (ATOM), exactly.</p>
+  <div class="panel">
+    <label class="field">Token
+      <select id="preset"></select>
+    </label>
+    <div class="inline-row">
+      <label class="field">Base denom <input id="base" class="mono" spellcheck="false"></label>
+      <label class="field">Display unit <input id="disp" spellcheck="false"></label>
+      <label class="field" style="flex:0 1 110px">Exponent <input id="exp" type="number" min="0" max="36" step="1"></label>
+    </div>
+    <div class="inline-row">
+      <label class="field">Amount in <span id="dispLabel">ATOM</span> <input id="display" class="mono" inputmode="decimal" spellcheck="false" placeholder="1.5"></label>
+      <label class="field">Amount in <span id="baseLabel">uatom</span> <input id="raw" class="mono" inputmode="numeric" spellcheck="false" placeholder="1500000"></label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div id="out"></div>
+  </div>
+  <div class="panel">
+    <p class="section-title" style="margin-top:0">How it works</p>
+    <p class="muted">Cosmos SDK chains store amounts as integers in a base denom. The display unit is the base amount divided by 10<sup>exponent</sup>. Most chains use 6 decimals (1 ATOM = 1,000,000 uatom); EVM-compatible chains such as Injective, Evmos and dYdX use 18. The math here uses exact big integers, so nothing is rounded.</p>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.0 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { wireCopy, showError, kvTable, esc } from '../lib/cosmos.js';
+const $ = id => document.getElementById(id);
+
+const PRESETS = [
+  ['ATOM', 'uatom', 6, 'Cosmos Hub'], ['OSMO', 'uosmo', 6, 'Osmosis'], ['TIA', 'utia', 6, 'Celestia'],
+  ['INJ', 'inj', 18, 'Injective'], ['EVMOS', 'aevmos', 18, 'Evmos'], ['DYDX', 'adydx', 18, 'dYdX'],
+  ['CRO', 'basecro', 8, 'Cronos POS'], ['JUNO', 'ujuno', 6, 'Juno'], ['STARS', 'ustars', 6, 'Stargaze'],
+  ['AKT', 'uakt', 6, 'Akash'], ['KAVA', 'ukava', 6, 'Kava'], ['SEI', 'usei', 6, 'Sei'],
+  ['NTRN', 'untrn', 6, 'Neutron'], ['STRD', 'ustrd', 6, 'Stride'], ['AXL', 'uaxl', 6, 'Axelar'],
+  ['USDC', 'uusdc', 6, 'Noble USDC'], ['LUNA', 'uluna', 6, 'Terra'], ['SCRT', 'uscrt', 6, 'Secret'],
+];
+$('preset').innerHTML = PRESETS.map((p, i) => `<option value="${i}">${esc(p[0])} — ${esc(p[3])} (${esc(p[1])}, ${p[2]} decimals)</option>`).join('') + '<option value="custom">Custom…</option>';
+
+function setPreset() {
+  const v = $('preset').value;
+  if (v === 'custom') return;
+  const [disp, base, exp] = PRESETS[+v];
+  $('disp').value = disp; $('base').value = base; $('exp').value = exp;
+}
+
+const exp = () => {
+  const e = Number($('exp').value);
+  if (!Number.isInteger(e) || e < 0 || e > 36) throw new Error('Exponent must be a whole number from 0 to 36.');
+  return e;
+};
+const group = s => s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+function displayToRaw(s, e) {
+  const t = s.trim().replace(/[,_\s]/g, '');
+  if (!/^\d*\.?\d*$/.test(t) || t === '' || t === '.') throw new Error('Display amount must be a non-negative decimal number.');
+  const [i, f = ''] = t.split('.');
+  if (f.length > e) throw new Error(`Too many decimal places: this token has ${e}, so the smallest unit is 0.${'0'.repeat(Math.max(0, e - 1))}1.`);
+  return BigInt((i || '0') + f.padEnd(e, '0'));
+}
+function rawToDisplay(n, e) {
+  const s = n.toString().padStart(e + 1, '0');
+  const i = s.slice(0, s.length - e), f = s.slice(s.length - e).replace(/0+$/, '');
+  return f ? `${i}.${f}` : i;
+}
+
+let last = 'display';
+function render() {
+  showError($('err'), ''); $('out').innerHTML = '';
+  $('dispLabel').textContent = $('disp').value || 'display unit';
+  $('baseLabel').textContent = $('base').value || 'base denom';
+  try {
+    const e = exp();
+    let raw;
+    if (last === 'display') {
+      if (!$('display').value.trim()) { $('raw').value = ''; return; }
+      raw = displayToRaw($('display').value, e); $('raw').value = raw.toString();
+    } else {
+      const t = $('raw').value.trim().replace(/[,_\s]/g, '');
+      if (!t) { $('display').value = ''; return; }
+      if (!/^\d+$/.test(t)) throw new Error('Base amount must be a whole non-negative number (base denoms have no fractions).');
+      raw = BigInt(t); $('display').value = rawToDisplay(raw, e);
+    }
+    const disp = $('disp').value || 'units', base = $('base').value || 'base';
+    $('out').innerHTML = kvTable([
+      [`In ${disp}`, rawToDisplay(raw, e), group(rawToDisplay(raw, e).split('.')[0]) + (rawToDisplay(raw, e).includes('.') ? '.' + rawToDisplay(raw, e).split('.')[1] : '')],
+      [`In ${base}`, raw.toString(), group(raw.toString())],
+      ['Coin string', `${raw}${base}`, 'The format used in transactions and CLI commands'],
+      [`1 ${disp}`, `${10n ** BigInt(e)}${base}`],
+    ]);
+  } catch (err) { showError($('err'), err.message); }
+}
+$('preset').oninput = () => { setPreset(); render(); };
+for (const id of ['base', 'disp', 'exp']) $(id).oninput = () => { $('preset').value = 'custom'; render(); };
+$('display').oninput = () => { last = 'display'; render(); };
+$('raw').oninput = () => { last = 'raw'; render(); };
+setPreset(); $('display').value = '1'; wireCopy(); render();
+</script>
 </body>
 </html>
