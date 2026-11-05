@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Selectors &amp; Topics</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8E%AF</text></svg>">
+  <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/evm.css">
+  <style>
+    .mode-tabs { display: inline-flex; gap: 0; margin: 18px 0 4px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .mode-tabs button { border: 0; border-radius: 0; padding: 8px 18px; background: var(--surface); }
+    .mode-tabs button + button { border-left: 1px solid var(--border); }
+    .mode-tabs button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); }
+    [hidden] { display: none !important; }
+  </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
+  <script src="/assets/pwa.js" defer></script>
+</head>
+<body>
+<main>
+  <a class="back" href="../">← EVM</a>
+  <h1>🎯 Selectors &amp; Topics</h1>
+  <p class="lead">Get the 4-byte selector of a function or the topic hash of an event from its signature.</p>
+  <div class="mode-tabs" role="tablist"><button type="button" role="tab" data-tab="function">Functions</button><button type="button" role="tab" data-tab="event">Events</button></div>
+  <section id="tab-function" class="mode-panel" data-tab-panel="function">
+
+  <div class="panel">
+    <div class="field">
+      <textarea id="f-input" class="mono" rows="4" spellcheck="false" placeholder="transfer(address,uint256)">function transfer(address to, uint256 amount) external returns (bool);
+approve(address spender, uint amount)</textarea>
+    </div>
+    <div id="f-out"></div>
+  </div>
+  </section>
+  <section id="tab-event" class="mode-panel" data-tab-panel="event">
+
+  <div class="panel">
+    <div class="field">
+      <textarea id="e-input" class="mono" rows="4" spellcheck="false" placeholder="Transfer(address,address,uint256)">event Transfer(address indexed from, address indexed to, uint256 value);
+event Approval(address indexed owner, address indexed spender, uint256 value)</textarea>
+    </div>
+    <div id="e-out"></div>
+  </div>
+  </section>
+</main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script>
+// Tabs: ?mode=<tab> selects one; switching keeps the rest of the URL.
+(() => {
+  const tabs = [...document.querySelectorAll('.mode-tabs [data-tab]')];
+  const show = (mode, push) => {
+    if (!tabs.some(t => t.dataset.tab === mode)) mode = tabs[0].dataset.tab;
+    for (const t of tabs) {
+      const on = t.dataset.tab === mode;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById('tab-' + t.dataset.tab).hidden = !on;
+    }
+    if (push) {
+      const u = new URL(location.href);
+      u.searchParams.set('mode', mode);
+      history.replaceState(null, '', u);
+    }
+    document.dispatchEvent(new CustomEvent('tabchange', { detail: mode }));
+  };
+  tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.tab, true)));
+  show(new URLSearchParams(location.search).get('mode'), false);
+})();
+</script>
+<script type="module">
+import { parseSignature, selectorOf, keccakHex, utf8, InputError } from '../lib/evm.js';
+import { esc, errorText } from '../lib/ui.js';
+const $ = id => document.getElementById('f-' + id);
+const __sec = document.getElementById('tab-function');
+
+function render() {
+  const lines = $('input').value.split('\n').map(l => l.trim()).filter(Boolean);
+  $('out').innerHTML = lines.map(line => {
+    try {
+      const sig = parseSignature(line);
+      if (!sig.name) throw new InputError('Missing function name');
+      const isEvent = sig.kind === 'event';
+      const value = isEvent ? keccakHex(utf8(sig.canonical)) : selectorOf(sig.canonical);
+      return `<div class="out" style="margin-top:12px">
+        <div class="kv"><div class="k">Signature</div><div class="v">${esc(sig.canonical)}</div><button class="icon-btn copy" data-copy="${esc(sig.canonical)}">Copy</button></div>
+        <div class="kv ok"><div class="k">${isEvent ? 'Event topic' : 'Selector'}</div><div class="v">${value}</div><button class="icon-btn copy" data-copy="${value}">Copy</button></div>
+        ${isEvent ? '<div class="kv"><div class="k">Note</div><div class="v" style="font-family:inherit">This is an event; it has a 32-byte topic, not a selector.</div><span></span></div>'
+          : `<div class="kv"><div class="k">Keccak-256</div><div class="v">${keccakHex(utf8(sig.canonical))}</div><button class="icon-btn copy" data-copy="${keccakHex(utf8(sig.canonical))}">Copy</button></div>`}
+      </div>`;
+    } catch (e) {
+      return `<p class="error"><span class="mono">${esc(line)}</span>\n${esc(errorText(e))}</p>`;
+    }
+  }).join('');
+}
+$('input').addEventListener('input', render);
+render();
+</script>
+<script type="module">
+import { parseSignature, keccakHex, utf8, InputError } from '../lib/evm.js';
+import { esc, errorText } from '../lib/ui.js';
+const $ = id => document.getElementById('e-' + id);
+const __sec = document.getElementById('tab-event');
+
+const row = (k, v, copy = true, cls = '') =>
+  `<div class="kv ${cls}"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div>${copy ? `<button class="icon-btn copy" data-copy="${esc(v)}">Copy</button>` : '<span></span>'}</div>`;
+
+function render() {
+  const lines = $('input').value.split('\n').map(l => l.trim()).filter(Boolean);
+  $('out').innerHTML = lines.map(line => {
+    try {
+      const sig = parseSignature(line);
+      if (!sig.name) throw new InputError('Missing event name');
+      const indexed = sig.inputs.map((p, i) => ({ p, i })).filter(x => x.p.indexed);
+      const data = sig.inputs.map((p, i) => ({ p, i })).filter(x => !x.p.indexed);
+      const name = x => x.p.name || `#${x.i}`;
+      const layout = indexed.length > 3
+        ? 'Too many indexed parameters: an event can have at most 3 (4 if anonymous).'
+        : [
+            'topic 0 = event hash',
+            ...indexed.map((x, k) => `topic ${k + 1} = ${name(x)}`),
+            data.length ? `data = ${data.map(name).join(', ')}` : 'data = (empty)',
+          ].join('\n');
+      return `<div class="out" style="margin-top:12px">
+        ${row('Signature', sig.canonical)}
+        ${row('Topic 0', keccakHex(utf8(sig.canonical)), true, 'ok')}
+        ${row('Log layout', layout, false, indexed.length > 3 ? 'bad' : '')}
+      </div>`;
+    } catch (e) {
+      return `<p class="error"><span class="mono">${esc(line)}</span>\n${esc(errorText(e))}</p>`;
+    }
+  }).join('');
+}
+$('input').addEventListener('input', render);
+render();
+</script>
+</body>
+</html>

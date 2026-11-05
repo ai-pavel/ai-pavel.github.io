@@ -14,6 +14,20 @@
     .files td:nth-child(2) { white-space: nowrap; text-align: right; }
     .files td:last-child { width: 1%; }
     progress { width: 100%; }
+  
+    .drop { border: 2px dashed var(--border); border-radius: 12px; padding: 28px 16px; text-align: center; color: var(--muted); }
+    .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+    .drop .row { justify-content: center; margin-top: 12px; }
+    .files td:first-child { word-break: break-all; }
+    .files td:nth-child(2) { white-space: nowrap; text-align: right; }
+    .files td:last-child { width: 1%; }
+    .error { color: #c0392b; }
+  
+    .mode-tabs { display: inline-flex; gap: 0; margin: 18px 0 4px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .mode-tabs button { border: 0; border-radius: 0; padding: 8px 18px; background: var(--surface); }
+    .mode-tabs button + button { border-left: 1px solid var(--border); }
+    .mode-tabs button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); }
+    [hidden] { display: none !important; }
   </style>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
@@ -25,29 +39,31 @@
 <main>
   <a class="back" href="../">← Utilities</a>
   <h1>🗜️ Archive</h1>
-  <p class="lead">Pack files and folders into a ZIP. Everything happens in your browser.</p>
+  <p class="lead">Create ZIP archives and extract ZIP, TAR and GZ files.</p>
+  <div class="mode-tabs" role="tablist"><button type="button" role="tab" data-tab="create">Create</button><button type="button" role="tab" data-tab="extract">Extract</button></div>
+  <section id="tab-create" class="mode-panel" data-tab-panel="create">
 
   <div class="panel">
-    <div class="drop" id="drop">
+    <div class="drop" id="c-drop">
       Drop files or folders here
       <div class="row">
-        <button id="pick-files">Add files</button>
-        <button id="pick-folder">Add folder</button>
+        <button id="c-pick-files">Add files</button>
+        <button id="c-pick-folder">Add folder</button>
       </div>
-      <input type="file" id="files" multiple hidden>
-      <input type="file" id="folder" webkitdirectory multiple hidden>
+      <input type="file" id="c-files" multiple hidden>
+      <input type="file" id="c-folder" webkitdirectory multiple hidden>
     </div>
 
-    <table class="files" id="table" hidden>
+    <table class="files" id="c-table" hidden>
       <thead><tr><th>File</th><th style="text-align:right">Size</th><th></th></tr></thead>
       <tbody></tbody>
-      <tfoot><tr><th id="count"></th><th id="total" style="text-align:right"></th><th></th></tr></tfoot>
+      <tfoot><tr><th id="c-count"></th><th id="c-total" style="text-align:right"></th><th></th></tr></tfoot>
     </table>
 
     <div class="row" style="margin-top:20px">
-      <label style="flex:1;min-width:160px">Archive name <input id="name" value="archive"></label>
+      <label style="flex:1;min-width:160px">Archive name <input id="c-name" value="archive"></label>
       <label>Compression
-        <select id="level">
+        <select id="c-level">
           <option value="0">None (store)</option>
           <option value="1">Fast</option>
           <option value="6" selected>Normal</option>
@@ -56,20 +72,67 @@
       </label>
     </div>
     <div class="row">
-      <button class="primary" id="create" disabled>Create ZIP</button>
-      <button id="clear" disabled>Clear</button>
-      <span class="muted" id="msg"></span>
+      <button class="primary" id="c-create" disabled>Create ZIP</button>
+      <button id="c-clear" disabled>Clear</button>
+      <span class="muted" id="c-msg"></span>
     </div>
-    <progress id="progress" max="1" value="0" hidden></progress>
+    <progress id="c-progress" max="1" value="0" hidden></progress>
   </div>
+  </section>
+  <section id="tab-extract" class="mode-panel" data-tab-panel="extract">
+
+  <div class="panel">
+    <div class="drop" id="x-drop">
+      Drop an archive here
+      <div class="row"><button id="x-pick">Choose archive</button></div>
+      <input type="file" id="x-file" accept=".zip,.tar,.gz,.tgz,application/zip,application/gzip,application/x-tar" hidden>
+    </div>
+    <p class="muted" id="x-msg"></p>
+
+    <div id="x-result" hidden>
+      <div class="row">
+        <input id="x-filter" placeholder="Filter files" style="flex:1;min-width:160px">
+        <button class="primary" id="x-all">Download all as ZIP</button>
+      </div>
+      <table class="files" id="x-table">
+        <thead><tr><th>File</th><th style="text-align:right">Size</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  </section>
 </main>
 <footer class="site-footer">
   <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
-<script src="../../assets/vendor/fflate@0.8.3/umd/index.js"></script>
 <script>
-const $ = id => document.getElementById(id);
+// Tabs: ?mode=<tab> selects one; switching keeps the rest of the URL.
+(() => {
+  const tabs = [...document.querySelectorAll('.mode-tabs [data-tab]')];
+  const show = (mode, push) => {
+    if (!tabs.some(t => t.dataset.tab === mode)) mode = tabs[0].dataset.tab;
+    for (const t of tabs) {
+      const on = t.dataset.tab === mode;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById('tab-' + t.dataset.tab).hidden = !on;
+    }
+    if (push) {
+      const u = new URL(location.href);
+      u.searchParams.set('mode', mode);
+      history.replaceState(null, '', u);
+    }
+    document.dispatchEvent(new CustomEvent('tabchange', { detail: mode }));
+  };
+  tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.tab, true)));
+  show(new URLSearchParams(location.search).get('mode'), false);
+})();
+</script>
+<script src="../../assets/vendor/fflate@0.8.3/umd/index.js"></script>
+<script>(() => {
+const $ = id => document.getElementById('c-' + id);
+const __sec = document.getElementById('tab-create');
+
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtSize = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
 function download(blob, name) {
@@ -169,6 +232,130 @@ $('create').onclick = () => createZip().catch(e => {
   $('msg').textContent = 'Could not create the archive: ' + e.message;
   $('create').disabled = false; $('progress').hidden = true;
 });
-</script>
+
+})();</script>
+<script>(() => {
+const $ = id => document.getElementById('x-' + id);
+const __sec = document.getElementById('tab-extract');
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtSize = n => n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB';
+function download(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+const td = new TextDecoder();
+const baseName = p => p.split('/').pop();
+
+// --- ZIP ---
+function zipFlags(buf) {
+  // Read the central directory to detect encrypted entries before extracting.
+  const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) if (v.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('This ZIP file is damaged (no central directory).');
+  let p = v.getUint32(eocd + 16, true), n = v.getUint16(eocd + 10, true), encrypted = false;
+  for (let i = 0; i < n && p + 46 <= buf.length && v.getUint32(p, true) === 0x02014b50; i++) {
+    if (v.getUint16(p + 8, true) & 1 || v.getUint16(p + 10, true) === 99) encrypted = true;
+    p += 46 + v.getUint16(p + 28, true) + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+  }
+  return { encrypted };
+}
+function readZip(buf) {
+  if (zipFlags(buf).encrypted) throw new Error('This ZIP is password-protected. Encrypted archives are not supported.');
+  return new Promise((resolve, reject) => fflate.unzip(buf, (err, files) => {
+    if (err) return reject(new Error('Could not read the ZIP: ' + err.message));
+    resolve(Object.entries(files).filter(([p]) => !p.endsWith('/')).map(([path, data]) => ({ path, data })));
+  }));
+}
+
+// --- TAR (ustar, GNU long names, pax paths) ---
+const isTar = b => b.length >= 512 && td.decode(b.subarray(257, 262)) === 'ustar';
+function readTar(buf) {
+  const out = [], str = (o, l) => { const s = buf.subarray(o, o + l); const z = s.indexOf(0); return td.decode(z < 0 ? s : s.subarray(0, z)); };
+  const num = (o, l) => {
+    if (buf[o] & 0x80) { let n = 0; for (let i = 1; i < l; i++) n = n * 256 + buf[o + i]; return n; }
+    return parseInt(str(o, l).trim() || '0', 8);
+  };
+  let off = 0, longName = null, paxPath = null;
+  while (off + 512 <= buf.length) {
+    if (buf.subarray(off, off + 512).every(b => b === 0)) break;
+    const size = num(off + 124, 12), type = String.fromCharCode(buf[off + 156] || 48);
+    let name = str(off, 100);
+    if (str(off + 257, 5) === 'ustar') { const prefix = str(off + 345, 155); if (prefix) name = prefix + '/' + name; }
+    const data = buf.subarray(off + 512, off + 512 + size);
+    if (data.length < size) throw new Error('This TAR file is truncated.');
+    if (type === 'L') longName = td.decode(data).replace(/\0+$/, '');
+    else if (type === 'x') {
+      for (const rec of td.decode(data).split('\n')) { const m = rec.match(/^\d+ path=(.*)$/); if (m) paxPath = m[1]; }
+    } else {
+      const path = paxPath || longName || name;
+      if (type === '0' || type === '7') out.push({ path, data });
+      longName = paxPath = null;
+    }
+    off += 512 + Math.ceil(size / 512) * 512;
+  }
+  return out;
+}
+
+async function open(file) {
+  $('result').hidden = true; $('msg').className = 'muted'; $('msg').textContent = `Reading ${file.name}…`;
+  const buf = new Uint8Array(await file.arrayBuffer());
+  let entries;
+  if (buf[0] === 0x50 && buf[1] === 0x4b) entries = await readZip(buf);
+  else if (buf[0] === 0x1f && buf[1] === 0x8b) {
+    let raw;
+    try { raw = fflate.gunzipSync(buf); } catch { throw new Error('This GZIP file is damaged.'); }
+    if (isTar(raw)) entries = readTar(raw);
+    else entries = [{ path: file.name.replace(/\.(gz|tgz)$/i, m => m.toLowerCase() === '.tgz' ? '.tar' : '') || 'file', data: raw }];
+  } else if (isTar(buf)) entries = readTar(buf);
+  else if (buf[0] === 0x52 && buf[1] === 0x61 && buf[2] === 0x72) throw new Error('RAR archives are not supported. Supported: ZIP, TAR, TAR.GZ, GZ.');
+  else if (buf[0] === 0x37 && buf[1] === 0x7a) throw new Error('7-Zip archives are not supported. Supported: ZIP, TAR, TAR.GZ, GZ.');
+  else throw new Error('This file is not a supported archive. Supported: ZIP, TAR, TAR.GZ, GZ.');
+  return entries;
+}
+
+let entries = [], archiveName = 'archive';
+function render() {
+  const q = $('filter').value.trim().toLowerCase();
+  const rows = entries.map((e, i) => [e, i]).filter(([e]) => !q || e.path.toLowerCase().includes(q));
+  $('table').tBodies[0].innerHTML = rows.map(([e, i]) =>
+    `<tr><td>${esc(e.path)}</td><td class="mono">${fmtSize(e.data.length)}</td><td><button class="icon-btn" data-get="${i}" title="Download">⬇</button></td></tr>`).join('')
+    || '<tr><td colspan="3" class="muted">No matching files.</td></tr>';
+}
+async function handle(file) {
+  if (!file) return;
+  try {
+    entries = await open(file);
+    archiveName = file.name.replace(/\.(zip|tar\.gz|tgz|tar|gz)$/i, '') || 'archive';
+    const total = entries.reduce((s, e) => s + e.data.length, 0);
+    $('msg').textContent = `${file.name}: ${entries.length} file${entries.length === 1 ? '' : 's'}, ${fmtSize(total)} unpacked.`;
+    $('result').hidden = !entries.length; $('filter').value = ''; render();
+  } catch (e) {
+    entries = []; $('msg').className = 'error'; $('msg').textContent = e.message;
+  }
+}
+
+const drop = $('drop');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); handle(e.dataTransfer.files[0]); });
+$('pick').onclick = () => $('file').click();
+$('file').onchange = e => { handle(e.target.files[0]); e.target.value = ''; };
+$('filter').oninput = render;
+$('table').onclick = e => {
+  const i = e.target.dataset.get;
+  if (i !== undefined) download(new Blob([entries[+i].data]), baseName(entries[+i].path));
+};
+$('all').onclick = () => {
+  const tree = {};
+  for (const e of entries) tree[e.path.replace(/^\/+/, '')] = [e.data, { level: 0 }];
+  fflate.zip(tree, (err, data) => {
+    if (err) { $('msg').textContent = 'Could not build the ZIP: ' + err.message; return; }
+    download(new Blob([data], { type: 'application/zip' }), archiveName + '.zip');
+  });
+};
+
+})();</script>
 </body>
 </html>

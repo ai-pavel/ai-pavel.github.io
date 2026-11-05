@@ -77,7 +77,7 @@ const run = live([$('raw')], () => {
     { label: 'Signing hash', value: bytesToHex(tx.signingHash) },
   ]);
   if (dataBytes >= 4) {
-    $('out').insertAdjacentHTML('beforeend', `<p style="margin:10px 0 0"><a href="../calldata-decoder/?data=${esc(f.data)}">Decode the data →</a></p>`);
+    $('out').insertAdjacentHTML('beforeend', `<p style="margin:10px 0 0"><a href="../abi/?mode=decode&data=${esc(f.data)}">Decode the data →</a></p>`);
   }
 }, { errEl: $('err'), outEl: $('out') });
 

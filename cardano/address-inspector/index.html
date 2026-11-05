@@ -17,7 +17,7 @@
 <main>
   <a class="back" href="../">← Cardano</a>
   <h1>🔍 Address Inspector</h1>
-  <p class="lead">Decode a Cardano address: its type, network and the payment and stake credentials inside it.</p>
+  <p class="lead">Decode a Cardano address: its type, network, the payment and stake credentials inside it, and its stake (reward) address.</p>
   <div class="panel">
     <label class="field"><span>Address (bech32, Byron base58 or hex)</span>
       <textarea id="addr" class="mono" rows="3" placeholder="addr1… / stake1… / Ae2… / DdzFF…" autocomplete="off" spellcheck="false"></textarea></label>
@@ -31,9 +31,16 @@
     </div>
     <p class="error" id="err" hidden></p>
     <p class="notice" id="warn" hidden style="margin-top:12px"></p>
+    <section id="stake-box" hidden style="margin-top:16px">
+      <h2 style="margin:0 0 6px;font-size:16px">Stake address</h2>
+      <p class="muted" id="stake-info" style="margin:0 0 6px"></p>
+      <div class="kv" id="stake-out"></div>
+    </section>
+    <h2 id="details-h" hidden style="margin:16px 0 6px;font-size:16px">Details</h2>
     <div class="kv" id="out"></div>
     <details class="help">
       <summary>Address types</summary>
+      <p>All base addresses of one wallet account share one <strong>stake address</strong>: it's where staking rewards go and what gets delegated to a pool.</p>
       <p>The first byte of a Shelley address holds the type (high 4 bits) and the network (low 4 bits: 1 = mainnet, 0 = testnets).
         <strong>Base</strong> addresses carry a payment and a stake credential. <strong>Enterprise</strong> addresses have no stake part.
         <strong>Pointer</strong> addresses point at the certificate that registered a stake key. <strong>Reward</strong> (stake) addresses hold only the stake credential.
@@ -60,14 +67,35 @@ const EXAMPLES = {
 };
 const credRows = (label, c, role) => row(`${label} credential (${c.type === 'script' ? 'script hash' : 'key hash'})`, c.hex, credBech32(c, role));
 
+// The stake (reward) address of an address, or why it has none.
+function renderStake(a) {
+  let info = '', rows = [];
+  if (a.byron) info = 'Byron addresses have no stake part, so they can\'t delegate.';
+  else if (a.type === 14 || a.type === 15) {
+    info = 'This is already a stake address.';
+    rows = [row('Stake address', a.bech32), row('Stake credential (' + a.stake.type + ' hash)', a.stake.hex, credBech32(a.stake, 'stake'))];
+  } else if (a.type === 6 || a.type === 7) info = 'Enterprise addresses have no stake part, so funds there can\'t be staked.';
+  else if (a.type === 4 || a.type === 5) info = `A pointer address refers to the stake registration certificate at slot ${a.pointer.slot}, transaction ${a.pointer.txIndex}, certificate ${a.pointer.certIndex}. Finding its stake key needs the chain, so it can't be worked out offline.`;
+  else {
+    const s = stakeAddressOf(a);
+    info = `${NETWORKS[a.network] || 'Network ' + a.network} · shared by every base address of this wallet account.`;
+    rows = [row('Stake address', s.bech32), row('Stake address (hex)', toHex(s.bytes))];
+  }
+  $('stake-info').textContent = info;
+  $('stake-out').innerHTML = rows.join('');
+  $('stake-box').hidden = false;
+}
+
 function render() {
   const v = $('addr').value.trim();
-  $('out').innerHTML = ''; $('warn').hidden = true;
+  $('out').innerHTML = ''; $('warn').hidden = true; $('stake-box').hidden = true; $('details-h').hidden = true;
   if (!v) { showError($('err')); return; }
   let a;
   try { a = parseAddress(v); } catch (e) { showError($('err'), e); return; }
   showError($('err'));
   if (a.warning) { $('warn').textContent = a.warning; $('warn').hidden = false; }
+  renderStake(a);
+  $('details-h').hidden = false;
   const rows = [];
   if (a.byron) {
     rows.push(row('Type', a.typeName), row('Network', a.attributes.protocolMagic === undefined ? 'Mainnet' : `Protocol magic ${a.attributes.protocolMagic} (testnet)`));
@@ -82,7 +110,6 @@ function render() {
   if (a.payment) rows.push(credRows('Payment', a.payment, 'payment'));
   if (a.stake) rows.push(credRows('Stake', a.stake, 'stake'));
   if (a.pointer) rows.push(row('Pointer', `slot ${a.pointer.slot} · transaction ${a.pointer.txIndex} · certificate ${a.pointer.certIndex}`));
-  if (a.type <= 3) rows.push(row('Stake address', stakeAddressOf(a).bech32));
   rows.push(row('Bech32', a.bech32), row('Bytes (hex)', toHex(a.bytes), `Header byte 0x${a.header.toString(16).padStart(2, '0')} · ${a.bytes.length} bytes`));
   $('out').innerHTML = rows.join('');
 }

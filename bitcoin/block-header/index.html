@@ -17,11 +17,14 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>📋 Block Header</h1>
-  <p class="lead">Decode an 80-byte block header into its six fields, or edit the fields to build one. All numbers are stored little-endian; hashes are shown reversed.</p>
+  <p class="lead">Get a block's hash from its 80-byte header and check the proof of work, decode the six header fields, or edit the fields to build a header. All numbers are stored little-endian; hashes are shown reversed.</p>
 
   <div class="panel">
     <div class="field"><span>Header (80 bytes hex)</span><textarea id="header" class="mono" rows="4" spellcheck="false"></textarea></div>
     <div class="row small"><button type="button" id="genesis">Genesis block</button><button type="button" id="b100k">Block 100,000</button></div>
+    <p class="error" id="err" hidden></p>
+    <p class="status" id="status" hidden></p>
+    <div class="out" id="hash-out"></div>
     <h2>Fields</h2>
     <div class="grid2">
       <div class="field"><span>Version (decimal or 0x-hex)</span><input id="version" class="mono"></div>
@@ -31,8 +34,6 @@
     </div>
     <div class="field"><span>Previous block hash</span><input id="prev" class="mono" spellcheck="false"></div>
     <div class="field"><span>Merkle root</span><input id="merkle" class="mono" spellcheck="false"></div>
-    <p class="error" id="err" hidden></p>
-    <p class="status" id="status" hidden></p>
     <div class="out" id="out"></div>
     <div class="table-wrap"><table class="fields" id="bytes"></table></div>
   </div>
@@ -42,7 +43,7 @@
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
-import { hexToBytes, bytesToHex, parseHeader, serializeHeader, bitsToTarget, difficulty, hex32, hexU32, parseInteger, InputError } from '../lib/btc.js';
+import { hexToBytes, bytesToHex, hash256, parseHeader, serializeHeader, bitsToTarget, difficulty, hex32, hexU32, parseInteger, InputError } from '../lib/btc.js';
 import { $, renderRows, showError, esc } from '../lib/ui.js';
 
 const SAMPLES = {
@@ -59,11 +60,14 @@ function show(bytes) {
   $('status').className = 'status ' + (ok ? 'ok' : 'warn');
   $('status').textContent = ok ? '✓ Valid proof of work for these bits' : 'Hash is above the target (not a valid block, which is expected while editing)';
   const bip9 = (h.version & 0xe0000000) === 0x20000000;
+  renderRows($('hash-out'), [
+    { label: 'Block hash', value: h.hash, note: 'HASH256 of the header, reversed byte order, as explorers show it' },
+    { label: 'HASH256 (internal order)', value: bytesToHex(hash256(bytes)) },
+    { label: 'Target (from bits)', value: hex32(target), note: `bits ${hexU32(h.bits)}` },
+  ]);
   renderRows($('out'), [
-    { label: 'Block hash', value: h.hash },
     { label: 'Version', value: `${h.version} (${hexU32(h.version)})`, copy: false, note: bip9 ? `BIP9 version bits set: ${[...Array(29).keys()].filter(b => h.version & (1 << b)).join(', ') || 'none'}` : '' },
     { label: 'Time', value: new Date(h.time * 1000).toISOString().replace('.000Z', ' UTC').replace('T', ' '), copy: false },
-    { label: 'Target', value: hex32(target) },
     { label: 'Difficulty', value: difficulty(target), copy: false },
   ]);
   $('bytes').innerHTML = '<tr><th>Bytes</th><th>Field</th><th>Raw (as stored)</th></tr>' +
@@ -73,13 +77,13 @@ function show(bytes) {
 function fromHex() {
   showError($('err'), null); $('status').hidden = true;
   try {
-    if (!$('header').value.trim()) { $('out').innerHTML = ''; $('bytes').innerHTML = ''; return; }
+    if (!$('header').value.trim()) { $('out').innerHTML = ''; $('hash-out').innerHTML = ''; $('bytes').innerHTML = ''; return; }
     const bytes = hexToBytes($('header').value, 'Header');
     const h = parseHeader(bytes);
     $('version').value = String(h.version); $('time').value = String(h.time); $('bits').value = hexU32(h.bits);
     $('nonce').value = String(h.nonce); $('prev').value = h.prev; $('merkle').value = h.merkle;
     show(bytes);
-  } catch (e) { $('out').innerHTML = ''; $('bytes').innerHTML = ''; showError($('err'), e); }
+  } catch (e) { $('out').innerHTML = ''; $('hash-out').innerHTML = ''; $('bytes').innerHTML = ''; showError($('err'), e); }
 }
 
 function fromFields() {
@@ -90,7 +94,7 @@ function fromFields() {
     const bytes = serializeHeader({ version, prev: $('prev').value, merkle: $('merkle').value, time: u32('time', 'Time'), bits: u32('bits', 'Bits'), nonce: u32('nonce', 'Nonce') });
     $('header').value = bytesToHex(bytes);
     show(bytes);
-  } catch (e) { $('out').innerHTML = ''; $('bytes').innerHTML = ''; showError($('err'), e); }
+  } catch (e) { $('out').innerHTML = ''; $('hash-out').innerHTML = ''; $('bytes').innerHTML = ''; showError($('err'), e); }
 }
 
 $('header').addEventListener('input', fromHex);

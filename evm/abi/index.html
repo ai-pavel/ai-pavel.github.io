@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ABI Encoder / Decoder</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A7%A9</text></svg>">
+  <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/evm.css">
+  <style>
+    .mode-tabs { display: inline-flex; gap: 0; margin: 18px 0 4px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .mode-tabs button { border: 0; border-radius: 0; padding: 8px 18px; background: var(--surface); }
+    .mode-tabs button + button { border-left: 1px solid var(--border); }
+    .mode-tabs button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); }
+    [hidden] { display: none !important; }
+  </style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
+  <script src="/assets/pwa.js" defer></script>
+</head>
+<body>
+<main>
+  <a class="back" href="../">← EVM</a>
+  <h1>🧩 ABI Encoder / Decoder</h1>
+  <p class="lead">Encode function calls and parameters to calldata, or decode calldata with a signature or JSON ABI.</p>
+  <div class="mode-tabs" role="tablist"><button type="button" role="tab" data-tab="encode">Encode</button><button type="button" role="tab" data-tab="decode">Decode</button></div>
+  <section id="tab-encode" class="mode-panel" data-tab-panel="encode">
+
+  <div class="panel">
+    <div class="field">
+      <label for="n-sig" class="muted">Function signature, or a parameter list like <code>(address,uint256[])</code></label>
+      <input id="n-sig" class="mono" spellcheck="false" autocomplete="off" value="transfer(address to, uint256 amount)">
+    </div>
+    <div class="params" id="n-params"></div>
+    <p class="muted" id="n-hint">Numbers: decimal or 0x hex. Bytes: 0x hex. Arrays and tuples: JSON, e.g. <code>["0x…", "5"]</code>.</p>
+    <p class="error" id="n-err" hidden></p>
+    <div class="out" id="n-out"></div>
+    <div id="n-words-box" hidden>
+      <p class="muted" style="margin:16px 0 6px">Parameters as 32-byte words</p>
+      <div class="words" id="n-words"></div>
+    </div>
+  </div>
+  </section>
+  <section id="tab-decode" class="mode-panel" data-tab-panel="decode">
+
+  <div class="panel">
+    <div class="field">
+      <label for="d-data" class="muted">Calldata</label>
+      <textarea id="d-data" class="mono" rows="4" spellcheck="false" placeholder="0x…"></textarea>
+    </div>
+    <div class="field">
+      <label for="d-abi" class="muted">Function signature(s) or JSON ABI (optional)</label>
+      <textarea id="d-abi" class="mono" rows="3" spellcheck="false" placeholder="transfer(address to, uint256 amount)  or  [{&quot;type&quot;:&quot;function&quot;, …}]"></textarea>
+    </div>
+    <label class="field inline-check"><input type="checkbox" id="d-no-selector"> Data has no selector (only encoded parameters)</label>
+    <p class="error" id="d-err" hidden></p>
+    <div class="out" id="d-out"></div>
+    <div id="d-json-box" hidden>
+      <div class="row" style="justify-content:space-between;margin:16px 0 6px"><span class="muted">Arguments as JSON</span><button class="icon-btn" data-copy-from="d-json">Copy</button></div>
+      <pre class="json" id="d-json"></pre>
+    </div>
+  </div>
+  </section>
+</main>
+<footer class="site-footer">
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
+  <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
+</footer>
+<script>
+// Tabs: ?mode=<tab> selects one; switching keeps the rest of the URL.
+(() => {
+  const tabs = [...document.querySelectorAll('.mode-tabs [data-tab]')];
+  const show = (mode, push) => {
+    if (!tabs.some(t => t.dataset.tab === mode)) mode = tabs[0].dataset.tab;
+    for (const t of tabs) {
+      const on = t.dataset.tab === mode;
+      t.setAttribute('aria-selected', String(on));
+      document.getElementById('tab-' + t.dataset.tab).hidden = !on;
+    }
+    if (push) {
+      const u = new URL(location.href);
+      u.searchParams.set('mode', mode);
+      history.replaceState(null, '', u);
+    }
+    document.dispatchEvent(new CustomEvent('tabchange', { detail: mode }));
+  };
+  tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.tab, true)));
+  show(new URLSearchParams(location.search).get('mode'), false);
+})();
+</script>
+<script type="module">
+import { parseSignature, typeToString, abiEncode, selectorOf, bytesToHex, concat, hexToBytes, InputError } from '../lib/evm.js';
+import { esc, renderRows, showError } from '../lib/ui.js';
+const $ = id => document.getElementById('n-' + id);
+const __sec = document.getElementById('tab-encode');
+
+const PLACEHOLDER = { uint: '123 or 0x7b', int: '-5', address: '0x…', bool: 'true or false', fixedbytes: '0x…', bytes: '0x…', string: 'text', array: '[…] as JSON', tuple: '[…] as JSON' };
+const EXAMPLE = { address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266', uint: '1000000000000000000' };
+let parsed = null, fieldKey = '';
+
+function parse() {
+  const raw = $('sig').value.trim();
+  if (!raw) throw new InputError('Enter a signature');
+  return parseSignature(raw.startsWith('(') ? raw : raw.includes('(') ? raw : `(${raw})`);
+}
+
+function buildFields() {
+  const key = parsed.inputs.map(p => typeToString(p.type) + ' ' + p.name).join(',');
+  if (key === fieldKey) return;
+  const old = [...$('params').querySelectorAll('[data-i]')].map(el => el.value);
+  fieldKey = key;
+  $('params').innerHTML = parsed.inputs.map((p, i) => {
+    const t = typeToString(p.type), multi = p.type.kind === 'array' || p.type.kind === 'tuple' || p.type.kind === 'string' || p.type.kind === 'bytes';
+    const attrs = `id="n-p${i}" data-i="${i}" class="mono" spellcheck="false" autocomplete="off" placeholder="${esc(PLACEHOLDER[p.type.kind] || '')}"`;
+    return `<div class="field"><label for="n-p${i}" class="muted">${esc(p.name || 'param ' + (i + 1))} <code>${esc(t)}</code></label>
+      ${multi ? `<textarea ${attrs} rows="2"></textarea>` : `<input ${attrs}>`}</div>`;
+  }).join('');
+  parsed.inputs.forEach((p, i) => { if (old[i] !== undefined) $('p' + i).value = old[i]; });
+}
+
+function value(p, raw) {
+  if (p.type.kind === 'array' || p.type.kind === 'tuple') {
+    try { return JSON.parse(raw); } catch { throw new InputError(`${p.name || 'Parameter'}: not valid JSON`); }
+  }
+  if (p.type.kind === 'string') return raw;
+  return raw.trim();
+}
+
+function render() {
+  showError($('err'), null);
+  $('out').innerHTML = '';
+  $('words-box').hidden = true;
+  try {
+    parsed = parse();
+    buildFields();
+  } catch (e) {
+    parsed = null; fieldKey = ''; $('params').innerHTML = '';
+    showError($('err'), e);
+    return;
+  }
+  try {
+    const vals = parsed.inputs.map((p, i) => {
+      const raw = $('p' + i).value;
+      if (raw.trim() === '' && p.type.kind !== 'string') throw new InputError(`Enter a value for ${p.name || 'parameter ' + (i + 1)}`);
+      return value(p, raw);
+    });
+    const params = abiEncode(parsed.inputs, vals);
+    const selector = parsed.name ? selectorOf(parsed.canonical) : null;
+    const calldata = selector ? bytesToHex(concat(hexToBytes(selector), params)) : bytesToHex(params);
+    const link = selector ? `?mode=decode&data=${calldata}&sig=${encodeURIComponent(parsed.canonical)}` : null;
+    renderRows($('out'), [
+      { label: selector ? 'Calldata' : 'Encoded', value: calldata, cls: 'ok' },
+      selector && { label: 'Selector', value: selector },
+      selector && { label: 'Signature', value: parsed.canonical },
+      { label: 'Size', value: `${(calldata.length - 2) / 2} bytes`, copy: false },
+    ]);
+    if (link) $('out').insertAdjacentHTML('beforeend', `<p style="margin:10px 0 0"><a href="${esc(link)}">Decode this calldata →</a></p>`);
+    const hex = bytesToHex(params).slice(2);
+    $('words').innerHTML = Array.from({ length: hex.length / 64 }, (_, i) =>
+      `<span>0x${(i * 32).toString(16).padStart(3, '0')}</span><span>${hex.slice(i * 64, i * 64 + 64)}</span>`).join('');
+    $('words').style.gridTemplateColumns = 'auto 1fr';
+    $('words').style.columnGap = '12px';
+    $('words-box').hidden = hex.length === 0;
+  } catch (e) {
+    showError($('err'), e);
+  }
+}
+
+$('sig').addEventListener('input', render);
+$('params').addEventListener('input', render);
+parsed = parse(); buildFields();
+parsed.inputs.forEach((p, i) => { $('p' + i).value = EXAMPLE[p.type.kind] || ''; });
+render();
+</script>
+<script type="module">
+import { hexToBytes, bytesToHex, parseSignature, abiJsonParam, abiDecode, typeToString, selectorOf, toPlain, COMMON_SIGNATURES, InputError } from '../lib/evm.js';
+import { esc, renderRows, showError, param } from '../lib/ui.js';
+const $ = id => document.getElementById('d-' + id);
+const __sec = document.getElementById('tab-decode');
+
+function candidates(text) {
+  text = text.trim();
+  if (!text) return [];
+  if (text.startsWith('[') || text.startsWith('{')) {
+    let abi;
+    try { abi = JSON.parse(text); } catch { throw new InputError('The ABI is not valid JSON'); }
+    if (!Array.isArray(abi)) abi = abi.abi || [abi];
+    if (!Array.isArray(abi)) throw new InputError('Expected a JSON ABI array');
+    return abi.flatMap(f => {
+      if (typeof f === 'string') return [parseSignature(f)];
+      if (!f || (f.type && f.type !== 'function' && f.type !== 'error')) return [];
+      const inputs = (f.inputs || []).map(abiJsonParam);
+      return [{ name: f.name, inputs, canonical: `${f.name}(${inputs.map(p => typeToString(p.type)).join(',')})` }];
+    });
+  }
+  return text.split('\n').map(l => l.trim()).filter(Boolean).map(parseSignature);
+}
+
+function show(v) {
+  if (Array.isArray(v)) return JSON.stringify(toPlain(v), null, 1).replace(/\n\s*/g, ' ');
+  return typeof v === 'bigint' ? v.toString() : String(v);
+}
+
+function render() {
+  showError($('err'), null);
+  $('out').innerHTML = '';
+  $('json-box').hidden = true;
+  const rawData = $('data').value.trim();
+  if (!rawData) return;
+  try {
+    const data = hexToBytes(rawData, 'Calldata');
+    const user = candidates($('abi').value);
+    const noSel = $('no-selector').checked;
+    let fn, body, selector = null, guessed = false;
+    if (noSel) {
+      if (user.length !== 1) throw new InputError('Without a selector, enter exactly one signature or parameter list, e.g. (address,uint256)');
+      fn = user[0]; body = data;
+    } else {
+      if (data.length < 4) throw new InputError('Calldata needs at least a 4-byte selector');
+      selector = bytesToHex(data.slice(0, 4));
+      body = data.slice(4);
+      fn = user.find(f => f.name && selectorOf(f.canonical) === selector);
+      if (!fn) {
+        fn = COMMON_SIGNATURES.map(s => parseSignature(s)).find(f => selectorOf(f.canonical) === selector);
+        guessed = !!fn;
+      }
+      if (!fn) {
+        const tried = user.filter(f => f.name).map(f => `${f.canonical} → ${selectorOf(f.canonical)}`);
+        renderRows($('out'), [
+          { label: 'Selector', value: selector },
+          { label: 'Function', value: 'Unknown', copy: false, cls: 'bad',
+            note: tried.length ? `No signature you entered matches. Yours: ${tried.join('; ')}` : 'Paste the function signature or ABI above to decode the arguments.' },
+          { label: 'Arguments size', value: `${body.length} bytes`, copy: false },
+        ]);
+        return;
+      }
+    }
+    if (!fn.inputs.length && body.length) throw new InputError(`${fn.canonical} takes no arguments, but there are ${body.length} extra bytes`);
+    const values = abiDecode(fn.inputs, body);
+    renderRows($('out'), [
+      fn.name && { label: 'Function', value: fn.canonical, cls: 'ok', note: guessed ? 'Recognized from the built-in list of common functions.' : '' },
+      selector && { label: 'Selector', value: selector },
+      ...fn.inputs.map((p, i) => ({ label: `${p.name || '#' + i} · ${typeToString(p.type)}`, value: show(values[i]) })),
+    ]);
+    const named = Object.fromEntries(fn.inputs.map((p, i) => [p.name || String(i), toPlain(values[i])]));
+    $('json').textContent = JSON.stringify(named, null, 2);
+    $('json-box').hidden = false;
+  } catch (e) {
+    $('out').innerHTML = '';
+    showError($('err'), e);
+  }
+}
+
+for (const el of [$('data'), $('abi'), $('no-selector')]) el.addEventListener('input', render);
+$('data').value = param('data') || '0xa9059cbb000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000de0b6b3a7640000';
+if (param('sig')) $('abi').value = param('sig');
+render();
+</script>
+</body>
+</html>

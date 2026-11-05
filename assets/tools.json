@@ -90,13 +90,8 @@
               "slug": "archive",
               "emoji": "🗜️",
               "name": "Archive",
-              "description": "Pack files into a ZIP"
-            },
-            {
-              "slug": "unarchive",
-              "emoji": "📂",
-              "name": "Unarchive",
-              "description": "Extract files from an archive"
+              "description": "Create ZIP archives and extract ZIP, TAR and GZ files",
+              "keywords": "zip unzip tar gz extract compress unarchive"
             },
             {
               "slug": "encrypt-files",
@@ -134,16 +129,11 @@
               "description": "Turn a video or images into a GIF"
             },
             {
-              "slug": "convert-audio",
-              "emoji": "🎵",
-              "name": "Convert Audio",
-              "description": "Convert audio between formats"
-            },
-            {
-              "slug": "convert-video",
+              "slug": "convert-media",
               "emoji": "🎬",
-              "name": "Convert Video",
-              "description": "Convert video between formats"
+              "name": "Convert Media",
+              "description": "Convert audio and video between formats, or extract the audio",
+              "keywords": "mp3 mp4 webm wav m4a flac ogg ffmpeg video audio"
             }
           ]
         }
@@ -261,13 +251,6 @@
               "name": "UUID / ULID",
               "description": "Generate and inspect UUIDs and ULIDs",
               "keywords": "guid id random"
-            },
-            {
-              "slug": "lorem-ipsum",
-              "emoji": "📝",
-              "name": "Lorem Ipsum",
-              "description": "Generate placeholder text",
-              "keywords": "dummy text"
             }
           ]
         },
@@ -339,13 +322,6 @@
               "name": "User-Agent Parser",
               "description": "Identify browser, OS and device from a User-Agent",
               "keywords": "ua browser"
-            },
-            {
-              "slug": "http-status",
-              "emoji": "🚦",
-              "name": "HTTP Status Codes",
-              "description": "Look up HTTP status codes",
-              "keywords": "404 500 response"
             }
           ]
         }
@@ -523,16 +499,11 @@
           "name": "Blocks",
           "tools": [
             {
-              "slug": "block-hash",
-              "emoji": "🧱",
-              "name": "Block Hash",
-              "description": "Hash a block header to get its block hash"
-            },
-            {
               "slug": "block-header",
               "emoji": "📋",
               "name": "Block Header",
-              "description": "Decode and encode a block header"
+              "description": "Decode a block header and compute its hash",
+              "keywords": "block hash proof of work pow"
             },
             {
               "slug": "merkle-root",
@@ -721,32 +692,18 @@
           "name": "ABI",
           "tools": [
             {
-              "slug": "function-selector",
+              "slug": "selectors",
               "emoji": "🎯",
-              "name": "Function Selector",
-              "description": "Get a function's 4-byte selector",
-              "keywords": "signature 4byte"
+              "name": "Selectors & Topics",
+              "description": "Get function selectors and event topics",
+              "keywords": "4byte function selector event topic signature"
             },
             {
-              "slug": "event-topic",
-              "emoji": "📣",
-              "name": "Event Topic",
-              "description": "Get an event's topic hash",
-              "keywords": "log signature"
-            },
-            {
-              "slug": "abi-encoder",
+              "slug": "abi",
               "emoji": "🧩",
-              "name": "ABI Encoder",
-              "description": "Encode function calls and parameters",
-              "keywords": "calldata encode"
-            },
-            {
-              "slug": "calldata-decoder",
-              "emoji": "🔍",
-              "name": "Calldata Decoder",
-              "description": "Decode calldata with an ABI or signature",
-              "keywords": "decode input data"
+              "name": "ABI Encoder / Decoder",
+              "description": "Encode function calls and decode calldata",
+              "keywords": "abi calldata encode decode input data"
             }
           ]
         },
@@ -773,18 +730,11 @@
           "name": "Signatures",
           "tools": [
             {
-              "slug": "sign-message",
+              "slug": "sign-verify",
               "emoji": "✍️",
-              "name": "Sign Message",
-              "description": "Sign a message with a private key (EIP-191)",
-              "keywords": "personal_sign eip191"
-            },
-            {
-              "slug": "verify-message",
-              "emoji": "✔️",
-              "name": "Verify Message",
-              "description": "Recover the signer of a message",
-              "keywords": "ecrecover eip191"
+              "name": "Sign & Verify",
+              "description": "Sign a message (EIP-191) and recover its signer",
+              "keywords": "personal_sign eip191 ecrecover verify"
             },
             {
               "slug": "typed-data",
@@ -910,18 +860,11 @@
           "name": "Signatures",
           "tools": [
             {
-              "slug": "sign-message",
+              "slug": "sign-verify",
               "emoji": "✍️",
-              "name": "Sign Message",
-              "description": "Sign a message with an ed25519 key",
-              "keywords": "ed25519"
-            },
-            {
-              "slug": "verify-message",
-              "emoji": "✔️",
-              "name": "Verify Message",
-              "description": "Verify an ed25519 message signature",
-              "keywords": "ed25519"
+              "name": "Sign & Verify",
+              "description": "Sign and verify ed25519 messages",
+              "keywords": "ed25519 signature"
             }
           ]
         }
@@ -1007,18 +950,11 @@
           "name": "Signatures",
           "tools": [
             {
-              "slug": "sign-message",
+              "slug": "sign-verify",
               "emoji": "✍️",
-              "name": "Sign Message",
-              "description": "Sign a message with an ed25519 key",
-              "keywords": "ed25519"
-            },
-            {
-              "slug": "verify-message",
-              "emoji": "✔️",
-              "name": "Verify Message",
-              "description": "Verify an ed25519 message signature",
-              "keywords": "ed25519"
+              "name": "Sign & Verify",
+              "description": "Sign and verify ed25519 messages",
+              "keywords": "ed25519 signature"
             },
             {
               "slug": "ton-proof",
@@ -1057,15 +993,8 @@
               "slug": "address-inspector",
               "emoji": "🔍",
               "name": "Address Inspector",
-              "description": "Decode an address: type, network and credentials",
-              "keywords": "bech32 addr1 shelley byron"
-            },
-            {
-              "slug": "stake-address",
-              "emoji": "🥩",
-              "name": "Stake Address",
-              "description": "Get the stake address of a base address",
-              "keywords": "reward address stake1 delegation"
+              "description": "Decode an address and get its stake address",
+              "keywords": "bech32 addr1 shelley byron stake address reward"
             },
             {
               "slug": "address-builder",
@@ -1232,18 +1161,11 @@
           "name": "Signatures",
           "tools": [
             {
-              "slug": "sign-message",
+              "slug": "sign-verify",
               "emoji": "✍️",
-              "name": "Sign Message",
-              "description": "Sign a personal message with an intent",
-              "keywords": "intent personal message"
-            },
-            {
-              "slug": "verify-message",
-              "emoji": "✔️",
-              "name": "Verify Message",
-              "description": "Verify a personal message or transaction signature",
-              "keywords": "signature verify"
+              "name": "Sign & Verify",
+              "description": "Sign and verify personal messages and transactions",
+              "keywords": "intent personal message signature"
             }
           ]
         }
@@ -1275,8 +1197,8 @@
               "slug": "address-converter",
               "emoji": "🔄",
               "name": "Address Converter",
-              "description": "Convert an address between chain prefixes",
-              "keywords": "bech32 prefix cosmos1 osmo1 celestia1"
+              "description": "Convert an address between chain prefixes and validator forms",
+              "keywords": "bech32 prefix cosmos1 osmo1 valoper valcons"
             },
             {
               "slug": "address-from-key",
@@ -1286,25 +1208,11 @@
               "keywords": "pubkey evmos injective"
             },
             {
-              "slug": "validator-address",
-              "emoji": "🏛️",
-              "name": "Validator Address",
-              "description": "Convert between account and validator operator addresses",
-              "keywords": "valoper valcons"
-            },
-            {
-              "slug": "module-address",
+              "slug": "derived-addresses",
               "emoji": "🏦",
-              "name": "Module Address",
-              "description": "Derive a module account address",
-              "keywords": "module account"
-            },
-            {
-              "slug": "ibc-escrow-address",
-              "emoji": "🔒",
-              "name": "IBC Escrow Address",
-              "description": "Derive the ICS-20 escrow address of a channel",
-              "keywords": "ics20 transfer channel escrow"
+              "name": "Derived Addresses",
+              "description": "Derive module accounts and IBC escrow addresses",
+              "keywords": "module account ics20 escrow channel"
             }
           ]
         },
@@ -1348,18 +1256,11 @@
           "name": "Signatures",
           "tools": [
             {
-              "slug": "sign-message",
+              "slug": "sign-verify",
               "emoji": "✍️",
-              "name": "Sign Message",
-              "description": "Sign arbitrary data (ADR-36)",
+              "name": "Sign & Verify",
+              "description": "Sign and verify arbitrary data (ADR-36)",
               "keywords": "adr36 signarbitrary keplr"
-            },
-            {
-              "slug": "verify-message",
-              "emoji": "✔️",
-              "name": "Verify Message",
-              "description": "Verify an ADR-36 signature",
-              "keywords": "adr36 verifyarbitrary"
             }
           ]
         }
@@ -1466,18 +1367,11 @@
           "name": "Signatures",
           "tools": [
             {
-              "slug": "sign-message",
+              "slug": "sign-verify",
               "emoji": "✍️",
-              "name": "Sign Message",
-              "description": "Sign a message with an sr25519, ed25519 or ECDSA key",
-              "keywords": "signRaw <Bytes>"
-            },
-            {
-              "slug": "verify-message",
-              "emoji": "✔️",
-              "name": "Verify Message",
-              "description": "Verify a message signature",
-              "keywords": "signature verify"
+              "name": "Sign & Verify",
+              "description": "Sign and verify messages (sr25519, ed25519, ECDSA)",
+              "keywords": "signRaw signature"
             }
           ]
         }
