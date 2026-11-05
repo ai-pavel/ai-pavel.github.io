@@ -10,14 +10,14 @@ Local-first browser tools — everyday, dev & crypto. Nothing leaves your device
 | [🪄 Utilities](https://ai-pavel.github.io/utilities/) | Everyday utilities: time, text, files and media | 20 | [`utilities/`](utilities/) |
 | [🧑‍💻 Dev](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 23 | [`dev/`](dev/) |
 | [🔐 Crypto](https://ai-pavel.github.io/crypto/) | Hashes, HMAC, key derivation, encryption, keys, signatures, certificates and secrets | 0 of 16 ready | [`crypto/`](crypto/) |
-| [🪙 Bitcoin](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, PSBTs, keys, addresses and HD wallets | 19 | [`bitcoin/`](bitcoin/) |
+| [🪙 BTC](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, PSBTs, keys, addresses and HD wallets | 19 | [`bitcoin/`](bitcoin/) |
 | [💠 EVM](https://ai-pavel.github.io/evm/) | Ethereum and EVM: units, addresses, ABI, transactions and signatures | 15 | [`evm/`](evm/) |
-| [🌞 Solana](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 12 | [`solana/`](solana/) |
+| [🌞 SOL](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 12 | [`solana/`](solana/) |
 | [💎 TON](https://ai-pavel.github.io/ton/) | TON: addresses, wallets, cells, messages and signatures | 10 | [`ton/`](ton/) |
-| [🔵 Cardano](https://ai-pavel.github.io/cardano/) | Cardano: addresses, stake keys, native assets, CBOR transactions and signatures | 10 | [`cardano/`](cardano/) |
-| [💧 Sui](https://ai-pavel.github.io/sui/) | Sui: addresses, keys, BCS, transactions, object IDs and signatures | 10 | [`sui/`](sui/) |
-| [⚛️ Cosmos](https://ai-pavel.github.io/cosmos/) | Cosmos SDK chains: addresses across chains, IBC, keys, transactions and signatures | 0 of 11 ready | [`cosmos/`](cosmos/) |
-| [🟣 Polkadot](https://ai-pavel.github.io/polkadot/) | Polkadot and Substrate chains: SS58 addresses, SCALE, storage keys, keys and signatures | 0 of 12 ready | [`polkadot/`](polkadot/) |
+| [🔵 ADA](https://ai-pavel.github.io/cardano/) | Cardano: addresses, stake keys, native assets, CBOR transactions and signatures | 10 | [`cardano/`](cardano/) |
+| [💧 SUI](https://ai-pavel.github.io/sui/) | Sui: addresses, keys, BCS, transactions, object IDs and signatures | 10 | [`sui/`](sui/) |
+| [⚛️ ATOM](https://ai-pavel.github.io/cosmos/) | Cosmos SDK chains: addresses across chains, IBC, keys, transactions and signatures | 0 of 11 ready | [`cosmos/`](cosmos/) |
+| [🟣 DOT](https://ai-pavel.github.io/polkadot/) | Polkadot and Substrate chains: SS58 addresses, SCALE, storage keys, keys and signatures | 0 of 12 ready | [`polkadot/`](polkadot/) |
 <!-- toolboxes:end -->
 
 Everything runs client-side in the browser: files and keys never leave the device.
