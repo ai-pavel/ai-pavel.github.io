@@ -6,6 +6,7 @@
   <title>Address</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%AC</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,133 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>📬 Address</h1>
-  <p class="lead">Encode a P2WPKH, P2WSH or P2TR script as an address.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Encode and decode Bitcoin addresses of every standard type: P2PKH, P2SH, P2WPKH, P2WSH and P2TR. Shows the scriptPubKey, the Bech32/Bech32m details (prefix, witness version, program) and points at a typo when it can.</p>
+
+  <div class="panel">
+    <div class="seg" id="mode">
+      <button data-mode="address" aria-pressed="true">Decode address</button>
+      <button data-mode="script" aria-pressed="false">scriptPubKey → address</button>
+      <button data-mode="parts" aria-pressed="false">Build from hash / program</button>
+    </div>
+    <div id="addressFields">
+      <div class="field"><span>Address</span><input id="address" class="mono" spellcheck="false" placeholder="bc1q… / bc1p… / 1… / 3…"></div>
+    </div>
+    <div id="scriptFields" hidden>
+      <div class="field"><span>scriptPubKey (hex)</span><textarea id="script" class="mono" rows="2" spellcheck="false" placeholder="0014… / 5120… / 76a914…88ac / a914…87"></textarea></div>
+    </div>
+    <div id="partsFields" hidden>
+      <div class="grid2">
+        <div class="field"><span>Type</span><select id="ptype">
+          <option value="p2wpkh">P2WPKH (v0, 20-byte key hash)</option><option value="p2wsh">P2WSH (v0, 32-byte script hash)</option>
+          <option value="p2tr">P2TR (v1, 32-byte output key)</option><option value="p2pkh">P2PKH (20-byte key hash)</option>
+          <option value="p2sh">P2SH (20-byte script hash)</option><option value="witness">Other witness version</option></select></div>
+        <div class="field" id="wverField" hidden><span>Witness version (0–16)</span><input id="wver" class="mono" value="2" inputmode="numeric"></div>
+      </div>
+      <div class="field"><span>Hash or witness program (hex)</span><input id="program" class="mono" spellcheck="false" placeholder="751e76e8199196d454941c45d1b3a323f1433bd6"></div>
+    </div>
+    <div class="field" id="netField" hidden><span>Network</span><select id="net"></select></div>
+    <p class="error" id="err" hidden></p>
+    <p class="status" id="status" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { hexToBytes, bytesToHex, classifyScript, scriptToAddress, addressToScript, NETWORKS, networkOptions, decompile, toAsm,
+  witnessScript, p2pkhScript, p2shScript, locateBech32Error, bech32, bech32m, base58, InputError, parseInteger } from '../lib/btc.js';
+import { $, renderRows, live, segmented, esc } from '../lib/ui.js';
+
+$('net').innerHTML = networkOptions('mainnet');
+let run;
+const mode = segmented($('mode'), () => {
+  for (const m of ['address', 'script', 'parts']) $(m + 'Fields').hidden = mode() !== m;
+  $('netField').hidden = mode() === 'address';
+  run();
+});
+$('ptype').addEventListener('input', () => { $('wverField').hidden = $('ptype').value !== 'witness'; });
+
+const asmOf = s => { try { return toAsm(decompile(s)); } catch (e) { return `(cannot decode: ${e.message})`; } };
+
+function scriptRows(script, net) {
+  const c = classifyScript(script);
+  const addr = scriptToAddress(script, net);
+  const segwit = c.program !== undefined;
+  return [
+    { label: 'Address', value: addr || 'No address: this script type has no standard address', copy: !!addr },
+    { label: 'Type', value: c.name, copy: false },
+    segwit && { label: 'Encoding', value: c.version === 0 ? 'Bech32 (BIP173, witness v0)' : 'Bech32m (BIP350, witness v1+)', copy: false },
+    segwit && { label: 'Human-readable part', value: net.hrp || '—', copy: false },
+    segwit && { label: 'Witness version', value: String(c.version), copy: false },
+    segwit && { label: 'Witness program', value: bytesToHex(c.program), note: `${c.program.length} bytes` },
+    c.hash && { label: c.type === 'p2pkh' ? 'Public key hash' : 'Script hash', value: bytesToHex(c.hash) },
+    c.hash && { label: 'Version byte', value: '0x' + (c.type === 'p2pkh' ? net.pkh : net.sh).toString(16).padStart(2, '0'), copy: false, note: 'Base58Check encoding' },
+    c.pubkey && { label: 'Public key', value: bytesToHex(c.pubkey) },
+    { label: 'scriptPubKey', value: bytesToHex(script) },
+    { label: 'ASM', value: asmOf(script) },
+  ];
+}
+
+function decodeAddress(s) {
+  try { return addressToScript(s); } catch (e) {
+    // Explain bech32 typos: try to locate a single wrong character.
+    if (/^[a-z]{1,10}1/i.test(s) && !/^[13mn2]/.test(s)) {
+      const fix = locateBech32Error(s);
+      if (fix) {
+        $('out').innerHTML = `<p class="small">Likely typo at position ${fix.index + 1}: “${esc(fix.char)}” should probably be “${esc(fix.fix)}”.</p>` +
+          `<div class="kv"><div class="k">Corrected</div><div class="v">${esc(fix.fixed)}</div><button class="icon-btn copy" data-copy="${esc(fix.fixed)}">Copy</button></div>`;
+      }
+      // A valid bech32 string that is not a valid segwit address: say why.
+      for (const [name, enc] of [['Bech32', bech32], ['Bech32m', bech32m]]) {
+        let d = null;
+        try { d = enc.decode(s.toLowerCase(), 90); } catch {}
+        if (!d) continue;
+        const known = Object.values(NETWORKS).some(n => n.hrp === d.prefix);
+        throw new InputError(`Valid ${name} checksum, but ` + (known ? `not a valid segwit address: ${e.message}` : `"${d.prefix}" is not a known Bitcoin, Litecoin or test network prefix`));
+      }
+    }
+    throw e;
+  }
+}
+
+run = live([$('address'), $('script'), $('net'), $('ptype'), $('program'), $('wver')], () => {
+  $('status').hidden = true;
+  $('out').innerHTML = '';
+  if (mode() === 'address') {
+    const s = $('address').value.trim();
+    if (!s) return;
+    const d = decodeAddress(s);
+    const c = classifyScript(d.script);
+    $('status').hidden = false; $('status').className = 'status ok';
+    $('status').textContent = `✓ Valid ${c.name.split(' (')[0]} address`;
+    renderRows($('out'), [
+      { label: 'Type', value: c.name, copy: false },
+      { label: 'Network', value: d.networks.join(', '), copy: false },
+      d.encoding && { label: 'Encoding', value: d.encoding === 'bech32' ? 'Bech32 (BIP173)' : 'Bech32m (BIP350)', copy: false },
+      d.hrp && { label: 'Human-readable part', value: d.hrp, copy: false },
+      d.program && { label: 'Witness version', value: String(d.version), copy: false },
+      d.program && { label: 'Witness program', value: bytesToHex(d.program), note: `${d.program.length} bytes` },
+      d.hash && { label: 'Version byte', value: '0x' + d.version.toString(16).padStart(2, '0'), copy: false, note: 'Base58Check encoding' },
+      d.hash && { label: d.kind === 'p2pkh' ? 'Public key hash' : 'Script hash', value: bytesToHex(d.hash) },
+      d.hash && { label: 'Raw Base58 bytes', value: bytesToHex(base58.decode(s)), note: 'Version ‖ hash ‖ 4-byte checksum' },
+      { label: 'scriptPubKey', value: bytesToHex(d.script) },
+      { label: 'ASM', value: asmOf(d.script) },
+    ]);
+  } else if (mode() === 'script') {
+    if (!$('script').value.trim()) return;
+    renderRows($('out'), scriptRows(hexToBytes($('script').value, 'Script'), NETWORKS[$('net').value]));
+  } else {
+    if (!$('program').value.trim()) return;
+    const prog = hexToBytes($('program').value, 'Hash / program'), t = $('ptype').value;
+    const need = { p2wpkh: 20, p2wsh: 32, p2tr: 32, p2pkh: 20, p2sh: 20 }[t];
+    if (need && prog.length !== need) throw new InputError(`${t.toUpperCase()} needs ${need} bytes; this is ${prog.length}`);
+    const script = t === 'p2pkh' ? p2pkhScript(prog) : t === 'p2sh' ? p2shScript(prog)
+      : witnessScript(t === 'p2tr' ? 1 : t === 'witness' ? Number(parseInteger($('wver').value, 'Witness version', { max: 16n })) : 0, prog);
+    renderRows($('out'), scriptRows(script, NETWORKS[$('net').value]));
+  }
+}, { errEl: $('err') });
+</script>
 </body>
 </html>

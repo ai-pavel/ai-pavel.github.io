@@ -11,16 +11,80 @@
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
   <script src="/assets/pwa.js" defer></script>
+  <!-- dev:head -->
+  <link rel="stylesheet" href="../lib/dev.css">
+  <!-- /dev:head -->
 </head>
 <body>
 <main>
   <a class="back" href="../">← Developer</a>
   <h1>🔄 Little Endian</h1>
   <p class="lead">Convert a number between big-endian and little-endian bytes.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- dev:body -->
+  <div class="panel">
+    <div class="seg" id="mode">
+      <button data-mode="num" aria-pressed="true">Number → bytes</button>
+      <button data-mode="bytes" aria-pressed="false">Bytes → number</button>
+    </div>
+    <div class="field">
+      <span id="inLabel">Number (decimal, or 0x / 0b / 0o prefix)</span>
+      <input id="in" class="mono" value="305419896" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="toolbar">
+      <label>Width <select id="bits">
+        <option value="8">8-bit</option><option value="16">16-bit</option><option value="32" selected>32-bit</option>
+        <option value="64">64-bit</option><option value="128">128-bit</option><option value="256">256-bit</option>
+      </select></label>
+      <label><input type="checkbox" id="signed"> Signed</label>
+      <label id="orderWrap" hidden>Input byte order <select id="order"><option value="le">Little-endian</option><option value="be">Big-endian</option></select></label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
+  <script type="module">
+import { $, renderRows, live, segmented, InputError } from '../lib/ui.js';
+import { parseInteger, twos, signedOf, rangeCheck, toBytesBE, fromBytesBE, hexBytes, parseHexBytes } from '../lib/num.js';
+
+const mode = segmented($('mode'), () => { setMode(); run(); });
+function setMode() {
+  const bytes = mode() === 'bytes';
+  $('inLabel').textContent = bytes ? 'Bytes in hex (e.g. 78 56 34 12)' : 'Number (decimal, or 0x / 0b / 0o prefix)';
+  $('orderWrap').hidden = !bytes;
+  if (bytes && !/^[0-9a-f\s:x]+$/i.test($('in').value)) $('in').value = '78 56 34 12';
+}
+const run = live([$('in'), $('bits'), $('signed'), $('order')], () => {
+  const bits = +$('bits').value, signed = $('signed').checked;
+  if (mode() === 'num') {
+    const v = parseInteger($('in').value);
+    rangeCheck(v, bits, signed || v < 0n);
+    const be = toBytesBE(twos(v, bits), bits);
+    const le = [...be].reverse();
+    renderRows($('out'), [
+      { label: 'Big-endian', value: hexBytes(be, ' '), note: 'Most significant byte first (network order)' },
+      { label: 'Little-endian', value: hexBytes(le, ' '), note: 'Least significant byte first (x86, Bitcoin, most CPUs)' },
+      { label: 'Big-endian hex', value: '0x' + hexBytes(be) },
+      { label: 'Little-endian hex', value: '0x' + hexBytes(le) },
+      { label: 'Little-endian array', value: '[' + le.join(', ') + ']' },
+    ]);
+  } else {
+    let bytes = parseHexBytes($('in').value);
+    if (bytes.length > bits / 8) throw new InputError(`${bytes.length} bytes don't fit in ${bits} bits. Choose a wider type.`);
+    const be = $('order').value === 'le' ? [...bytes].reverse() : bytes;
+    const u = fromBytesBE(be);
+    const shown = signed ? signedOf(u, bits) : u;
+    renderRows($('out'), [
+      { label: signed ? 'Signed value' : 'Unsigned value', value: shown.toString() },
+      { label: 'Hex (big-endian)', value: '0x' + u.toString(16).padStart(bits / 4, '0') },
+      { label: 'Reversed bytes', value: hexBytes([...bytes].reverse(), ' '), note: 'The same bytes in the other byte order' },
+      bytes.length < bits / 8 && { label: 'Note', value: `Padded ${bytes.length} byte(s) to ${bits / 8} with zero high bytes.`, copy: false },
+    ]);
+  }
+}, { errEl: $('err'), outEl: $('out') });
+  </script>
+  <!-- /dev:body -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

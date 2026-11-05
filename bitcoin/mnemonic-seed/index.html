@@ -6,6 +6,7 @@
   <title>Mnemonic Seed</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8C%B1</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,80 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>🌱 Mnemonic Seed</h1>
-  <p class="lead">Generate a BIP 39 mnemonic and seed.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Generate or check a BIP39 mnemonic, see the entropy and checksum behind it, and turn it into the 64-byte wallet seed.</p>
+
+  <div class="panel">
+    <p class="warning">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="row">
+      <select id="len"><option value="128">12 words (128 bits)</option><option value="160">15 words</option><option value="192">18 words</option><option value="224">21 words</option><option value="256">24 words (256 bits)</option></select>
+      <button class="primary" id="gen" type="button">Generate</button>
+    </div>
+    <div class="field" style="margin-top:14px"><span>Mnemonic</span><textarea id="mnemonic" class="mono" rows="3" spellcheck="false" placeholder="Type or paste words, or generate new ones"></textarea></div>
+    <div class="field"><span>Or entropy (hex, 16–32 bytes) → mnemonic</span><input id="entropy" class="mono" spellcheck="false" placeholder="00000000000000000000000000000000"></div>
+    <div class="field"><span>Passphrase (optional)</span><input id="passphrase" class="mono" spellcheck="false" autocomplete="off"></div>
+    <p class="error" id="err" hidden></p>
+    <p class="status" id="status" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { sha256, bytesToHex, hexToBytes, InputError } from '../lib/btc.js';
+import { bip39, wordlist, mnemonicProblem, normalizeMnemonic, HDKey } from '../lib/hd.js';
+import { $, renderRows, showError } from '../lib/ui.js';
+
+let token = 0;
+async function run() {
+  const my = ++token;
+  showError($('err'), null);
+  $('status').hidden = true;
+  try {
+    const words = normalizeMnemonic($('mnemonic').value);
+    if (!words) { $('out').innerHTML = ''; return; }
+    const problem = mnemonicProblem(words);
+    $('status').hidden = false;
+    $('status').className = 'status ' + (problem ? 'bad' : 'ok');
+    $('status').textContent = problem ? `✗ ${problem}` : `✓ Valid ${words.split(' ').length}-word BIP39 mnemonic`;
+    if (problem) { $('out').innerHTML = ''; return; }
+    const entropy = bip39.mnemonicToEntropy(words, wordlist);
+    const bits = entropy.length * 8, csBits = bits / 32;
+    const cs = (sha256(entropy)[0] >> (8 - csBits)).toString(2).padStart(csBits, '0');
+    const seed = await bip39.mnemonicToSeed(words, $('passphrase').value.normalize('NFKD'));
+    if (my !== token) return;
+    const root = HDKey.fromMasterSeed(seed);
+    const list = words.split(' ').map((w, i) => `${i + 1}. ${w} (${wordlist.indexOf(w)})`).join('\n');
+    renderRows($('out'), [
+      { label: 'Entropy', value: bytesToHex(entropy), note: `${bits} bits` },
+      { label: 'Checksum bits', value: cs, copy: false, note: `First ${csBits} bits of SHA-256(entropy)` },
+      { label: 'Seed (BIP39)', value: bytesToHex(seed), note: $('passphrase').value ? 'With the passphrase' : 'No passphrase' },
+      { label: 'BIP32 root key', value: root.privateExtendedKey },
+      { label: 'Words (index)', value: list, copy: false },
+    ]);
+  } catch (e) {
+    if (my !== token) return;
+    $('out').innerHTML = '';
+    showError($('err'), e);
+  }
+}
+
+$('gen').onclick = () => { $('mnemonic').value = bip39.generateMnemonic(wordlist, Number($('len').value)); $('entropy').value = ''; run(); };
+$('entropy').addEventListener('input', () => {
+  showError($('err'), null);
+  const v = $('entropy').value.trim();
+  if (!v) return;
+  try {
+    const e = hexToBytes(v, 'Entropy');
+    if (![16, 20, 24, 28, 32].includes(e.length)) throw new InputError('Entropy must be 16, 20, 24, 28 or 32 bytes');
+    $('mnemonic').value = bip39.entropyToMnemonic(e, wordlist);
+    run();
+  } catch (e) { showError($('err'), e); }
+});
+$('mnemonic').addEventListener('input', run);
+$('passphrase').addEventListener('input', run);
+run();
+</script>
 </body>
 </html>

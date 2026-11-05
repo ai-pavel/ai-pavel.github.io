@@ -6,6 +6,7 @@
   <title>Merkle Root</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8C%B3</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,57 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>🌳 Merkle Root</h1>
-  <p class="lead">Compute the merkle root of a list of TXIDs.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Compute a block's merkle root from its transaction IDs, level by level. An odd item at the end of a level is paired with itself.</p>
+
+  <div class="panel">
+    <div class="field"><span>TXIDs, one per line (as shown by explorers)</span><textarea id="ids" class="mono" rows="6" spellcheck="false"></textarea></div>
+    <div class="row small">
+      <label class="inline-check"><input type="checkbox" id="internal"> IDs are in internal byte order</label>
+      <button type="button" id="sample">Block 100,000 (4 transactions)</button>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+    <div id="levels"></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { hexToBytes, bytesToHex, reverse, hash256, concat, InputError } from '../lib/btc.js';
+import { $, renderRows, live, esc } from '../lib/ui.js';
+
+const SAMPLE = ['8c14f0db3df150123e6f3dbbf30f8b955a8249b62ac1d1ff16284aefa3d06d87', 'fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4',
+  '6359f0868171b1d194cbee1af2f16ea598ae8fad666d9b012c8ed2b79a236ec4', 'e9a66845e05d5abc0ad04ec80f774a7e585c6e8db975962d069a522137b80c1d'];
+
+const run = live([$('ids'), $('internal')], () => {
+  $('levels').innerHTML = '';
+  const lines = $('ids').value.split(/[\s,]+/).filter(Boolean);
+  if (!lines.length) { $('out').innerHTML = ''; return; }
+  const internal = $('internal').checked;
+  let level = lines.map((l, i) => {
+    const b = hexToBytes(l, `TXID ${i + 1}`);
+    if (b.length !== 32) throw new InputError(`TXID ${i + 1} is ${b.length} bytes; TXIDs are 32 bytes`);
+    return internal ? b : reverse(b);
+  });
+  const levels = [level];
+  while (level.length > 1) {
+    const next = [];
+    for (let i = 0; i < level.length; i += 2) next.push(hash256(concat(level[i], level[i + 1] || level[i])));
+    level = next;
+    levels.push(level);
+  }
+  const root = level[0];
+  renderRows($('out'), [
+    { label: 'Merkle root', value: bytesToHex(reverse(root)), note: 'Display byte order' },
+    { label: 'As stored in the header', value: bytesToHex(root), note: 'Internal byte order' },
+    { label: 'Levels', value: String(levels.length), copy: false },
+  ]);
+  $('levels').innerHTML = levels.map((lv, d) => `<h2 class="small">Level ${d}${d === 0 ? ' (TXIDs)' : d === levels.length - 1 ? ' (root)' : ''}</h2>` +
+    `<div class="hexview">${lv.map((h, i) => `${i}: ${esc(bytesToHex(reverse(h)))}${i === lv.length - 1 && lv.length % 2 && lv.length > 1 ? ' (paired with itself)' : ''}`).join('<br>')}</div>`).join('');
+}, { errEl: $('err'), outEl: $('out') });
+$('sample').onclick = () => { $('ids').value = SAMPLE.join('\n'); $('internal').checked = false; run(); };
+</script>
 </body>
 </html>

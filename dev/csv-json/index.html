@@ -11,16 +11,133 @@
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
   <script src="/assets/pwa.js" defer></script>
+  <!-- dev:head -->
+  <link rel="stylesheet" href="../lib/dev.css">
+  <style>.preview { max-height: 320px; overflow: auto; margin-top: 12px; } .preview table.data td { white-space: nowrap; }</style>
+  <!-- /dev:head -->
 </head>
 <body>
 <main>
   <a class="back" href="../">← Developer</a>
   <h1>📊 CSV ↔ JSON</h1>
   <p class="lead">Convert between CSV and JSON.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- dev:body -->
+  <div class="panel">
+    <div class="seg" id="mode">
+      <button data-mode="c2j" aria-pressed="true">CSV → JSON</button>
+      <button data-mode="j2c" aria-pressed="false">JSON → CSV</button>
+    </div>
+    <div class="field"><span id="inLabel">CSV</span><textarea id="in" class="mono" rows="9" spellcheck="false">name,age,city,notes
+Alice,30,Lisbon,"Likes ""quotes"", commas"
+Bob,25,Porto,
+"Carol Ann",41,"New
+York",multi-line cell</textarea></div>
+    <div class="toolbar">
+      <label>Delimiter <select id="delim"><option value="auto">Auto-detect</option><option value=",">Comma</option><option value=";">Semicolon</option><option value="&#9;">Tab</option><option value="|">Pipe</option></select></label>
+      <label id="hdrWrap"><input type="checkbox" id="header" checked> First row is a header</label>
+      <label id="typesWrap"><input type="checkbox" id="types" checked> Convert numbers, true/false, empty → null</label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <p class="muted" id="note"></p>
+    <div class="field"><span id="outLabel">JSON</span><textarea id="out" class="mono" rows="10" readonly></textarea></div>
+    <div class="row"><button data-copy-from="out">Copy</button><button id="dl">Download</button></div>
+    <div class="preview scroll" id="preview"></div>
+  </div>
+  <script type="module">
+import { $, live, segmented, esc, InputError } from '../lib/ui.js';
+import { parseJson } from '../lib/json.js';
+
+/** RFC 4180 CSV parser: quoted fields, doubled quotes, CR/LF line breaks inside quotes. */
+function parseCsv(text, d) {
+  const rows = []; let row = [], field = '', q = false, i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i += 2; continue; } q = false; i++; continue; }
+      field += c; i++; continue;
+    }
+    if (c === '"' && field === '') { q = true; i++; continue; }
+    if (c === d) { row.push(field); field = ''; i++; continue; }
+    if (c === '\r' || c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i += c === '\r' && text[i + 1] === '\n' ? 2 : 1; continue; }
+    field += c; i++;
+  }
+  if (q) throw new InputError('A quoted field is never closed (missing ").');
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+function detect(text) {
+  const sample = text.split(/\r?\n/).slice(0, 10).join('\n');
+  let best = ',', score = -1;
+  for (const d of [',', ';', '\t', '|']) {
+    const counts = parseCsv(sample, d).slice(0, 5).map(r => r.length);
+    const s = counts.length && counts.every(c => c === counts[0]) ? counts[0] : 0;
+    if (s > score) { score = s; best = d; }
+  }
+  return best;
+}
+const NAMES = { ',': 'comma', ';': 'semicolon', '\t': 'tab', '|': 'pipe' };
+function typed(s) {
+  if (s === '') return null;
+  if (s === 'true' || s === 'false') return s === 'true';
+  if (/^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?$/.test(s) && Number.isFinite(+s) && (!/^-?\d+$/.test(s) || Number.isSafeInteger(+s))) return +s;
+  return s;
+}
+const quote = (v, d) => { const s = v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /["\r\n]/.test(s) || s.includes(d) ? `"${s.replace(/"/g, '""')}"` : s; };
+
+const mode = segmented($('mode'), () => {
+  const c2j = mode() === 'c2j';
+  $('inLabel').textContent = c2j ? 'CSV' : 'JSON (array of objects or arrays)'; $('outLabel').textContent = c2j ? 'JSON' : 'CSV';
+  $('typesWrap').hidden = !c2j; $('hdrWrap').hidden = !c2j;
+  if (!c2j && !$('in').value.trim().startsWith('[')) $('in').value = JSON.stringify([{ name: 'Alice', age: 30, city: 'Lisbon' }, { name: 'Bob', age: 25, city: 'Porto', tags: ['a', 'b'] }], null, 2);
+  run();
+});
+function table(rows, header) {
+  const body = rows.slice(0, 50);
+  $('preview').innerHTML = `<table class="data">${header ? `<tr>${header.map(h => `<th>${esc(h)}</th>`).join('')}</tr>` : ''}${body.map(r => `<tr>${r.map(c => `<td>${esc(c ?? '')}</td>`).join('')}</tr>`).join('')}</table>`;
+}
+const run = live([$('in'), $('delim'), $('header'), $('types')], () => {
+  $('out').value = ''; $('preview').innerHTML = ''; $('note').textContent = '';
+  if (mode() === 'c2j') {
+    const text = $('in').value;
+    if (!text.trim()) throw new InputError('Paste some CSV.');
+    const d = $('delim').value === 'auto' ? detect(text) : $('delim').value;
+    const rows = parseCsv(text, d);
+    const conv = $('types').checked ? typed : s => s;
+    let json;
+    if ($('header').checked) {
+      const [hdr, ...data] = rows;
+      const keys = hdr.map((h, i) => h || `column${i + 1}`);
+      json = data.map(r => Object.fromEntries(keys.map((k, i) => [k, conv(r[i] ?? '')])));
+      table(data, keys);
+    } else { json = rows.map(r => r.map(conv)); table(rows); }
+    $('out').value = JSON.stringify(json, null, 2);
+    $('note').textContent = `${json.length} row${json.length === 1 ? '' : 's'} · delimiter: ${NAMES[d]}`;
+  } else {
+    const v = parseJson($('in').value);
+    if (!Array.isArray(v)) throw new InputError('JSON → CSV needs an array, e.g. [{"a": 1}, {"a": 2}].');
+    const d = $('delim').value === 'auto' ? ',' : $('delim').value;
+    let rows, header = null;
+    if (v.every(x => Array.isArray(x))) rows = v;
+    else {
+      if (!v.every(x => x && typeof x === 'object' && !Array.isArray(x))) throw new InputError('Every item must be an object (or every item an array).');
+      header = [...new Set(v.flatMap(Object.keys))];
+      rows = v.map(o => header.map(k => o[k]));
+    }
+    $('out').value = (header ? [header, ...rows] : rows).map(r => r.map(c => quote(c, d)).join(d)).join('\n');
+    table(rows.map(r => r.map(c => c === null || c === undefined ? '' : typeof c === 'object' ? JSON.stringify(c) : String(c))), header);
+  }
+}, { errEl: $('err') });
+$('dl').onclick = () => {
+  const csv = mode() === 'j2c';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([$('out').value], { type: csv ? 'text/csv' : 'application/json' }));
+  a.download = csv ? 'data.csv' : 'data.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+  </script>
+  <!-- /dev:body -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

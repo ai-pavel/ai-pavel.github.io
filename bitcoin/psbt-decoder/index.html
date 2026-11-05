@@ -6,6 +6,7 @@
   <title>PSBT Decoder</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%A6</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,56 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>📦 PSBT Decoder</h1>
-  <p class="lead">Decode a partially signed transaction.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Decode a partially signed Bitcoin transaction (PSBT v0 or v2) into its global, input and output maps, with known fields explained and the fee when input amounts are present.</p>
+
+  <div class="panel">
+    <div class="field"><span>PSBT (base64 or hex)</span><textarea id="psbt" class="mono" rows="6" spellcheck="false" placeholder="cHNidP8B…"></textarea></div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+    <div id="maps"></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { bytesToHex, formatSats } from '../lib/btc.js';
+import { decodePsbtInput, decodePsbt, describe, inputAmount, outputAmount } from '../lib/psbt.js';
+import { $, renderRows, live, esc } from '../lib/ui.js';
+
+function table(title, scope, entries, ctx) {
+  const rows = entries.map(e => {
+    const d = describe(scope, e, ctx);
+    return `<tr><td>${esc(e.name)}<div class="small muted">0x${e.type.toString(16).padStart(2, '0')}</div></td>` +
+      `<td class="hexcell" style="white-space:pre-wrap">${d !== null ? esc(d) : `${e.keyData.length ? 'Key data ' + esc(bytesToHex(e.keyData)) + '\n' : ''}${esc(bytesToHex(e.value))}`}</td></tr>`;
+  }).join('');
+  return `<h2>${esc(title)}</h2><div class="table-wrap"><table class="fields">${rows || '<tr><td>(empty)</td></tr>'}</table></div>`;
+}
+
+live([$('psbt')], () => {
+  $('maps').innerHTML = '';
+  const bytes = decodePsbtInput($('psbt').value);
+  if (!bytes) { $('out').innerHTML = ''; return; }
+  const p = decodePsbt(bytes);
+  const nIn = p.inputs.length, nOut = p.outputs.length;
+  const ins = p.inputs.map((_, i) => inputAmount(p, i)), outs = p.outputs.map((_, i) => outputAmount(p, i));
+  const known = ins.every(a => a !== null) && outs.every(a => a !== null);
+  const fee = known ? ins.reduce((a, b) => a + b, 0n) - outs.reduce((a, b) => a + b, 0n) : null;
+  const signed = p.inputs.filter(m => m.some(e => [0x02, 0x07, 0x08, 0x13, 0x14].includes(e.type))).length;
+  renderRows($('out'), [
+    { label: 'PSBT version', value: String(p.version), copy: false },
+    p.tx && { label: 'Unsigned TXID', value: p.tx.txid },
+    { label: 'Inputs / outputs', value: `${nIn} / ${nOut}`, copy: false },
+    { label: 'Inputs with signatures', value: `${signed} of ${nIn}`, copy: false },
+    { label: 'Fee', value: fee === null ? 'Unknown: not every input carries its UTXO' : formatSats(fee), copy: false,
+      note: fee !== null && p.tx ? `≈ ${(Number(fee) / p.tx.vsize).toFixed(2)} sat/vB on the unsigned size (the final size is larger)` : '' },
+  ]);
+  const html = [table('Global', 'global', p.global, { tx: p.tx })];
+  p.inputs.forEach((m, i) => html.push(table(`Input ${i}${p.tx ? ` · ${p.tx.inputs[i].txid}:${p.tx.inputs[i].vout}` : ''}`, 'input', m, { vout: p.tx ? p.tx.inputs[i].vout : undefined })));
+  p.outputs.forEach((m, i) => html.push(table(`Output ${i}${outs[i] !== null ? ' · ' + formatSats(outs[i]) : ''}`, 'output', m, {})));
+  $('maps').innerHTML = html.join('');
+}, { errEl: $('err'), outEl: $('out') });
+</script>
 </body>
 </html>

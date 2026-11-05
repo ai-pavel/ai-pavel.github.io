@@ -11,16 +11,63 @@
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
   <script src="/assets/pwa.js" defer></script>
+  <!-- dev:head -->
+  <link rel="stylesheet" href="../lib/dev.css">
+  <style>
+    .tree .v-string { color: #2b8a3e; } .tree .v-number { color: #1c7ed6; } .tree .v-boolean, .tree .v-null { color: #c2255c; }
+    @media (prefers-color-scheme: dark) { .tree .v-string { color: #8ce99a; } .tree .v-number { color: #74c0fc; } .tree .v-boolean, .tree .v-null { color: #faa2c1; } }
+    .error { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  </style>
+  <!-- /dev:head -->
 </head>
 <body>
 <main>
   <a class="back" href="../">← Developer</a>
   <h1>🧾 JSON Formatter</h1>
   <p class="lead">Format, minify and validate JSON.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- dev:body -->
+  <div class="panel">
+    <div class="field"><span>JSON</span><textarea id="in" class="mono" rows="10" spellcheck="false">{"name":"Alice","age":30,"tags":["admin","dev"],"address":{"city":"Lisbon","zip":"1000-001"},"active":true,"score":null}</textarea></div>
+    <div class="toolbar">
+      <div class="seg" id="view" style="margin:0"><button data-mode="pretty" aria-pressed="true">Formatted</button><button data-mode="tree" aria-pressed="false">Tree</button></div>
+      <label>Indent <select id="indent"><option value="2">2 spaces</option><option value="4">4 spaces</option><option value="tab">Tab</option><option value="0">Minified</option></select></label>
+      <label><input type="checkbox" id="sort"> Sort keys</label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <p class="status warn" id="warn" hidden></p>
+    <div id="out" hidden>
+      <p class="status ok" id="valid"></p>
+      <textarea id="pretty" class="mono" rows="14" readonly></textarea>
+      <div class="tree" id="tree" hidden></div>
+      <div class="row" style="margin-top:6px"><button data-copy-from="pretty">Copy</button><button id="useIt">Replace input with result</button></div>
+    </div>
+  </div>
+  <script type="module">
+import { $, live, segmented } from '../lib/ui.js';
+import { parseJson, sortKeys, treeHtml, unsafeNumbers } from '../lib/json.js';
+
+const view = segmented($('view'), () => run());
+const run = live([$('in'), $('indent'), $('sort')], () => {
+  $('out').hidden = true; $('warn').hidden = true;
+  let v = parseJson($('in').value);
+  if ($('sort').checked) v = sortKeys(v);
+  const ind = $('indent').value;
+  const text = JSON.stringify(v, null, ind === 'tab' ? '\t' : +ind);
+  $('pretty').value = text;
+  const bad = unsafeNumbers($('in').value);
+  if (bad.length) { $('warn').hidden = false; $('warn').textContent = `Precision warning: ${bad.join(', ')} can't be represented exactly as a JavaScript number and changes when reformatted.`; }
+  $('valid').textContent = `Valid JSON · ${new Blob([text]).size} bytes formatted (${new Blob([$('in').value]).size} in input)`;
+  const tree = view() === 'tree';
+  $('pretty').hidden = tree; $('tree').hidden = !tree;
+  if (tree) $('tree').innerHTML = treeHtml(v);
+  $('out').hidden = false;
+}, { errEl: $('err') });
+$('useIt').onclick = () => { $('in').value = $('pretty').value; run(); };
+  </script>
+  <!-- /dev:body -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

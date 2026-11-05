@@ -6,6 +6,7 @@
   <title>WIF Private Key</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%97%9D%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,54 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>🗝️ WIF Private Key</h1>
-  <p class="lead">Convert a private key to and from WIF.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Convert a private key between raw hex and Wallet Import Format (WIF), and see its public key and addresses.</p>
+
+  <div class="panel">
+    <p class="warning">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="field"><span>Private key (64 hex characters) or WIF</span>
+      <div class="row"><input id="key" class="mono" spellcheck="false" autocomplete="off" style="flex:1"><button id="random" type="button">Random key</button></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><span>Network (for hex input)</span><select id="net"></select></div>
+      <label class="field inline-check"><input type="checkbox" id="compressed" checked> Compressed public key</label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { InputError, secp256k1, bytesToHex, parsePrivateKeyHex, decodeWif, encodeWif, NETWORKS, networkOptions, addressesForPubkey } from '../lib/btc.js';
+import { $, renderRows, live } from '../lib/ui.js';
+
+$('net').innerHTML = networkOptions('mainnet');
+const run = live([$('key'), $('net'), $('compressed')], () => {
+  const v = $('key').value.trim();
+  if (!v) { $('out').innerHTML = ''; return; }
+  let priv, compressed, netKey, fromWif = false;
+  if (/^(0x)?[0-9a-f]{64}$/i.test(v)) {
+    priv = parsePrivateKeyHex(v); compressed = $('compressed').checked; netKey = $('net').value;
+  } else {
+    const d = decodeWif(v);
+    priv = d.priv; compressed = d.compressed; fromWif = true;
+    netKey = d.networks.includes($('net').value) ? $('net').value : d.networks[0];
+    if (!netKey) throw new InputError(`Unknown WIF version byte 0x${d.version.toString(16)}`);
+  }
+  const net = NETWORKS[netKey];
+  const pub = secp256k1.getPublicKey(priv, compressed);
+  renderRows($('out'), [
+    { label: 'Private key (hex)', value: bytesToHex(priv) },
+    { label: 'WIF', value: encodeWif(priv, net, compressed), note: `${net.label}, ${compressed ? 'compressed' : 'uncompressed'}${fromWif ? ' (read from the WIF)' : ''}` },
+    { label: `WIF (${compressed ? 'uncompressed' : 'compressed'})`, value: encodeWif(priv, net, !compressed), note: 'The same key flagged for the other public key format' },
+    { label: 'Public key', value: bytesToHex(pub) },
+    ...addressesForPubkey(pub, net).map(a => ({ label: a.type, value: a.address })),
+  ]);
+}, { errEl: $('err'), outEl: $('out') });
+
+$('random').onclick = () => { $('key').value = bytesToHex(secp256k1.utils.randomPrivateKey()); run(); };
+</script>
 </body>
 </html>

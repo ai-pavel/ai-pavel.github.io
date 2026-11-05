@@ -11,16 +11,129 @@
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
   <script src="/assets/pwa.js" defer></script>
+  <!-- dev:head -->
+  <link rel="stylesheet" href="../lib/dev.css">
+  <style>
+    .diff { font: 13px/1.55 ui-monospace, Menlo, monospace; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .diff .ln { display: grid; grid-template-columns: 3.2em minmax(0, 1fr); }
+    .diff.split .ln { grid-template-columns: 3.2em minmax(0, 1fr) 3.2em minmax(0, 1fr); }
+    .diff .no { color: var(--muted); text-align: right; padding: 0 6px; user-select: none; border-right: 1px solid var(--border); }
+    .diff .tx { white-space: pre-wrap; word-break: break-word; padding: 0 8px; min-width: 0; }
+    .diff .del { background: color-mix(in srgb, var(--bad) 13%, transparent); }
+    .diff .ins { background: color-mix(in srgb, var(--ok) 13%, transparent); }
+    .diff del { background: color-mix(in srgb, var(--bad) 35%, transparent); text-decoration: none; border-radius: 2px; }
+    .diff ins { background: color-mix(in srgb, var(--ok) 35%, transparent); text-decoration: none; border-radius: 2px; }
+    .diff .empty { background: color-mix(in srgb, var(--border) 40%, transparent); }
+    .diff .gap { color: var(--muted); padding: 2px 8px; background: var(--bg); grid-column: 1 / -1; font-size: 12px; }
+    @media (max-width: 640px) { .diff.split .ln { grid-template-columns: 2.4em minmax(0, 1fr) 2.4em minmax(0, 1fr); } .diff .no { padding: 0 3px; } }
+  </style>
+  <!-- /dev:head -->
 </head>
 <body>
 <main>
   <a class="back" href="../">← Developer</a>
   <h1>📑 Text Diff</h1>
   <p class="lead">Compare two texts line by line.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- dev:body -->
+  <div class="panel">
+    <div class="grid2">
+      <div class="field"><span>Original</span><textarea id="a" class="mono" rows="9" spellcheck="false">The quick brown fox
+jumps over the lazy dog.
+Line three stays.
+This line will be removed.
+Pack my box with five dozen liquor jugs.</textarea></div>
+      <div class="field"><span>Changed</span><textarea id="b" class="mono" rows="9" spellcheck="false">The quick brown fox
+leaps over the lazy cat.
+Line three stays.
+Pack my box with five dozen liquor jugs.
+A new last line.</textarea></div>
+    </div>
+    <div class="toolbar">
+      <div class="seg" id="view" style="margin:0"><button data-mode="split" aria-pressed="true">Side by side</button><button data-mode="inline" aria-pressed="false">Inline</button></div>
+      <label><input type="checkbox" id="ws"> Ignore whitespace</label>
+      <label><input type="checkbox" id="case"> Ignore case</label>
+      <label><input type="checkbox" id="ctx" checked> Collapse unchanged lines</label>
+    </div>
+    <p class="status" id="stats"></p>
+    <div class="diff" id="out"></div>
+  </div>
+  <script type="module">
+import { $, esc, segmented } from '../lib/ui.js';
+import { diff, tokens } from '../lib/diff.js';
+
+const view = segmented($('view'), run);
+const norm = s => { if ($('ws').checked) s = s.replace(/\s+/g, ' ').trim(); if ($('case').checked) s = s.toLowerCase(); return s; };
+
+/** Word-level highlight of a changed line pair. */
+function wordDiff(x, y) {
+  const A = tokens(x), B = tokens(y);
+  if (A.length * B.length > 250000) return [esc(x), esc(y)];
+  const ops = diff(A, B, t => $('case').checked ? t.toLowerCase() : t);
+  let l = '', r = '';
+  for (const o of ops) {
+    if (o.op === 'equal') { l += esc(A[o.a]); r += esc(B[o.b]); }
+    else if (o.op === 'del') l += `<del>${esc(A[o.a])}</del>`;
+    else r += `<ins>${esc(B[o.b])}</ins>`;
+  }
+  return [l, r];
+}
+function run() {
+  const A = $('a').value.split('\n'), B = $('b').value.split('\n');
+  const ops = diff(A, B, norm);
+  // Group into blocks of equal lines and change hunks (deletes then inserts).
+  const blocks = [];
+  for (const o of ops) {
+    const kind = o.op === 'equal' ? 'eq' : 'ch';
+    let blk = blocks[blocks.length - 1];
+    if (!blk || blk.kind !== kind) blocks.push(blk = { kind, eq: [], del: [], ins: [] });
+    if (o.op === 'equal') blk.eq.push(o); else if (o.op === 'del') blk.del.push(o.a); else blk.ins.push(o.b);
+  }
+  const added = ops.filter(o => o.op === 'ins').length, removed = ops.filter(o => o.op === 'del').length;
+  $('stats').className = 'status ' + (added || removed ? '' : 'ok');
+  $('stats').textContent = added || removed ? `+${added} line${added === 1 ? '' : 's'} added, −${removed} removed` : 'No differences.';
+  const split = view() === 'split';
+  $('out').className = 'diff' + (split ? ' split' : '');
+  const row = (cells) => `<div class="ln">${cells}</div>`;
+  const cell = (no, html, cls) => `<div class="no ${cls}">${no ?? ''}</div><div class="tx ${cls}">${html}</div>`;
+  let html = '';
+  blocks.forEach((blk, bi) => {
+    if (blk.kind === 'eq') {
+      let eqs = blk.eq;
+      const CTX = 3;
+      if ($('ctx').checked && eqs.length > CTX * 2 + 1) {
+        const head = bi === 0 ? [] : eqs.slice(0, CTX), tail = bi === blocks.length - 1 ? [] : eqs.slice(-CTX);
+        const hidden = eqs.length - head.length - tail.length;
+        const r = o => split ? row(cell(o.a + 1, esc(A[o.a]), '') + cell(o.b + 1, esc(B[o.b]), '')) : row(cell(o.b + 1, '&nbsp; ' + esc(B[o.b]), ''));
+        html += head.map(r).join('') + `<div class="ln"><div class="gap">⋯ ${hidden} unchanged line${hidden === 1 ? '' : 's'}</div></div>` + tail.map(r).join('');
+        return;
+      }
+      for (const o of eqs) html += split ? row(cell(o.a + 1, esc(A[o.a]), '') + cell(o.b + 1, esc(B[o.b]), '')) : row(cell(o.b + 1, '&nbsp; ' + esc(B[o.b]), ''));
+      return;
+    }
+    const n = Math.max(blk.del.length, blk.ins.length);
+    if (split) {
+      for (let i = 0; i < n; i++) {
+        const ai = blk.del[i], bi2 = blk.ins[i];
+        let [l, r] = [ai !== undefined ? esc(A[ai]) : '', bi2 !== undefined ? esc(B[bi2]) : ''];
+        if (ai !== undefined && bi2 !== undefined) [l, r] = wordDiff(A[ai], B[bi2]);
+        html += row(cell(ai !== undefined ? ai + 1 : '', l, ai !== undefined ? 'del' : 'empty') + cell(bi2 !== undefined ? bi2 + 1 : '', r, bi2 !== undefined ? 'ins' : 'empty'));
+      }
+    } else {
+      const pairs = Math.min(blk.del.length, blk.ins.length);
+      const words = Array.from({ length: pairs }, (_, i) => wordDiff(A[blk.del[i]], B[blk.ins[i]]));
+      blk.del.forEach((ai, i) => { html += row(cell(ai + 1, '− ' + (i < pairs ? words[i][0] : esc(A[ai])), 'del')); });
+      blk.ins.forEach((bi2, i) => { html += row(cell(bi2 + 1, '+ ' + (i < pairs ? words[i][1] : esc(B[bi2])), 'ins')); });
+    }
+  });
+  $('out').innerHTML = html;
+}
+for (const id of ['a', 'b', 'ws', 'case', 'ctx']) $(id).addEventListener('input', run);
+run();
+  </script>
+  <!-- /dev:body -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

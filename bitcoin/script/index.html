@@ -6,6 +6,7 @@
   <title>Script</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%9C</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,66 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>📜 Script</h1>
-  <p class="lead">Decode and encode a script.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Convert Bitcoin Script between hex and ASM, and recognise standard templates (P2PKH, P2SH, P2WPKH, P2WSH, P2TR, multisig, OP_RETURN).</p>
+
+  <div class="panel">
+    <div class="field"><span>Hex</span><textarea id="hex" class="mono" rows="3" spellcheck="false" placeholder="76a914…88ac"></textarea></div>
+    <div class="field"><span>ASM (opcodes, decimal numbers, hex data)</span><textarea id="asm" class="mono" rows="3" spellcheck="false" placeholder="OP_DUP OP_HASH160 89abcdef… OP_EQUALVERIFY OP_CHECKSIG"></textarea></div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+    <div class="table-wrap"><table class="fields" id="ops"></table></div>
+    <details style="margin-top:16px"><summary>Opcode reference</summary><div class="table-wrap"><table class="fields" id="ref"></table></div></details>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { hexToBytes, bytesToHex, decompile, toAsm, fromAsm, classifyScript, scriptToAddress, NETWORKS, sha256, hash160, base58check, concat, encodeSegwit, OPCODES } from '../lib/btc.js';
+import { $, renderRows, showError, esc } from '../lib/ui.js';
+
+$('ref').innerHTML = '<tr><th>Hex</th><th>Name</th></tr>' +
+  [[0x01, 'PUSH 1–75 bytes (0x01–0x4b)'], ...Object.entries(OPCODES).map(([c, n]) => [Number(c), n])].sort((a, b) => a[0] - b[0])
+    .map(([c, n]) => `<tr><td class="range">0x${c.toString(16).padStart(2, '0')}</td><td class="hexcell">${esc(n)}</td></tr>`).join('');
+
+function show(script) {
+  const ops = decompile(script);
+  const c = classifyScript(script), net = NETWORKS.mainnet;
+  let addr = null; try { addr = scriptToAddress(script, net); } catch {}
+  renderRows($('out'), [
+    { label: 'Template', value: c.name, copy: false },
+    addr && { label: 'Address (mainnet)', value: addr },
+    c.type === 'nulldata' && c.data && { label: 'OP_RETURN data', value: bytesToHex(c.data), note: (() => { try { return 'As text: ' + new TextDecoder('utf-8', { fatal: true }).decode(c.data); } catch { return ''; } })() },
+    c.type === 'multisig' && { label: 'Keys', value: c.keys.map(bytesToHex).join('\n') },
+    !addr && c.type !== 'nulldata' && script.length && { label: 'As P2SH redeem script', value: base58check.encode(concat(Uint8Array.of(0x05), hash160(script))) },
+    !addr && c.type !== 'nulldata' && script.length && { label: 'As P2WSH witness script', value: encodeSegwit('bc', 0, sha256(script)) },
+    { label: 'Size', value: `${script.length} bytes, ${ops.length} ops`, copy: false },
+  ]);
+  $('ops').innerHTML = '<tr><th>Bytes</th><th>Op</th><th>Data</th></tr>' + ops.map(o =>
+    `<tr><td class="range">${o.start}${o.end - o.start > 1 ? '–' + (o.end - 1) : ''}</td><td>${esc(o.name)}</td><td class="hexcell">${o.data ? esc(bytesToHex(o.data)) + ` <span class="muted">(${o.data.length} bytes)</span>` : ''}</td></tr>`).join('');
+}
+
+function clear(e) { $('out').innerHTML = ''; $('ops').innerHTML = ''; showError($('err'), e); }
+
+$('hex').addEventListener('input', () => {
+  showError($('err'), null);
+  try {
+    if (!$('hex').value.trim()) { $('asm').value = ''; return clear(null); }
+    const script = hexToBytes($('hex').value, 'Script');
+    $('asm').value = toAsm(decompile(script));
+    show(script);
+  } catch (e) { clear(e); }
+});
+$('asm').addEventListener('input', () => {
+  showError($('err'), null);
+  try {
+    if (!$('asm').value.trim()) { $('hex').value = ''; return clear(null); }
+    const script = fromAsm($('asm').value);
+    $('hex').value = bytesToHex(script);
+    show(script);
+  } catch (e) { clear(e); }
+});
+</script>
 </body>
 </html>

@@ -11,16 +11,87 @@
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
   <script src="/assets/pwa.js" defer></script>
+  <!-- dev:head -->
+  <link rel="stylesheet" href="../lib/dev.css">
+  <style>
+    .bitgrid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; margin: 12px 0; }
+    .bitgrid .byte-label { grid-column: 1 / -1; font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .bitgrid button { padding: 6px 0; font: 600 16px ui-monospace, Menlo, monospace; display: flex; flex-direction: column; align-items: center; }
+    .bitgrid button small { font-size: 10px; font-weight: 400; color: var(--muted); }
+    .bitgrid button.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    .bitgrid button.on small { color: inherit; opacity: .8; }
+  </style>
+  <!-- /dev:head -->
 </head>
 <body>
 <main>
   <a class="back" href="../">← Developer</a>
   <h1>💡 Bit</h1>
   <p class="lead">Flip bits in an interactive editor.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- dev:body -->
+  <div class="panel">
+    <div class="toolbar">
+      <label>Width <select id="bits"><option value="8">8-bit</option><option value="16">16-bit</option><option value="32" selected>32-bit</option><option value="64">64-bit</option></select></label>
+      <label><input type="checkbox" id="signed"> Signed</label>
+    </div>
+    <div class="field"><span>Value (decimal, 0x, 0b, 0o)</span><input id="in" class="mono" value="0xdeadbeef" autocomplete="off"></div>
+    <div class="toolbar">
+      <button id="shl">« Shift left</button><button id="shr">Shift right »</button><button id="not">Invert</button><button id="clear">Clear</button><button id="fill">All ones</button>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="bitgrid" id="grid"></div>
+    <div class="out" id="out"></div>
+  </div>
+  <script type="module">
+import { $, renderRows, showError } from '../lib/ui.js';
+import { parseInteger, twos, signedOf, rangeCheck, group } from '../lib/num.js';
+
+let value = 0xdeadbeefn;
+const width = () => +$('bits').value;
+const mask = () => (1n << BigInt(width())) - 1n;
+
+function render(fromInput) {
+  const w = width(), u = value & mask();
+  value = u;
+  let html = '';
+  for (let i = w - 1; i >= 0; i--) {
+    if ((i + 1) % 8 === 0) html += `<div class="byte-label">Byte ${i >> 3} · bits ${i}–${i - 7}</div>`;
+    const on = (u >> BigInt(i)) & 1n;
+    html += `<button data-bit="${i}" class="${on ? 'on' : ''}" aria-pressed="${!!on}">${on}<small>${i}</small></button>`;
+  }
+  $('grid').innerHTML = html;
+  const signed = $('signed').checked ? signedOf(u, w) : u;
+  if (!fromInput) $('in').value = '0x' + u.toString(16);
+  renderRows($('out'), [
+    { label: 'Decimal', value: signed.toString() },
+    { label: 'Hex', value: '0x' + u.toString(16).padStart(w / 4, '0') },
+    { label: 'Binary', value: group(u.toString(2).padStart(w, '0'), 4) },
+    { label: 'Octal', value: '0o' + u.toString(8) },
+    { label: 'Set bits', value: String([...u.toString(2)].filter(c => c === '1').length), copy: false },
+  ]);
+}
+$('in').addEventListener('input', () => {
+  try {
+    showError($('err'), null);
+    const v = parseInteger($('in').value);
+    rangeCheck(v, width(), v < 0n);
+    value = twos(v, width()); render(true);
+  } catch (e) { showError($('err'), e); }
+});
+$('grid').addEventListener('click', e => { const b = e.target.closest('[data-bit]'); if (!b) return; value ^= 1n << BigInt(b.dataset.bit); showError($('err'), null); render(); });
+$('bits').addEventListener('input', () => render());
+$('signed').addEventListener('input', () => render());
+$('shl').onclick = () => { value = (value << 1n) & mask(); render(); };
+$('shr').onclick = () => { value = value >> 1n; render(); };
+$('not').onclick = () => { value = ~value & mask(); render(); };
+$('clear').onclick = () => { value = 0n; render(); };
+$('fill').onclick = () => { value = mask(); render(); };
+render(true);
+  </script>
+  <!-- /dev:body -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

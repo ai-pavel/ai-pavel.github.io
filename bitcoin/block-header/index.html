@@ -6,6 +6,7 @@
   <title>Block Header</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%93%8B</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,86 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>📋 Block Header</h1>
-  <p class="lead">Decode and encode a block header.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Decode an 80-byte block header into its six fields, or edit the fields to build one. All numbers are stored little-endian; hashes are shown reversed.</p>
+
+  <div class="panel">
+    <div class="field"><span>Header (80 bytes hex)</span><textarea id="header" class="mono" rows="4" spellcheck="false"></textarea></div>
+    <div class="row small"><button type="button" id="genesis">Genesis block</button><button type="button" id="b100k">Block 100,000</button></div>
+    <h2>Fields</h2>
+    <div class="grid2">
+      <div class="field"><span>Version (decimal or 0x-hex)</span><input id="version" class="mono"></div>
+      <div class="field"><span>Time (Unix seconds)</span><input id="time" class="mono" inputmode="numeric"></div>
+      <div class="field"><span>Bits (0x-hex)</span><input id="bits" class="mono"></div>
+      <div class="field"><span>Nonce</span><input id="nonce" class="mono" inputmode="numeric"></div>
+    </div>
+    <div class="field"><span>Previous block hash</span><input id="prev" class="mono" spellcheck="false"></div>
+    <div class="field"><span>Merkle root</span><input id="merkle" class="mono" spellcheck="false"></div>
+    <p class="error" id="err" hidden></p>
+    <p class="status" id="status" hidden></p>
+    <div class="out" id="out"></div>
+    <div class="table-wrap"><table class="fields" id="bytes"></table></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { hexToBytes, bytesToHex, parseHeader, serializeHeader, bitsToTarget, difficulty, hex32, hexU32, parseInteger, InputError } from '../lib/btc.js';
+import { $, renderRows, showError, esc } from '../lib/ui.js';
+
+const SAMPLES = {
+  genesis: '0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c',
+  b100k: '0100000050120119172a610421a6c3011dd330d9df07b63616c2cc1f1cd00200000000006657a9252aacd5c0b2940996ecff952228c3067cc38d4885efb5a4ac4247e9f337221b4d4c86041b0f2b5710',
+};
+const FIELDS = [['Version', 0, 4], ['Previous block hash', 4, 36], ['Merkle root', 36, 68], ['Time', 68, 72], ['Bits', 72, 76], ['Nonce', 76, 80]];
+
+function show(bytes) {
+  const h = parseHeader(bytes);
+  const { target } = bitsToTarget(h.bits);
+  const ok = BigInt('0x' + h.hash) <= target;
+  $('status').hidden = false;
+  $('status').className = 'status ' + (ok ? 'ok' : 'warn');
+  $('status').textContent = ok ? '✓ Valid proof of work for these bits' : 'Hash is above the target (not a valid block, which is expected while editing)';
+  const bip9 = (h.version & 0xe0000000) === 0x20000000;
+  renderRows($('out'), [
+    { label: 'Block hash', value: h.hash },
+    { label: 'Version', value: `${h.version} (${hexU32(h.version)})`, copy: false, note: bip9 ? `BIP9 version bits set: ${[...Array(29).keys()].filter(b => h.version & (1 << b)).join(', ') || 'none'}` : '' },
+    { label: 'Time', value: new Date(h.time * 1000).toISOString().replace('.000Z', ' UTC').replace('T', ' '), copy: false },
+    { label: 'Target', value: hex32(target) },
+    { label: 'Difficulty', value: difficulty(target), copy: false },
+  ]);
+  $('bytes').innerHTML = '<tr><th>Bytes</th><th>Field</th><th>Raw (as stored)</th></tr>' +
+    FIELDS.map(([n, a, b]) => `<tr><td class="range">${a}–${b - 1}</td><td>${esc(n)}</td><td class="hexcell">${bytesToHex(bytes.slice(a, b))}</td></tr>`).join('');
+}
+
+function fromHex() {
+  showError($('err'), null); $('status').hidden = true;
+  try {
+    if (!$('header').value.trim()) { $('out').innerHTML = ''; $('bytes').innerHTML = ''; return; }
+    const bytes = hexToBytes($('header').value, 'Header');
+    const h = parseHeader(bytes);
+    $('version').value = String(h.version); $('time').value = String(h.time); $('bits').value = hexU32(h.bits);
+    $('nonce').value = String(h.nonce); $('prev').value = h.prev; $('merkle').value = h.merkle;
+    show(bytes);
+  } catch (e) { $('out').innerHTML = ''; $('bytes').innerHTML = ''; showError($('err'), e); }
+}
+
+function fromFields() {
+  showError($('err'), null); $('status').hidden = true;
+  try {
+    const u32 = (id, what) => Number(parseInteger($(id).value, what, { max: 0xffffffffn }));
+    const version = Number(BigInt.asIntN(32, parseInteger($('version').value, 'Version', { min: -(2n ** 31n), max: 0xffffffffn })));
+    const bytes = serializeHeader({ version, prev: $('prev').value, merkle: $('merkle').value, time: u32('time', 'Time'), bits: u32('bits', 'Bits'), nonce: u32('nonce', 'Nonce') });
+    $('header').value = bytesToHex(bytes);
+    show(bytes);
+  } catch (e) { $('out').innerHTML = ''; $('bytes').innerHTML = ''; showError($('err'), e); }
+}
+
+$('header').addEventListener('input', fromHex);
+for (const id of ['version', 'time', 'bits', 'nonce', 'prev', 'merkle']) $(id).addEventListener('input', fromFields);
+$('genesis').onclick = () => { $('header').value = SAMPLES.genesis; fromHex(); };
+$('b100k').onclick = () => { $('header').value = SAMPLES.b100k; fromHex(); };
+</script>
 </body>
 </html>

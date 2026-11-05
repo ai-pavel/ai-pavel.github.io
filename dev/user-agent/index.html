@@ -11,16 +11,70 @@
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
   <script src="/assets/pwa.js" defer></script>
+  <!-- dev:head -->
+  <link rel="stylesheet" href="../lib/dev.css">
+  <script src="../../assets/vendor/ua-parser-js@1.0.41/dist/ua-parser.min.js" defer></script>
+  <style>h2 { margin-top: 20px; }</style>
+  <!-- /dev:head -->
 </head>
 <body>
 <main>
   <a class="back" href="../">← Developer</a>
   <h1>🕵️ User-Agent Parser</h1>
   <p class="lead">Identify browser, OS and device from a User-Agent.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- dev:body -->
+  <div class="panel">
+    <div class="field"><span>User-Agent string</span><textarea id="in" class="mono" rows="3" spellcheck="false"></textarea></div>
+    <div class="row" style="margin-bottom:8px"><button id="mine">Use my browser's</button>
+      <button data-ua="Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1">iPhone Safari</button>
+      <button data-ua="Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36">Android Chrome</button>
+      <button data-ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0">Windows Firefox</button>
+      <button data-ua="Googlebot/2.1 (+http://www.google.com/bot.html)">Googlebot</button>
+    </div>
+    <div class="out" id="out"></div>
+    <div id="hintsBox" hidden><h2>Client hints from this browser</h2><div class="out" id="hints"></div></div>
+  </div>
+  <script type="module">
+import { $, renderRows } from '../lib/ui.js';
+
+await new Promise(r => window.UAParser ? r() : addEventListener('load', r, { once: true }));
+const v = (...xs) => xs.filter(Boolean).join(' ') || '—';
+function run() {
+  const ua = $('in').value.trim();
+  if (!ua) { $('out').innerHTML = ''; return; }
+  const r = new UAParser(ua).getResult();
+  const bot = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit/i.test(ua);
+  renderRows($('out'), [
+    { label: 'Browser', value: v(r.browser.name, r.browser.version), copy: false },
+    { label: 'Engine', value: v(r.engine.name, r.engine.version), copy: false },
+    { label: 'Operating system', value: v(r.os.name, r.os.version), copy: false },
+    { label: 'Device', value: v(r.device.vendor, r.device.model) === '—' ? (r.device.type ? r.device.type : 'Desktop (or unknown)') : v(r.device.vendor, r.device.model) + (r.device.type ? ` (${r.device.type})` : ''), copy: false },
+    { label: 'CPU', value: r.cpu.architecture || '—', copy: false },
+    bot && { label: 'Bot', value: 'Looks like a crawler or bot', copy: false },
+  ]);
+}
+$('in').addEventListener('input', run);
+$('mine').onclick = () => { $('in').value = navigator.userAgent; run(); };
+document.querySelectorAll('[data-ua]').forEach(b => b.onclick = () => { $('in').value = b.dataset.ua; run(); });
+$('in').value = navigator.userAgent; run();
+if (navigator.userAgentData) {
+  const d = navigator.userAgentData;
+  let high = {};
+  try { high = await d.getHighEntropyValues(['platformVersion', 'architecture', 'model', 'fullVersionList', 'bitness']); } catch {}
+  renderRows($('hints'), [
+    { label: 'Brands', value: (high.fullVersionList || d.brands).map(b => `${b.brand} ${b.version}`).join(', '), copy: false },
+    { label: 'Platform', value: v(d.platform, high.platformVersion), copy: false },
+    { label: 'Mobile', value: d.mobile ? 'Yes' : 'No', copy: false },
+    high.architecture && { label: 'Architecture', value: `${high.architecture}${high.bitness ? ` (${high.bitness}-bit)` : ''}`, copy: false },
+    high.model && { label: 'Model', value: high.model, copy: false },
+  ]);
+  $('hintsBox').hidden = false;
+}
+  </script>
+  <!-- /dev:body -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

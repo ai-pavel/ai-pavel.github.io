@@ -6,6 +6,7 @@
   <title>Extended Keys</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%A7%AC</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,59 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>🧬 Extended Keys</h1>
-  <p class="lead">Derive a child extended key from a parent.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Inspect an extended key (xprv, xpub, ypub, zpub, tpub…), derive child keys by path, and convert between SLIP-132 version prefixes.</p>
+
+  <div class="panel">
+    <p class="warning">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="field"><span>Extended key</span><textarea id="key" class="mono" rows="3" spellcheck="false" placeholder="xpub6… / zpub… / xprv9…"></textarea></div>
+    <div class="grid2">
+      <div class="field"><span>Derive child (path from this key)</span><input id="path" class="mono" spellcheck="false" placeholder="m/0/1 or m/0'/5"></div>
+      <div class="field"><span>Show as</span><select id="as"></select></div>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { bytesToHex, InputError } from '../lib/btc.js';
+import { parseExtendedKey, VERSIONS, encodeVersion, normalizePath, formatIndex, fingerprintHex, keyFingerprint, addressFor } from '../lib/hd.js';
+import { $, renderRows, live } from '../lib/ui.js';
+
+$('as').innerHTML = '<option value="">Same prefix</option>' + Object.entries(VERSIONS).map(([k, v]) => `<option value="${k}">${k} / ${v.prvName}: ${v.note}</option>`).join('');
+
+const run = live([$('key'), $('path'), $('as')], () => {
+  if (!$('key').value.trim()) { $('out').innerHTML = ''; return; }
+  const p = parseExtendedKey($('key').value);
+  let key = p.key, pathNote = '';
+  if ($('path').value.trim()) {
+    const path = normalizePath($('path').value.trim().startsWith('m') ? $('path').value : 'm/' + $('path').value.replace(/^\//, ''));
+    if (!p.isPrivate && /'/.test(path)) throw new InputError('Hardened children need the private key; this is a public extended key');
+    key = key.derive(path);
+    pathNote = ` (child ${path})`;
+  }
+  const family = $('as').value || p.family, v = VERSIONS[family];
+  const showPriv = p.isPrivate && key.privateKey;
+  const rows = [
+    { label: 'Type', value: `${p.isPrivate ? 'Private' : 'Public'} extended key, version ${p.versionName} (0x${p.version.toString(16).padStart(8, '0')})`, copy: false, note: VERSIONS[p.family].note },
+    showPriv && { label: `Extended private${pathNote}`, value: encodeVersion(key, v.prv, true) },
+    { label: `Extended public${pathNote}`, value: encodeVersion(key, v.pub, false) },
+    { label: 'Depth', value: String(key.depth), copy: false },
+    { label: 'Parent fingerprint', value: fingerprintHex(key.parentFingerprint) },
+    { label: 'Child number', value: key.depth ? formatIndex(key.index) : '0 (master)', copy: false },
+    { label: 'Fingerprint', value: keyFingerprint(key.publicKey) },
+    { label: 'Chain code', value: bytesToHex(key.chainCode) },
+    showPriv && { label: 'Private key', value: bytesToHex(key.privateKey) },
+    { label: 'Public key', value: bytesToHex(key.publicKey) },
+  ];
+  if (['p2pkh', 'p2sh-p2wpkh', 'p2wpkh'].includes(v.script)) {
+    rows.push({ label: `Address (${v.script.toUpperCase()})`, value: addressFor(key.publicKey, v.script, v.net), note: 'The address of this exact key; receive addresses are usually its children /0/i' });
+  }
+  renderRows($('out'), rows);
+}, { errEl: $('err'), outEl: $('out') });
+</script>
 </body>
 </html>

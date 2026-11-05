@@ -6,6 +6,7 @@
   <title>Target Adjustment</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9A%96%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,60 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>⚖️ Target Adjustment</h1>
-  <p class="lead">Calculate the next difficulty target.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Work out the next difficulty target the way Bitcoin Core does every 2016 blocks: scale by the actual time taken, clamped to a factor of 4.</p>
+
+  <div class="panel">
+    <div class="field"><span>Current bits (0x-hex)</span><input id="bits" class="mono" value="0x1d00ffff"></div>
+    <div class="seg" id="mode">
+      <button data-mode="timestamps" aria-pressed="true">First and last block times</button>
+      <button data-mode="timespan" aria-pressed="false">Actual timespan</button>
+    </div>
+    <div class="grid2" id="tsFields">
+      <div class="field"><span>Time of first block in period (Unix)</span><input id="first" class="mono" value="1231006505" inputmode="numeric"></div>
+      <div class="field"><span>Time of last block in period (Unix)</span><input id="last" class="mono" value="1232103989" inputmode="numeric"></div>
+    </div>
+    <div class="field" id="spanField" hidden><span>Actual timespan (seconds)</span><input id="span" class="mono" value="1209600" inputmode="numeric"></div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { bitsToTarget, targetToBits, difficulty, hex32, hexU32, parseInteger, humanDuration, MAX_TARGET, InputError } from '../lib/btc.js';
+import { $, renderRows, live, segmented } from '../lib/ui.js';
+
+const TARGET_SPAN = 14n * 24n * 60n * 60n; // 2 weeks = 2016 blocks × 10 minutes
+let run;
+const mode = segmented($('mode'), () => { $('tsFields').hidden = mode() !== 'timestamps'; $('spanField').hidden = mode() === 'timestamps'; run(); });
+
+run = live([$('bits'), $('first'), $('last'), $('span')], () => {
+  const t = $('bits').value.trim().replace(/^0x/i, '');
+  if (!/^[0-9a-f]{1,8}$/i.test(t)) throw new InputError('Bits must be hex, e.g. 0x1d00ffff');
+  const oldTarget = bitsToTarget(parseInt(t, 16) >>> 0).target;
+  let actual = mode() === 'timestamps'
+    ? parseInteger($('last').value, 'Last block time') - parseInteger($('first').value, 'First block time')
+    : parseInteger($('span').value, 'Timespan');
+  const raw = actual;
+  if (actual < TARGET_SPAN / 4n) actual = TARGET_SPAN / 4n;
+  if (actual > TARGET_SPAN * 4n) actual = TARGET_SPAN * 4n;
+  let next = (oldTarget * actual) / TARGET_SPAN;
+  const capped = next > MAX_TARGET;
+  if (capped) next = MAX_TARGET;
+  const bits = targetToBits(next), rounded = bitsToTarget(bits).target;
+  const change = Number((oldTarget * 1000000n) / rounded) / 10000 - 100;
+  renderRows($('out'), [
+    { label: 'New bits', value: hexU32(bits) },
+    { label: 'New target', value: hex32(rounded), note: rounded !== next ? 'After compact rounding' : '' },
+    { label: 'Difficulty', value: `${difficulty(oldTarget)} → ${difficulty(rounded)}`, copy: false, note: `${change >= 0 ? '+' : ''}${change.toFixed(2)}%` },
+    { label: 'Actual timespan', value: `${raw} s (${humanDuration(Number(raw < 0n ? 0n : raw))})`, copy: false,
+      note: raw !== actual ? `Clamped to ${actual} s (the 4× limit)` : `Expected ${TARGET_SPAN} s (2 weeks)` },
+    capped && { label: 'Note', value: 'The result was capped at the minimum difficulty (proof-of-work limit 0x1d00ffff)', copy: false },
+    { label: 'Formula', value: 'new target = old target × actual timespan ÷ 1,209,600 s', copy: false, note: 'Bitcoin Core measures the timespan over 2015 intervals (first to last block of the period), a known off-by-one.' },
+  ]);
+}, { errEl: $('err'), outEl: $('out') });
+</script>
 </body>
 </html>

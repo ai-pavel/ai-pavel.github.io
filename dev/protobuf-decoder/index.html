@@ -11,16 +11,86 @@
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
   <script src="/assets/pwa.js" defer></script>
+  <!-- dev:head -->
+  <link rel="stylesheet" href="../lib/dev.css">
+  <style>
+    .pf { border-left: 2px solid var(--border); padding-left: 10px; margin: 4px 0; }
+    .pf .hd { font: 600 14px ui-monospace, Menlo, monospace; }
+    .pf .hd .w { font-weight: 400; color: var(--muted); font-size: 12px; }
+    .pf .v { font: 13px/1.5 ui-monospace, Menlo, monospace; word-break: break-all; }
+    .pf .alt { color: var(--muted); font-size: 12px; }
+    .pf details > summary { cursor: pointer; font: 600 14px ui-monospace, Menlo, monospace; }
+    h2 { margin-top: 20px; }
+  </style>
+  <!-- /dev:head -->
 </head>
 <body>
 <main>
   <a class="back" href="../">← Developer</a>
   <h1>🧬 Protobuf Decoder</h1>
   <p class="lead">Decode Protocol Buffers messages without a schema.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- dev:body -->
+  <div class="panel">
+    <div class="field"><span>Protobuf message as hex or base64</span>
+      <textarea id="in" class="mono" rows="5" spellcheck="false">0a05416c696365101e1a0d0a0b4578616d706c6520496e632204010203042d0000c03f</textarea></div>
+    <div class="toolbar"><label>Input format <select id="fmt"><option value="auto">Auto-detect</option><option value="hex">Hex</option><option value="base64">Base64</option></select></label></div>
+    <p class="error" id="err" hidden></p>
+    <p class="muted">Without the .proto schema, field names and exact types are unknown. Each value is shown in its most likely form, with alternatives.</p>
+    <div id="tree"></div>
+    <div id="jsonBox" hidden>
+      <h2>Best-guess JSON</h2><pre class="json" id="json"></pre>
+      <div class="row" style="margin-top:6px"><button data-copy-from="json">Copy</button></div>
+    </div>
+  </div>
+  <script type="module">
+import { $, live, esc } from '../lib/ui.js';
+import { parseBinary } from '../lib/bytes.js';
+import { decodeProtobuf, scalarViews, bestScalar, toHex } from '../lib/protobuf.js';
+
+function renderFields(fields) {
+  return fields.map(f => {
+    const hd = `<span>${f.num}</span> <span class="w">${f.wireName} · offset ${f.start}</span>`;
+    if (f.wire !== 2) {
+      const [main, ...alts] = scalarViews(f);
+      return `<div class="pf"><div class="hd">${hd}</div><div class="v">${esc(main)}</div><div class="alt">${esc(alts.join(' · '))}</div></div>`;
+    }
+    const it = f.interp, len = f.bytes.length;
+    const alts = [];
+    if (it.kind !== 'string' && it.text !== null) alts.push(`string: ${JSON.stringify(it.text)}`);
+    if (it.kind !== 'bytes') alts.push(`bytes: ${toHex(f.bytes)}`);
+    if (it.kind !== 'packed' && it.packed) alts.push(`packed varints: [${it.packed.join(', ')}]`);
+    const altHtml = alts.length ? `<div class="alt">${esc(alts.join(' · '))}</div>` : '';
+    if (it.kind === 'message') {
+      return `<div class="pf"><details open><summary>${hd} <span class="w">message, ${len} bytes</span></summary>${renderFields(it.message)}${altHtml}</details></div>`;
+    }
+    const v = it.kind === 'string' ? JSON.stringify(it.text) : it.kind === 'packed' ? `[${it.packed.join(', ')}] (packed varints)` : it.kind === 'empty' ? '(empty)' : toHex(f.bytes);
+    return `<div class="pf"><div class="hd">${hd} <span class="w">${it.kind}, ${len} bytes</span></div><div class="v">${esc(v)}</div>${altHtml}</div>`;
+  }).join('');
+}
+function toJson(fields) {
+  const o = {};
+  for (const f of fields) {
+    let v;
+    if (f.wire !== 2) v = bestScalar(f);
+    else { const it = f.interp; v = it.kind === 'message' ? toJson(it.message) : it.kind === 'string' ? it.text : it.kind === 'packed' ? it.packed.map(Number) : '0x' + toHex(f.bytes); }
+    const k = String(f.num);
+    if (k in o) o[k] = [].concat(o[k], [v]); else o[k] = v;
+  }
+  return o;
+}
+live([$('in'), $('fmt')], () => {
+  $('tree').innerHTML = ''; $('jsonBox').hidden = true;
+  if (!$('in').value.trim()) return;
+  const fields = decodeProtobuf(parseBinary($('in').value, $('fmt').value));
+  $('tree').innerHTML = renderFields(fields);
+  $('json').textContent = JSON.stringify(toJson(fields), null, 2);
+  $('jsonBox').hidden = false;
+}, { errEl: $('err') });
+  </script>
+  <!-- /dev:body -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

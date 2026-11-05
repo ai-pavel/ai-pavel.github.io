@@ -11,16 +11,66 @@
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
   <script src="/assets/pwa.js" defer></script>
+  <!-- dev:head -->
+  <link rel="stylesheet" href="../lib/dev.css">
+  <!-- /dev:head -->
 </head>
 <body>
 <main>
   <a class="back" href="../">← Developer</a>
   <h1>🔢 Number Converter</h1>
   <p class="lead">Convert numbers between binary, decimal and hex.</p>
-  <p class="placeholder">Coming soon.</p>
+  <!-- dev:body -->
+  <div class="panel">
+    <div class="field">
+      <span>Number</span>
+      <input id="in" class="mono" value="255" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="toolbar">
+      <label>Input base <select id="base">
+        <option value="auto">Auto (0x, 0b, 0o prefixes)</option><option value="2">Binary (2)</option><option value="8">Octal (8)</option>
+        <option value="10">Decimal (10)</option><option value="16">Hex (16)</option><option value="36">Base 36</option>
+      </select></label>
+      <label>Two's complement width <select id="bits">
+        <option value="">None (arbitrary size)</option><option value="8">8-bit</option><option value="16">16-bit</option>
+        <option value="32">32-bit</option><option value="64">64-bit</option><option value="128">128-bit</option><option value="256">256-bit</option>
+      </select></label>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
+  <script type="module">
+import { $, renderRows, live } from '../lib/ui.js';
+import { parseInteger, toBase, twos, signedOf, rangeCheck, group } from '../lib/num.js';
+
+live([$('in'), $('base'), $('bits')], () => {
+  const v = parseInteger($('in').value, $('base').value);
+  const bits = +$('bits').value || 0;
+  const rows = [
+    { label: 'Decimal', value: group(v.toString(), 3, ',') },
+    { label: 'Hex', value: (v < 0n ? '-0x' : '0x') + toBase(v < 0n ? -v : v, 16) },
+    { label: 'Binary', value: (v < 0n ? '-' : '') + group(toBase(v < 0n ? -v : v, 2), 4) },
+    { label: 'Octal', value: (v < 0n ? '-0o' : '0o') + toBase(v < 0n ? -v : v, 8) },
+    { label: 'Base 36', value: toBase(v, 36) },
+    { label: 'Bit length', value: String((v < 0n ? -v : v).toString(2).length), copy: false },
+  ];
+  if (bits) {
+    if (v < 0n) rangeCheck(v, bits, true); else rangeCheck(v, bits, false);
+    const u = twos(v, bits);
+    rows.push(
+      { label: `${bits}-bit pattern (hex)`, value: '0x' + u.toString(16).padStart(bits / 4, '0') },
+      { label: `${bits}-bit pattern (binary)`, value: group(u.toString(2).padStart(bits, '0'), 4) },
+      { label: 'As unsigned', value: u.toString() },
+      { label: 'As signed', value: signedOf(u, bits).toString() },
+    );
+  }
+  renderRows($('out'), rows);
+}, { errEl: $('err'), outEl: $('out') });
+  </script>
+  <!-- /dev:body -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

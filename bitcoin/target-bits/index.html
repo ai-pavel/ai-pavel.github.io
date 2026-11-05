@@ -6,6 +6,7 @@
   <title>Target Bits</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%8E%AF</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,59 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>🎯 Target Bits</h1>
-  <p class="lead">Convert between a target and its compact bits.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Convert between a proof-of-work target and its compact “bits” encoding, and see the difficulty.</p>
+
+  <div class="panel">
+    <div class="seg" id="mode">
+      <button data-mode="bits" aria-pressed="true">Bits → target</button>
+      <button data-mode="target" aria-pressed="false">Target → bits</button>
+    </div>
+    <div class="field"><input id="input" class="mono" spellcheck="false" value="0x1d00ffff"></div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { bitsToTarget, targetToBits, difficulty, hex32, hexU32, parseInteger, InputError } from '../lib/btc.js';
+import { $, renderRows, live, segmented } from '../lib/ui.js';
+
+let run;
+const mode = segmented($('mode'), () => {
+  $('input').value = mode() === 'bits' ? '0x1d00ffff' : '0x00000000ffff0000000000000000000000000000000000000000000000000000';
+  run();
+});
+run = live([$('input')], () => {
+  const v = $('input').value.trim();
+  if (!v) { $('out').innerHTML = ''; return; }
+  if (mode() === 'bits') {
+    const t = v.replace(/^0x/i, '');
+    if (!/^[0-9a-f]{1,8}$/i.test(t)) throw new InputError('Bits are a 4-byte number written in hex, e.g. 0x1d00ffff or 170331e8');
+    const bits = parseInt(t, 16) >>> 0;
+    const d = bitsToTarget(bits);
+    renderRows($('out'), [
+      { label: 'Target', value: hex32(d.target) },
+      { label: 'Exponent / mantissa', value: `0x${d.exponent.toString(16)} (${d.exponent} bytes) / 0x${d.mantissa.toString(16).padStart(6, '0')}`, copy: false, note: 'target = mantissa × 256^(exponent − 3)' },
+      { label: 'Difficulty', value: difficulty(d.target), copy: false },
+      { label: 'Leading zero bits', value: String(256 - d.target.toString(2).length), copy: false },
+      d.negative && { label: 'Warning', value: 'The sign bit (0x00800000) is set: Bitcoin treats this target as negative and invalid', copy: false, cls: 'bad' },
+      d.overflow && { label: 'Warning', value: 'This target overflows 256 bits', copy: false, cls: 'bad' },
+      { label: 'Canonical bits', value: hexU32(targetToBits(d.target)), note: 'Re-encoding the target' },
+    ]);
+  } else {
+    const target = parseInteger(/^0x/i.test(v) ? v : '0x' + v, 'Target');
+    if (target >= 2n ** 256n) throw new InputError('Target must fit in 256 bits');
+    const bits = targetToBits(target), back = bitsToTarget(bits).target;
+    renderRows($('out'), [
+      { label: 'Bits', value: hexU32(bits) },
+      { label: 'Target after rounding', value: hex32(back), note: back === target ? 'Exactly representable' : 'Compact encoding keeps only the top 3 bytes, so the target is rounded down' },
+      { label: 'Difficulty', value: difficulty(back), copy: false },
+    ]);
+  }
+}, { errEl: $('err'), outEl: $('out') });
+</script>
 </body>
 </html>

@@ -6,6 +6,7 @@
   <title>ECDSA Verify</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%94%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,67 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>✔️ ECDSA Verify</h1>
-  <p class="lead">Verify an ECDSA signature.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Check an ECDSA signature against a message hash and a public key. Accepts DER (with or without a sighash byte) or 64-byte compact signatures.</p>
+
+  <div class="panel">
+    <div class="field"><span>Message</span>
+      <div class="seg" id="mode">
+        <button data-mode="hash" aria-pressed="true">32-byte hash (hex)</button>
+        <button data-mode="sha256" aria-pressed="false">Text → SHA-256</button>
+        <button data-mode="hash256" aria-pressed="false">Text → HASH256</button>
+      </div>
+      <textarea id="msg" class="mono" rows="2" spellcheck="false"></textarea>
+    </div>
+    <div class="field"><span>Public key (33 or 65 bytes, hex)</span><input id="pub" class="mono" spellcheck="false"></div>
+    <div class="field"><span>Signature (DER or compact r‖s, hex)</span><textarea id="sig" class="mono" rows="2" spellcheck="false"></textarea></div>
+    <p class="error" id="err" hidden></p>
+    <p class="status" id="status" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
 </main>
 <footer class="site-footer">
   <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { secp256k1, sha256, hash256, utf8, hexToBytes, bytesToHex, parsePublicKey, InputError } from '../lib/btc.js';
+import { parseSig } from '../lib/sig.js';
+import { $, renderRows, live, segmented } from '../lib/ui.js';
+
+function msgHash() {
+  const v = $('msg').value;
+  if (mode() === 'hash') {
+    const h = hexToBytes(v, 'Message hash');
+    if (h.length !== 32) throw new InputError(`Message hash must be 32 bytes; this is ${h.length}`);
+    return h;
+  }
+  return mode() === 'sha256' ? sha256(utf8(v)) : hash256(utf8(v));
+}
+
+let run;
+const mode = segmented($('mode'), () => run());
+run = live([$('msg'), $('pub'), $('sig')], () => {
+  $('status').hidden = true;
+  if (!$('pub').value.trim() || !$('sig').value.trim()) { $('out').innerHTML = ''; return; }
+  const hash = msgHash();
+  const pub = parsePublicKey($('pub').value);
+  const p = parseSig(hexToBytes($('sig').value, 'Signature'));
+  const sig = new secp256k1.Signature(p.r, p.s);
+  const valid = secp256k1.verify(sig, hash, pub, { lowS: false });
+  const high = sig.hasHighS();
+  $('status').hidden = false;
+  $('status').className = 'status ' + (valid ? (high ? 'warn' : 'ok') : 'bad');
+  $('status').textContent = valid
+    ? (high ? '✓ Valid signature, but s is high: Bitcoin nodes reject high-S signatures as non-standard' : '✓ Valid signature')
+    : '✗ Signature does not match this hash and public key';
+  renderRows($('out'), [
+    { label: 'Message hash', value: bytesToHex(hash) },
+    { label: 'Format', value: p.format + (p.sighash !== undefined ? ` with sighash byte 0x${p.sighash.toString(16).padStart(2, '0')}` : ''), copy: false },
+    { label: 'r', value: p.r.toString(16).padStart(64, '0') },
+    { label: 's', value: p.s.toString(16).padStart(64, '0') },
+    high && { label: 'Low-S form of s', value: (secp256k1.CURVE.n - p.s).toString(16).padStart(64, '0') },
+  ]);
+}, { errEl: $('err'), outEl: $('out') });
+</script>
 </body>
 </html>

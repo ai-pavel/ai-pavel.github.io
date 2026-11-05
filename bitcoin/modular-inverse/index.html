@@ -6,6 +6,7 @@
   <title>Modular Inverse</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9E%97</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,67 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>➗ Modular Inverse</h1>
-  <p class="lead">Find a number&#x27;s inverse modulo n.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Find x such that a·x ≡ 1 (mod m) with the extended Euclidean algorithm, step by step. ECDSA uses this for s = k⁻¹(z + r·d) mod n.</p>
+
+  <div class="panel">
+    <div class="field"><span>a (decimal or 0x-hex)</span><input id="a" class="mono" spellcheck="false" value="3"></div>
+    <div class="field"><span>Modulus m</span>
+      <input id="m" class="mono" spellcheck="false" value="11">
+      <div class="row small">
+        <button type="button" data-preset="n">secp256k1 order n</button>
+        <button type="button" data-preset="p">secp256k1 field prime p</button>
+      </div>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+    <div class="table-wrap" id="stepsWrap" hidden>
+      <h2>Steps</h2>
+      <table class="steps" id="steps"></table>
+    </div>
+  </div>
 </main>
 <footer class="site-footer">
   <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { secp256k1, parseInteger, InputError } from '../lib/btc.js';
+import { $, renderRows, live, esc } from '../lib/ui.js';
+
+const PRESETS = { n: secp256k1.CURVE.n, p: secp256k1.CURVE.Fp.ORDER };
+const MAX_ROWS = 400;
+
+const run = live([$('a'), $('m')], () => {
+  $('stepsWrap').hidden = true;
+  const a0 = parseInteger($('a').value, 'a', { min: -(2n ** 1024n) });
+  const m = parseInteger($('m').value, 'Modulus', { min: 2n });
+  const a = ((a0 % m) + m) % m;
+  // Extended Euclid on (m, a): track coefficient t of a.
+  let [r0, r1] = [m, a], [t0, t1] = [0n, 1n];
+  const rows = [];
+  while (r1 !== 0n) {
+    const q = r0 / r1;
+    rows.push([q, r0, r1, r0 - q * r1, t0, t1]);
+    [r0, r1] = [r1, r0 - q * r1];
+    [t0, t1] = [t1, t0 - q * t1];
+  }
+  const g = r0;
+  if (g !== 1n) throw new InputError(`No inverse: gcd(a, m) = ${g}, so a and m are not coprime`);
+  const x = ((t0 % m) + m) % m;
+  renderRows($('out'), [
+    { label: 'Inverse (decimal)', value: x.toString() },
+    { label: 'Inverse (hex)', value: '0x' + x.toString(16) },
+    { label: 'Check a·x mod m', value: ((a * x) % m).toString(), copy: false, cls: 'ok' },
+    a !== a0 && { label: 'Note', value: `a was reduced mod m to ${a}`, copy: false },
+  ]);
+  const shown = rows.slice(0, MAX_ROWS);
+  $('steps').innerHTML = '<tr><th>#</th><th>q</th><th>r (divisor)</th><th>remainder</th><th>t</th></tr>' +
+    shown.map(([q, r0, r1, rem, , t1], i) => `<tr><td>${i + 1}</td><td>${esc(q)}</td><td>${esc(r1)}</td><td>${esc(rem)}</td><td>${esc(t1)}</td></tr>`).join('') +
+    (rows.length > MAX_ROWS ? `<tr><td colspan="5">… ${rows.length - MAX_ROWS} more steps</td></tr>` : '');
+  $('stepsWrap').hidden = false;
+}, { errEl: $('err'), outEl: $('out') });
+
+document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => { $('m').value = '0x' + PRESETS[b.dataset.preset].toString(16); run(); });
+</script>
 </body>
 </html>

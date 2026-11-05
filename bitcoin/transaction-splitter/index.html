@@ -6,6 +6,7 @@
   <title>Transaction Splitter</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%E2%9C%82%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,68 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>✂️ Transaction Splitter</h1>
-  <p class="lead">Split a raw transaction into its fields.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Split a raw transaction into every field, with byte offsets and decoded values. Handles segwit marker, flag and witnesses.</p>
+
+  <div class="panel">
+    <div class="field"><span>Raw transaction (hex)</span><textarea id="tx" class="mono" rows="5" spellcheck="false"></textarea></div>
+    <div class="field"><span>Network for addresses</span><select id="net"></select></div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+    <div id="hexview"></div>
+    <div class="table-wrap"><table class="fields" id="fields"></table></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { hexToBytes, bytesToHex, parseTx, decompile, toAsm, classifyScript, scriptToAddress, NETWORKS, networkOptions, formatSats, describeLocktime, hexU32 } from '../lib/btc.js';
+import { $, renderRows, live, esc } from '../lib/ui.js';
+
+$('net').innerHTML = networkOptions('mainnet');
+const GROUP_COLORS = { Header: 0, Inputs: 1, Outputs: 2, Footer: 3 };
+const color = g => (g in GROUP_COLORS ? GROUP_COLORS[g] : g.startsWith('Input') ? 1 : g.startsWith('Output') ? 2 : g.startsWith('Witness') ? 4 : 5);
+
+function show(f, net) {
+  const v = f.value;
+  if (v instanceof Uint8Array) {
+    if (f.name === 'scriptPubKey') {
+      const c = classifyScript(v); let addr = null;
+      try { addr = scriptToAddress(v, net); } catch {}
+      let asm = ''; try { asm = toAsm(decompile(v)); } catch {}
+      return `${c.name}${addr ? ' · ' + addr : ''}${asm ? '\n' + asm : ''}`;
+    }
+    if (f.name === 'scriptSig' && v.length) { try { return toAsm(decompile(v)); } catch { return ''; } }
+    return '';
+  }
+  if (f.name === 'Amount (sats)') return formatSats(v);
+  if (f.name === 'Sequence') return hexU32(v);
+  if (f.name === 'Locktime') return describeLocktime(v);
+  return String(v);
+}
+
+live([$('tx'), $('net')], () => {
+  $('fields').innerHTML = ''; $('hexview').innerHTML = '';
+  if (!$('tx').value.trim()) { $('out').innerHTML = ''; return; }
+  const bytes = hexToBytes($('tx').value, 'Transaction');
+  const tx = parseTx(bytes), net = NETWORKS[$('net').value];
+  renderRows($('out'), [
+    { label: 'TXID', value: tx.txid },
+    tx.segwit && { label: 'wTXID', value: tx.wtxid },
+    { label: 'Summary', value: `Version ${tx.version}, ${tx.inputs.length} input(s), ${tx.outputs.length} output(s), ${tx.segwit ? 'segwit' : 'legacy'}`, copy: false },
+    { label: 'Size', value: `${tx.size} bytes · ${tx.weight} weight units · ${tx.vsize} vbytes`, copy: false },
+    { label: 'Total output', value: formatSats(tx.outputs.reduce((a, o) => a + o.value, 0n)), copy: false },
+  ]);
+  $('hexview').innerHTML = '<div class="hexview">' + tx.fields.map(f => `<span class="c${color(f.group)}" title="${esc(f.group + ': ' + f.name)}">${bytesToHex(bytes.slice(f.start, f.end))}</span>`).join('') + '</div>';
+  let last = '';
+  $('fields').innerHTML = '<tr><th>Bytes</th><th>Field</th><th>Raw</th><th>Value</th></tr>' + tx.fields.map(f => {
+    const head = f.group !== last ? `<tr class="group"><td colspan="4">${esc(f.group)}</td></tr>` : '';
+    last = f.group;
+    const raw = bytesToHex(bytes.slice(f.start, f.end));
+    return `${head}<tr><td class="range">${f.start}${f.end - f.start > 1 ? '–' + (f.end - 1) : ''}</td><td>${esc(f.name)}</td><td class="hexcell"><span class="c${color(f.group)}">${raw || '(empty)'}</span></td><td class="hexcell" style="white-space:pre-wrap">${esc(show(f, net))}</td></tr>`;
+  }).join('');
+}, { errEl: $('err'), outEl: $('out') });
+</script>
 </body>
 </html>

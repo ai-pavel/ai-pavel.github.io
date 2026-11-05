@@ -6,6 +6,7 @@
   <title>Derivation Paths</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%9B%A4%EF%B8%8F</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,94 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>🛤️ Derivation Paths</h1>
-  <p class="lead">Derive keys and addresses along a path.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Derive keys and addresses from a mnemonic or seed along a BIP44, BIP49, BIP84 or BIP86 path, or your own.</p>
+
+  <div class="panel">
+    <p class="warning">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="field"><span>Mnemonic or seed (hex)</span><textarea id="secret" class="mono" rows="3" spellcheck="false" placeholder="abandon abandon … about"></textarea></div>
+    <div class="grid2">
+      <div class="field"><span>Passphrase (mnemonic only)</span><input id="passphrase" class="mono" spellcheck="false" autocomplete="off"></div>
+      <div class="field"><span>Network</span><select id="net"><option value="mainnet">Mainnet (coin 0)</option><option value="testnet">Testnet / signet (coin 1)</option><option value="regtest">Regtest (coin 1)</option></select></div>
+      <div class="field"><span>Standard</span><select id="preset">
+        <option value="84">BIP84: native segwit (bc1q…)</option><option value="86">BIP86: taproot (bc1p…)</option>
+        <option value="49">BIP49: nested segwit (3…)</option><option value="44">BIP44: legacy (1…)</option><option value="custom">Custom path</option></select></div>
+      <div class="field"><span>Account</span><input id="account" class="mono" value="0" inputmode="numeric"></div>
+      <div class="field"><span>Chain</span><select id="change"><option value="0">0: receive</option><option value="1">1: change</option></select></div>
+      <div class="field"><span>Start index / count</span><div class="row"><input id="start" class="mono" value="0" inputmode="numeric" style="width:80px"><input id="count" class="mono" value="10" inputmode="numeric" style="width:80px"></div></div>
+    </div>
+    <div class="field" id="customField" hidden><span>Custom path, with {i} for the index</span><input id="custom" class="mono" value="m/84'/0'/0'/0/{i}" spellcheck="false"></div>
+    <div class="field" id="typeField" hidden><span>Address type for custom paths</span><select id="type"><option value="p2wpkh">P2WPKH</option><option value="p2tr">P2TR</option><option value="p2sh-p2wpkh">P2SH-P2WPKH</option><option value="p2pkh">P2PKH</option></select></div>
+    <label class="field inline-check"><input type="checkbox" id="showPriv"> Show private keys (WIF)</label>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+    <div class="table-wrap"><table class="fields" id="table"></table></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { bytesToHex, parseInteger, InputError } from '../lib/btc.js';
+import { HDKey, seedFromInput, normalizePath, encodeVersion, VERSIONS, addressFor, wifFor } from '../lib/hd.js';
+import { $, renderRows, showError, esc } from '../lib/ui.js';
+
+const TYPES = { 44: 'p2pkh', 49: 'p2sh-p2wpkh', 84: 'p2wpkh', 86: 'p2tr' };
+const XPUB = { mainnet: { 44: 'xpub', 49: 'ypub', 84: 'zpub', 86: 'xpub' }, test: { 44: 'tpub', 49: 'upub', 84: 'vpub', 86: 'tpub' } };
+let cache = { key: null, seed: null };
+let token = 0;
+
+async function run() {
+  const my = ++token;
+  showError($('err'), null);
+  const preset = $('preset').value;
+  $('customField').hidden = preset !== 'custom'; $('typeField').hidden = preset !== 'custom';
+  try {
+    if (!$('secret').value.trim()) { $('out').innerHTML = ''; $('table').innerHTML = ''; return; }
+    const ck = $('secret').value.trim() + '\u0000' + $('passphrase').value;
+    if (cache.key !== ck) {
+      await new Promise(r => setTimeout(r)); // let the UI paint before the 2048-round PBKDF2
+      if (my !== token) return;
+      cache = { key: ck, ...seedFromInput($('secret').value, $('passphrase').value) };
+    }
+    const root = HDKey.fromMasterSeed(cache.seed);
+    const netKey = $('net').value, coin = netKey === 'mainnet' ? 0 : 1;
+    const start = Number(parseInteger($('start').value, 'Start index', { max: 0x7fffffffn }));
+    const count = Number(parseInteger($('count').value, 'Count', { min: 1n, max: 200n }));
+    let template, type, accountPath = null;
+    if (preset === 'custom') {
+      template = $('custom').value.trim(); type = $('type').value;
+      if (!template.includes('{i}')) throw new InputError('Custom path must contain {i} where the index goes');
+    } else {
+      const acct = Number(parseInteger($('account').value, 'Account', { max: 0x7fffffffn }));
+      accountPath = `m/${preset}'/${coin}'/${acct}'`;
+      template = `${accountPath}/${$('change').value}/{i}`; type = TYPES[preset];
+    }
+    const rows = [];
+    for (let i = start; i < start + count; i++) {
+      const path = normalizePath(template.replace('{i}', String(i)));
+      const k = root.derive(path);
+      rows.push({ path, address: addressFor(k.publicKey, type, netKey), pub: bytesToHex(k.publicKey), wif: wifFor(k.privateKey, netKey) });
+    }
+    const info = [{ label: 'Seed from', value: cache.from === 'mnemonic' ? 'Mnemonic (BIP39)' : 'Raw seed', copy: false },
+      { label: 'Root fingerprint', value: bytesToHex(root.identifier.slice(0, 4)) }];
+    if (accountPath) {
+      const acc = root.derive(accountPath), fam = XPUB[netKey === 'mainnet' ? 'mainnet' : 'test'][preset];
+      info.push({ label: `Account ${fam} (${accountPath})`, value: encodeVersion(acc, VERSIONS[fam].pub, false), note: 'Watch-only key for this account' });
+      if (preset === '86') info.push({ label: 'Descriptor', value: `tr([${bytesToHex(root.identifier.slice(0, 4))}/${accountPath.slice(2)}]${encodeVersion(acc, VERSIONS[fam].pub, false)}/${$('change').value}/*)` });
+    }
+    renderRows($('out'), info);
+    const priv = $('showPriv').checked;
+    $('table').innerHTML = `<tr><th>Path</th><th>Address</th><th>Public key</th>${priv ? '<th>Private key (WIF)</th>' : ''}</tr>` +
+      rows.map(r => `<tr><td class="range">${esc(r.path)}</td><td class="hexcell">${esc(r.address)}</td><td class="hexcell">${esc(r.pub)}</td>${priv ? `<td class="hexcell">${esc(r.wif)}</td>` : ''}</tr>`).join('');
+  } catch (e) {
+    if (my !== token) return;
+    $('out').innerHTML = ''; $('table').innerHTML = '';
+    showError($('err'), e);
+  }
+}
+for (const id of ['secret', 'passphrase', 'net', 'preset', 'account', 'change', 'start', 'count', 'custom', 'type', 'showPriv']) $(id).addEventListener('input', run);
+run();
+</script>
 </body>
 </html>

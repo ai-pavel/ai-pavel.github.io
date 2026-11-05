@@ -6,6 +6,7 @@
   <title>Sequence</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%94%81</text></svg>">
   <link rel="stylesheet" href="../../assets/style.css">
+  <link rel="stylesheet" href="../lib/btc.css">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
   <meta name="theme-color" content="#f7f7f5" media="(prefers-color-scheme: light)">
@@ -16,12 +17,91 @@
 <main>
   <a class="back" href="../">← Bitcoin</a>
   <h1>🔁 Sequence</h1>
-  <p class="lead">Decode an input&#x27;s sequence field.</p>
-  <p class="placeholder">Coming soon.</p>
+  <p class="lead">Decode an input's nSequence (finality, replace-by-fee per BIP125, relative locktime per BIP68), or build one from a number of blocks or a time in 512-second units.</p>
+
+  <div class="panel">
+    <div class="seg" id="mode">
+      <button data-mode="decode" aria-pressed="true">Decode</button>
+      <button data-mode="blocks" aria-pressed="false">Build: blocks</button>
+      <button data-mode="time" aria-pressed="false">Build: time</button>
+    </div>
+    <div id="decodeFields">
+      <div class="field"><span>Sequence (decimal, 0x-hex, or raw little-endian bytes)</span><input id="seq" class="mono" spellcheck="false" value="0xfffffffd"></div>
+      <label class="field inline-check"><input type="checkbox" id="le"> Input is raw little-endian bytes (e.g. fdffffff)</label>
+    </div>
+    <div class="field" id="blocksFields" hidden><span>Blocks (0–65535)</span><input id="blocks" class="mono" value="144" inputmode="numeric"></div>
+    <div id="timeFields" hidden>
+      <div class="grid2">
+        <div class="field"><span>Days</span><input id="days" class="mono" value="1" inputmode="numeric"></div>
+        <div class="field"><span>Hours</span><input id="hours" class="mono" value="0" inputmode="numeric"></div>
+        <div class="field"><span>Minutes</span><input id="minutes" class="mono" value="0" inputmode="numeric"></div>
+        <div class="field"><span>Seconds</span><input id="seconds" class="mono" value="0" inputmode="numeric"></div>
+      </div>
+    </div>
+    <p class="error" id="err" hidden></p>
+    <div class="out" id="out"></div>
+  </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 2.7 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 3.9 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
+<script type="module">
+import { hexToBytes, bytesToHex, u32le, parseInteger, describeSequence, hexU32, humanDuration, scriptNum, pushData, InputError } from '../lib/btc.js';
+import { $, renderRows, live, segmented } from '../lib/ui.js';
+
+let run;
+const mode = segmented($('mode'), () => {
+  $('decodeFields').hidden = mode() !== 'decode'; $('blocksFields').hidden = mode() !== 'blocks'; $('timeFields').hidden = mode() !== 'time';
+  run();
+});
+
+function decodeRows(seq) {
+  const bin = seq.toString(2).padStart(32, '0').replace(/(.{8})(?!$)/g, '$1 ');
+  return [
+    { label: 'Value', value: `${seq} = ${hexU32(seq)}`, copy: false },
+    { label: 'Raw bytes (little-endian)', value: bytesToHex(u32le(seq)) },
+    { label: 'Bits (31 … 0)', value: bin, copy: false, note: 'Bit 31: disable relative locktime · bit 22: time-based · bits 0–15: value' },
+    ...describeSequence(seq),
+  ];
+}
+
+run = live([$('seq'), $('le'), $('blocks'), $('days'), $('hours'), $('minutes'), $('seconds')], () => {
+  if (mode() === 'decode') {
+    const v = $('seq').value.trim();
+    if (!v) { $('out').innerHTML = ''; return; }
+    let seq;
+    if ($('le').checked) {
+      const b = hexToBytes(v, 'Sequence bytes');
+      if (b.length !== 4) throw new InputError('Raw sequence must be exactly 4 bytes');
+      seq = new DataView(b.buffer).getUint32(0, true);
+    } else {
+      seq = Number(parseInteger(v, 'Sequence', { max: 0xffffffffn }));
+    }
+    renderRows($('out'), decodeRows(seq));
+    return;
+  }
+  let seq, note;
+  if (mode() === 'blocks') {
+    const n = Number(parseInteger($('blocks').value, 'Blocks', { max: 65535n }));
+    seq = n;
+    note = `${n} block${n === 1 ? '' : 's'}, about ${humanDuration(n * 600)}`;
+  } else {
+    const secs = Number(parseInteger($('days').value || '0', 'Days') * 86400n + parseInteger($('hours').value || '0', 'Hours') * 3600n +
+      parseInteger($('minutes').value || '0', 'Minutes') * 60n + parseInteger($('seconds').value || '0', 'Seconds'));
+    const units = Math.ceil(secs / 512);
+    if (units > 65535) throw new InputError(`That is ${units} units of 512 s; the maximum is 65535 (about 388 days)`);
+    seq = (0x00400000 | units) >>> 0;
+    note = `${units} × 512 s = ${(units * 512).toLocaleString('en-US')} s (${humanDuration(units * 512)})${units * 512 !== secs ? `, rounded up from ${secs.toLocaleString('en-US')} s` : ''}`;
+  }
+  renderRows($('out'), [
+    { label: 'nSequence', value: hexU32(seq), note },
+    { label: 'Decimal', value: String(seq) },
+    { label: 'Raw bytes (little-endian)', value: bytesToHex(u32le(seq)), note: 'As written in the transaction input. The transaction must be version 2 or higher.' },
+    { label: 'CSV script', value: `${bytesToHex(pushData(scriptNum(seq)))}b275`, note: `<${hexU32(seq)}> OP_CHECKSEQUENCEVERIFY OP_DROP: the matching script check` },
+    { label: 'Also signals', value: 'RBF (any sequence below 0xfffffffe signals replace-by-fee)', copy: false },
+  ]);
+}, { errEl: $('err'), outEl: $('out') });
+</script>
 </body>
 </html>
