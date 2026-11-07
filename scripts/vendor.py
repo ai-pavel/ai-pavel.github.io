@@ -24,7 +24,8 @@ import re
 import sys
 import urllib.request
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Vendored files and the pages that use them live in the published site folder, src/.
+ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
 VENDOR = "assets/vendor"
 CDN = "https://cdn.jsdelivr.net"
 
@@ -128,7 +129,7 @@ def vendor_all():
 def site_files(only=()):
     for d, dirs, files in os.walk(ROOT):
         rel = os.path.relpath(d, ROOT)
-        if rel.startswith((".git", "assets/vendor", "scripts", "tests")):
+        if rel.startswith("assets/vendor"):
             dirs[:] = []
             continue
         if only and rel != "." and rel.split(os.sep)[0] not in only:

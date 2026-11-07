@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const source = fs.readFileSync(path.join(__dirname, '..', 'assets', 'search-index.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'assets', 'search-index.js'), 'utf8');
 const TOOLS = JSON.parse(source.slice(source.indexOf('['), source.lastIndexOf(']') + 1));
 
 // Sections whose tools must each offer an Example button (same rule as scripts/generate.py).

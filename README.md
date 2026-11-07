@@ -7,17 +7,17 @@ Local-first browser tools — everyday, dev & crypto. Nothing leaves your device
 <!-- toolboxes:start -->
 | Toolbox | What's inside | Tools | Folder |
 |---|---|---|---|
-| [🪄 Utilities](https://ai-pavel.github.io/utilities/) | Everyday utilities: time, text, files and media | 17 | [`utilities/`](utilities/) |
-| [🧑‍💻 Developer](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 21 | [`dev/`](dev/) |
-| [🔐 Cryptography](https://ai-pavel.github.io/crypto/) | Hashes, HMAC, key derivation, encryption, keys, signatures, certificates and secrets | 16 | [`crypto/`](crypto/) |
-| [🪙 Bitcoin](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, PSBTs, keys, addresses and HD wallets | 18 | [`bitcoin/`](bitcoin/) |
-| [💠 EVM](https://ai-pavel.github.io/evm/) | Ethereum and EVM: units, addresses, ABI, transactions and signatures | 12 | [`evm/`](evm/) |
-| [🌞 Solana](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 11 | [`solana/`](solana/) |
-| [💎 TON](https://ai-pavel.github.io/ton/) | TON: addresses, wallets, cells, messages and signatures | 9 | [`ton/`](ton/) |
-| [🔵 Cardano](https://ai-pavel.github.io/cardano/) | Cardano: addresses, stake keys, native assets, CBOR transactions and signatures | 9 | [`cardano/`](cardano/) |
-| [💧 Sui](https://ai-pavel.github.io/sui/) | Sui: addresses, keys, BCS, transactions, object IDs and signatures | 9 | [`sui/`](sui/) |
-| [⚛️ Cosmos](https://ai-pavel.github.io/cosmos/) | Cosmos SDK chains: addresses across chains, IBC, keys, transactions and signatures | 8 | [`cosmos/`](cosmos/) |
-| [🟣 Polkadot](https://ai-pavel.github.io/polkadot/) | Polkadot and Substrate chains: SS58 addresses, SCALE, storage keys, keys and signatures | 11 | [`polkadot/`](polkadot/) |
+| [🪄 Utilities](https://ai-pavel.github.io/utilities/) | Everyday utilities: time, text, files and media | 17 | [`src/utilities/`](src/utilities/) |
+| [🧑‍💻 Developer](https://ai-pavel.github.io/dev/) | Developer utilities: JSON, encoding, tokens, regex, diffs, bits and bytes | 21 | [`src/dev/`](src/dev/) |
+| [🔐 Cryptography](https://ai-pavel.github.io/crypto/) | Hashes, HMAC, key derivation, encryption, keys, signatures, certificates and secrets | 16 | [`src/crypto/`](src/crypto/) |
+| [🪙 Bitcoin](https://ai-pavel.github.io/bitcoin/) | Bitcoin: blocks, transactions, PSBTs, keys, addresses and HD wallets | 18 | [`src/bitcoin/`](src/bitcoin/) |
+| [💠 EVM](https://ai-pavel.github.io/evm/) | Ethereum and EVM: units, addresses, ABI, transactions and signatures | 12 | [`src/evm/`](src/evm/) |
+| [🌞 Solana](https://ai-pavel.github.io/solana/) | Solana: keys, addresses, PDAs, token accounts, transactions and signatures | 11 | [`src/solana/`](src/solana/) |
+| [💎 TON](https://ai-pavel.github.io/ton/) | TON: addresses, wallets, cells, messages and signatures | 9 | [`src/ton/`](src/ton/) |
+| [🔵 Cardano](https://ai-pavel.github.io/cardano/) | Cardano: addresses, stake keys, native assets, CBOR transactions and signatures | 9 | [`src/cardano/`](src/cardano/) |
+| [💧 Sui](https://ai-pavel.github.io/sui/) | Sui: addresses, keys, BCS, transactions, object IDs and signatures | 9 | [`src/sui/`](src/sui/) |
+| [⚛️ Cosmos](https://ai-pavel.github.io/cosmos/) | Cosmos SDK chains: addresses across chains, IBC, keys, transactions and signatures | 8 | [`src/cosmos/`](src/cosmos/) |
+| [🟣 Polkadot](https://ai-pavel.github.io/polkadot/) | Polkadot and Substrate chains: SS58 addresses, SCALE, storage keys, keys and signatures | 11 | [`src/polkadot/`](src/polkadot/) |
 <!-- toolboxes:end -->
 
 Everything runs client-side in the browser: files and keys never leave the device.
@@ -25,12 +25,13 @@ The site is an installable app (PWA) and works offline once it has been opened.
 
 ## Structure
 
-- Each tool is a self-contained page at `<toolbox>/<tool>/index.html`.
-- All pages share `assets/style.css`.
-- The list of toolboxes and tools lives in `assets/tools.json`. After changing it (or finishing a tool page), run `python3 scripts/generate.py` to rebuild the home page, toolbox pages, search index and the table above. New tools get a placeholder page.
-- Third-party libraries are vendored in `assets/vendor/` (see `assets/vendor/VENDOR.md`). To add or upgrade one, edit the list in `scripts/vendor.py` and run `python3 scripts/vendor.py`; it downloads the files and points pages at the local copies.
-- `sw.js` is the service worker. It is generated from `scripts/sw.template.js` by `generate.py`, which precaches every site file and bumps the cache version whenever a file changes. Heavy assets loaded on demand (the ffmpeg core, the OCR engine and its language data) are cached on first use.
-- There is no build step on deploy: push to `master` and GitHub Pages serves the files as-is.
+- `src/` is the published site: the home page, `assets/`, and one folder per toolbox. GitHub Actions (`.github/workflows/pages.yml`) deploys `src/` as the site root on every push to `master`, so URLs don't include `src/`.
+- Each tool is a self-contained page at `src/<toolbox>/<tool>/index.html`.
+- All pages share `src/assets/style.css`.
+- The list of toolboxes and tools lives in `src/assets/tools.json`. After changing it (or finishing a tool page), run `python3 scripts/generate.py` to rebuild the home page, toolbox pages, search index and the table above. New tools get a placeholder page.
+- Third-party libraries are vendored in `src/assets/vendor/` (see `src/assets/vendor/VENDOR.md`). To add or upgrade one, edit the list in `scripts/vendor.py` and run `python3 scripts/vendor.py`; it downloads the files and points pages at the local copies.
+- `src/sw.js` is the service worker. It is generated from `scripts/sw.template.js` by `generate.py`, which precaches every site file and bumps the cache version whenever a file changes. Heavy assets loaded on demand (the ffmpeg core, the OCR engine and its language data) are cached on first use.
+- There is no build step on deploy: the workflow publishes `src/` as-is.
 
 ## Tests
 

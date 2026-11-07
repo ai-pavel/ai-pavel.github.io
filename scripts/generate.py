@@ -19,7 +19,9 @@ import re
 import subprocess
 import urllib.parse
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# The repository holds tooling (scripts/, tests/); the published site itself lives in src/.
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src")
 PLACEHOLDER_MARKER = 'class="placeholder"'
 
 
@@ -194,15 +196,17 @@ def readme_table(toolboxes):
         tools = [t for c in tb["categories"] for t in c["tools"]]
         summary = tb["summary"].rstrip(".")
         rows.append(f'| [{tb["emoji"]} {tb["name"]}](https://ai-pavel.github.io/{tb["id"]}/) | {summary} '
-                    f'| {count_label(tools).replace(" tools", "")} | [`{tb["id"]}/`]({tb["id"]}/) |')
-    readme = open(path("README.md"), encoding="utf-8").read()
+                    f'| {count_label(tools).replace(" tools", "")} | [`src/{tb["id"]}/`](src/{tb["id"]}/) |')
+    with open(os.path.join(REPO, "README.md"), encoding="utf-8") as f:
+        readme = f.read()
     new = re.sub(r"(<!-- toolboxes:start -->\n)(?:.*?\n)?(<!-- toolboxes:end -->)",
                  lambda m: m.group(1) + "\n".join(rows) + "\n" + m.group(2), readme, flags=re.S)
-    write("README.md", new)
+    with open(os.path.join(REPO, "README.md"), "w", encoding="utf-8") as f:
+        f.write(new)
 
 
 # Files the service worker should not precache.
-PRECACHE_SKIP_DIRS = (".git", "scripts", "tests")
+PRECACHE_SKIP_DIRS = ()
 PRECACHE_SKIP_FILES = {"README.md", "sw.js", ".gitignore", ".nojekyll", "VENDOR.md", "LICENSE", "LICENSE.md"}
 
 
@@ -264,7 +268,7 @@ def service_worker(wip=()):
         # Pages are linked as directories ("evm/"), so cache them under that URL.
         url = "/" + (rel[: -len("index.html")] if rel.endswith("index.html") else rel)
         urls.append(url)
-    with open(path("scripts", "sw.template.js"), encoding="utf-8") as f:
+    with open(os.path.join(REPO, "scripts", "sw.template.js"), encoding="utf-8") as f:
         template = f.read()
     sw = (template.replace("__VERSION__", digest.hexdigest()[:12])
                   .replace("__PRECACHE__", json.dumps(urls, indent=2)))
