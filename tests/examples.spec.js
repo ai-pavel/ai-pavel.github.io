@@ -40,7 +40,9 @@ for (const tool of cryptoTools) {
 
       for (const label of labels.map(l => l.trim())) {
         await test.step(label, async () => {
-          await page.locator('button').filter({ visible: true, hasText: label }).first().click();
+          // An example may switch tabs (e.g. a shared example that opens Encode); come back first.
+          if (tab !== null) await page.locator(TABS).nth(tab).click();
+          await page.locator('button').filter({ visible: true, hasText: label }).first().click({ timeout: 10_000 });
           // Generators (vanity search, password hashing) can take a few seconds.
           await page.waitForTimeout(800);
           await expect(page.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });
