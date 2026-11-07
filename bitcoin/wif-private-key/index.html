@@ -21,6 +21,7 @@
 
   <div class="panel">
     <p class="warning">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="field"><span>Private key (64 hex characters) or WIF</span>
       <div class="row"><input id="key" class="mono" spellcheck="false" autocomplete="off" style="flex:1"><button id="random" type="button">Random key</button></div>
     </div>
@@ -33,7 +34,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -65,6 +66,12 @@ const run = live([$('key'), $('net'), $('compressed')], () => {
 }, { errEl: $('err'), outEl: $('out') });
 
 $('random').onclick = () => { $('key').value = bytesToHex(secp256k1.utils.randomPrivateKey()); run(); };
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// The Bitcoin wiki WIF example key, uncompressed.
+$('example').onclick = () => {
+  exSet('key', '0c28fca386c7a227600b2fe50b7cae11ec86d3bf1fbe471be89827e19d72aa1d'); exSet('net', 'mainnet'); exSet('compressed', false); run();
+};
 </script>
 </body>
 </html>

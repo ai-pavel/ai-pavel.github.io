@@ -34,6 +34,7 @@
     <label class="field"><span id="baseLabel">Planck</span>
       <input id="base" class="mono" inputmode="numeric" autocomplete="off">
     </label>
+    <div class="row"><button type="button" id="example">Example: 12.5 DOT</button></div>
     <p class="error" id="err" hidden></p>
     <div id="out"></div>
     <p class="muted">1 <span id="t1">DOT</span> = 10<sup id="pow">10</sup> <span id="t2">Planck</span>. Balances on-chain are always stored in the smallest unit as an unsigned integer (u128).</p>
@@ -91,11 +92,13 @@ $('base').addEventListener('input', () => { last = 'base'; render(); });
 $('token').addEventListener('input', render);
 $('decimals').addEventListener('input', render);
 render();
+// Example button(s)
+$('example').onclick = () => { $('token').value = '0'; $('tok').value = '12.5'; last = 'tok'; render(); };
 </script>
 <!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

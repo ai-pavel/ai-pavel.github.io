@@ -21,6 +21,7 @@
   <!-- tool:start -->
   <div class="panel">
     <p class="note" id="keynote"></p>
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="row">
       <div class="seg" id="dir" role="group" aria-label="Direction">
         <button data-v="enc" aria-pressed="true">Encrypt</button>
@@ -86,7 +87,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -202,6 +203,17 @@ for (const id of ['cipher', 'size', 'keySrc']) $(id).addEventListener('input', (
 $('key').value = hex.encode(randomBytes(32));
 sync();
 wireCopy();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// AES-256-GCM with a fixed demo key and IV.
+$('example').onclick = () => {
+  exSet('cipher', 'aes-gcm'); exSet('size', '32'); exSet('keySrc', 'key'); sync();
+  exSet('key', '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f');
+  exSet('iv', '000102030405060708090a0b'); exSet('aad', '');
+  if (dir === 'enc') { exSet('inEnc', 'utf8'); exSet('input', 'Hello, world!'); }
+  else { exSet('prefixed', false); exSet('inEnc', 'hex'); exSet('input', '0f67ba77aac9e26ce233fbef906d905edce0598cef6674301f417d7a90'); }
+  go();
+};
 </script>
 <!-- script:end -->
 </body>

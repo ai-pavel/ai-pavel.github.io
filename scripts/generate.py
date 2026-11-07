@@ -202,7 +202,7 @@ def readme_table(toolboxes):
 
 
 # Files the service worker should not precache.
-PRECACHE_SKIP_DIRS = (".git", "scripts")
+PRECACHE_SKIP_DIRS = (".git", "scripts", "tests")
 PRECACHE_SKIP_FILES = {"README.md", "sw.js", ".gitignore", ".nojekyll", "VENDOR.md", "LICENSE", "LICENSE.md"}
 
 
@@ -290,6 +290,28 @@ def build_pages(toolboxes, wip=()):
     readme_table(toolboxes)
 
 
+# Sections whose tools must each offer an "Example" button that fills in sample input.
+EXAMPLE_EXEMPT = {"utilities", "dev"}
+EXAMPLE_RE = re.compile(r"<button[^>]*>\s*Example\b")
+
+
+def check_examples(toolboxes, wip=()):
+    """Warn about ready tool pages in crypto sections that lack an Example button."""
+    missing = []
+    for tb in toolboxes:
+        if tb["id"] in EXAMPLE_EXEMPT or tb["id"] in wip:
+            continue
+        for cat in tb["categories"]:
+            for t in cat["tools"]:
+                rel = os.path.join(tb["id"], t["slug"], "index.html")
+                with open(path(rel), encoding="utf-8") as f:
+                    page = f.read()
+                if PLACEHOLDER_MARKER not in page and not EXAMPLE_RE.search(page):
+                    missing.append(rel)
+    for rel in missing:
+        print(f"warning: no Example button in {rel}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--wip", default="", help="comma-separated sections still being written")
@@ -307,6 +329,7 @@ def main():
             break
         label = new_label
     service_worker(wip)
+    check_examples(toolboxes, wip)
     for tb in toolboxes:
         tools = [t for c in tb["categories"] for t in c["tools"]]
         print(f'{tb["id"]}: {count_label(tools)}')

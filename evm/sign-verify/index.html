@@ -34,7 +34,7 @@
       <label for="s-key" class="muted">Private key</label>
       <input id="s-key" class="mono" spellcheck="false" autocomplete="off" placeholder="0x…">
     </div>
-    <div class="row" style="margin-bottom:14px"><button id="s-random">Random key</button></div>
+    <div class="row" style="margin-bottom:14px"><button type="button" id="s-example">Example</button><button id="s-random">Random key</button></div>
     <div class="field">
       <label for="s-msg" class="muted">Message</label>
       <textarea id="s-msg" rows="3" spellcheck="false">Hello, Ethereum!</textarea>
@@ -47,6 +47,7 @@
   <section id="tab-verify" class="mode-panel" data-tab-panel="verify">
 
   <div class="panel">
+    <div class="row" style="margin-bottom:14px"><button type="button" id="v-example">Example</button></div>
     <div class="field">
       <label for="v-msg" class="muted">Message</label>
       <textarea id="v-msg" rows="3" spellcheck="false"></textarea>
@@ -67,7 +68,7 @@
   </section>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script>
@@ -120,6 +121,13 @@ const run = live([$('key'), $('msg'), $('is-hex')], () => {
 }, { errEl: $('err'), outEl: $('out') });
 
 $('random').onclick = () => { $('key').value = bytesToHex(secp256k1.utils.randomPrivateKey()); run(); };
+// Example: Hardhat/Anvil test account #0 (a well-known public test key).
+$('example').onclick = () => {
+  $('key').value = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+  $('msg').value = 'Hello, Ethereum!';
+  $('is-hex').checked = false;
+  run();
+};
 </script>
 <script type="module">
 import { parseEcdsaSignature, recoverAddress, personalMessageHash, parseAddress, hexToBytes, bytesToHex, utf8 } from '../lib/evm.js';
@@ -132,7 +140,7 @@ $('is-hex').checked = param('hex') === '1';
 $('sig').value = param('sig') ?? '';
 $('addr').value = param('addr') ?? '';
 
-live([$('msg'), $('is-hex'), $('sig'), $('addr')], () => {
+const run = live([$('msg'), $('is-hex'), $('sig'), $('addr')], () => {
   $('status').hidden = true;
   if (!$('sig').value.trim()) { $('out').innerHTML = ''; return; }
   const msg = $('is-hex').checked ? hexToBytes($('msg').value, 'Message') : utf8($('msg').value);
@@ -150,6 +158,15 @@ live([$('msg'), $('is-hex'), $('sig'), $('addr')], () => {
     { label: 'Message hash', value: bytesToHex(hash) },
   ]);
 }, { errEl: $('err'), outEl: $('out') });
+
+// Example: "Hello, Ethereum!" signed by Hardhat/Anvil test account #0.
+$('example').onclick = () => {
+  $('msg').value = 'Hello, Ethereum!';
+  $('is-hex').checked = false;
+  $('sig').value = '0xf875be44b382147d14f23ae10a3cd544e54996013ea390cef46c215f063862760011cd83eee30440d9dd72aa4a0c401d8ef014efd1c34b983217616bef8fbd401b';
+  $('addr').value = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+  run();
+};
 </script>
 </body>
 </html>

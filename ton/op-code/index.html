@@ -31,6 +31,7 @@
     <label class="field"><span>TL-B constructor</span>
       <textarea id="tlb" rows="3" class="mono" spellcheck="false" placeholder="transfer query_id:uint64 amount:(VarUInteger 16) destination:MsgAddress response_destination:MsgAddress custom_payload:(Maybe ^Cell) forward_ton_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell) = InternalMsgBody"></textarea>
     </label>
+    <div class="row" style="margin-top:8px"><button type="button" id="example">Example: jetton transfer</button></div>
     <p class="error" id="err" hidden></p>
     <div class="kv" id="out"></div>
     <details class="help">
@@ -45,7 +46,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -84,6 +85,8 @@ function compute() {
     (tag ? `<div class="kv-row"><div class="kv-label">Explicit tag in the input</div><div class="kv-value">#${esc(tag[1])} ${t === op ? '<span class="ok">matches</span>' : t === high ? '<span class="ok">matches the high-bit form</span>' : '<span class="muted">differs from the computed value; contracts use the explicit tag</span>'}</div></div>` : '');
 }
 $('tlb').addEventListener('input', compute);
+// Example: the TEP-74 jetton transfer scheme; its op code is 0x0f8a7ea5.
+$('example').onclick = () => { $('tlb').value = $('tlb').placeholder; compute(); };
 
 $('ops').innerHTML = COMMON.map(([op, name, scheme]) => {
   const raw = crc32(utf8(normalize(scheme)));

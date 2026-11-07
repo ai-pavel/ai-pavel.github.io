@@ -20,13 +20,14 @@
   <p class="lead">Compute a transaction's TXID and wTXID. The TXID hashes the transaction without witness data; the wTXID (BIP141) includes it. For non-segwit transactions they are equal.</p>
 
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="field"><span>Raw transaction (hex)</span><textarea id="tx" class="mono" rows="5" spellcheck="false"></textarea></div>
     <p class="error" id="err" hidden></p>
     <div class="out" id="out"></div>
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -48,6 +49,10 @@ live([$('tx')], () => {
     { label: 'Size / weight', value: `${tx.size} bytes, ${tx.weight} WU, ${tx.vsize} vbytes`, copy: false },
   ]);
 }, { errEl: $('err'), outEl: $('out') });
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// A real segwit transaction from mainnet block 840,000.
+$('example').onclick = () => { exSet('tx', '020000000001017fb9cc941aa0ca3aaf339783564d2d29ec3254a9128f5d49ad3eeb002aeb40ec0000000000000000000242342a6b000000002251203b8b3ab1453eb47e2d4903b963776680e30863df3625d3e74292338ae7928da10000000000000000246a5d21020704b5e1d8e1c8eeb788a30705a02d039f3e01020680dc9afd2808c7e8430a640340924b2624416402a52ed7cf4eba6b2c535d2def8e649a74ed97aaca5ec54881ef3b34da68bb13d76d6b420e60297a9247cb081d1e59cb2c260b1509cff25d4b3158204c04e894d5357840e324b24c959ca6a5082035f6ffae12f331202bc84bf4612eac0063036f7264010b2047f22ed15d3082f5e9a005864528e4f991ade841a9c5846e2c118425878b6be1010d09b530368c74df10a3036821c04c04e894d5357840e324b24c959ca6a5082035f6ffae12f331202bc84bf4612e00000000'); exFire('tx'); };
 </script>
 </body>
 </html>

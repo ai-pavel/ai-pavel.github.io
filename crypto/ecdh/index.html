@@ -21,11 +21,12 @@
   <!-- tool:start -->
   <div class="panel">
     <p class="note" id="keynote"></p>
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="field-row">
       <label class="field">Curve
         <select id="curve"><option>X25519</option><option>P-256</option><option>P-384</option><option>secp256k1</option></select>
       </label>
-      <button id="demo">Demo: generate both sides</button>
+      <button id="demo">Example: random key pairs</button>
     </div>
     <label class="field">Your private key (hex, PEM or JWK)
       <textarea id="priv" class="wide" rows="2" spellcheck="false" autocomplete="off"></textarea>
@@ -50,7 +51,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -125,6 +126,15 @@ for (const id of ['curve', 'priv', 'pub', 'useHkdf', 'salt', 'info', 'len']) $(i
 $('curve').addEventListener('input', () => { $('demoOut').innerHTML = ''; });
 wireCopy();
 $('demo').click();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// RFC 7748 section 6.1: Alice's private key and Bob's public key.
+$('example').onclick = () => {
+  exSet('curve', 'X25519'); $('demoOut').innerHTML = '';
+  exSet('priv', '77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a');
+  exSet('pub', 'de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f');
+  exSet('useHkdf', false); render();
+};
 </script>
 <!-- script:end -->
 </body>

@@ -35,6 +35,7 @@
     <label class="field">Serialized transaction or message
       <textarea id="input" class="wide" rows="6" spellcheck="false" autocomplete="off" placeholder="Base64 (as returned by RPC with encoding: &quot;base64&quot;), base58 or hex"></textarea>
     </label>
+    <div class="row" style="margin-bottom:8px"><button type="button" id="example">Example</button></div>
     <label class="field">Encoding
       <select id="enc"><option value="auto">Auto-detect</option><option value="base64">Base64</option><option value="base58">Base58</option><option value="hex">Hex</option></select>
     </label>
@@ -43,7 +44,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -282,6 +283,12 @@ function render() {
 }
 $('input').oninput = render;
 $('enc').onchange = render;
+// Example: a legacy transaction with System, Token, Compute Budget and Memo instructions, signed by a test key.
+$('example').onclick = () => {
+  $('input').value = 'AVPA4nBoi5Me4M/NDK8h9BEPZk9P/mfgXByRvu4LJn2vqjZUzuixMHG70aMoRP+M/6phePcenjBoCrQ9KnDV1gcBAAcMebVWLo/mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQuporZK9DwEMFFlyF5b6W6RJHDb10Imi8d/U8hdh3Y6mcwLkkYlNdJLqa+T5FOpPRfoULmRYZ8kWSidtXddvB22tNJXI8XCeAY4cFGpjC1+A6VreWp0gZMmvZZ4h/xa1HqSmxj4pxSCr71UHsTLsX5lUd2rr6+e5JCHuppFEbSLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkDBkZv5SEXMv/srbpyw5vnvIzlu8X3EmssQ5s6QAAAAMb6evO+2606PWXzaqvJdDGxu+TC0vbg5HymAgNFL11hBUpTWpkpIQZNJOhxYNo4fHw1td28kruB5B+oQEEFRI0GodgXkTdUKpg0N73+KnqyVX9TXIp4citopJ3AAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpxJrndgN4IFTxep3s6kO0ROug7bEsbx0xxuDkqEvwUusHBwAFAuCTBAAHAAkDqGEAAAAAAAAFAgAEDAIAAAAAL2hZAAAAAAYGAAIECAULAQELBAMIAgAKDIfWEgAAAAAABgkACWdtIOKYgO+4jwoBAQmvr20fDZib7QE=';
+  $('enc').value = 'auto';
+  render();
+};
 wireCopy();
 </script>
 </body>

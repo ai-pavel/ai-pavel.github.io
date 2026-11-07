@@ -26,6 +26,7 @@
     <label class="field">Custom prefix (optional)
       <input id="custom" class="mono" inputmode="numeric" placeholder="e.g. 1284" autocomplete="off">
     </label>
+    <div class="row"><button type="button" id="example">Example: //Alice</button></div>
     <p class="error" id="err" hidden></p>
     <div id="decoded"></div>
     <div id="out"></div>
@@ -64,11 +65,13 @@ function render() {
 const q = new URLSearchParams(location.search).get('a'); if (q) $('in').value = q;
 $('in').addEventListener('input', render); $('custom').addEventListener('input', render);
 render();
+// Example button(s)
+$('example').onclick = () => { $('in').value = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'; $('custom').value = ''; render(); };
 </script>
 <!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

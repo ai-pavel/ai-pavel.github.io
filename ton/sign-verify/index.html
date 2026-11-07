@@ -51,7 +51,7 @@
       </div>
     </div>
     <label class="field" style="margin-top:8px"><span>Message</span><textarea id="s-msg" rows="3" spellcheck="false"></textarea></label>
-    <div class="row" style="margin-top:12px"><button class="primary" type="button" id="s-go">Sign</button><span class="muted" id="s-status"></span></div>
+    <div class="row" style="margin-top:12px"><button type="button" id="s-example">Example</button><button class="primary" type="button" id="s-go">Sign</button><span class="muted" id="s-status"></span></div>
     <p class="error" id="s-err" hidden></p>
     <div class="kv" id="s-out"></div>
     <p class="muted" style="margin-top:16px">This signs the message bytes directly with ed25519. Wallet apps may add a prefix or hash first (for example TON Connect's signData), so their signatures differ.</p>
@@ -70,14 +70,14 @@
     </div>
     <label class="field" style="margin-top:8px"><span>Message</span><textarea id="v-msg" rows="3" spellcheck="false"></textarea></label>
     <label class="field" style="margin-top:8px"><span>Signature (64 bytes, hex or base64)</span><textarea id="v-sig" rows="2" class="mono" spellcheck="false"></textarea></label>
-    <div class="row" style="margin-top:12px"><button class="primary" type="button" id="v-go">Verify</button></div>
+    <div class="row" style="margin-top:12px"><button type="button" id="v-example">Example</button><button class="primary" type="button" id="v-go">Verify</button></div>
     <p class="error" id="v-err" hidden></p>
     <div id="v-out" style="margin-top:12px"></div>
   </div>
   </section>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script>
@@ -138,6 +138,14 @@ $('go').onclick = async () => {
   } catch (e) { showError($('err'), e); }
   $('status').textContent = '';
 };
+// Example: a test key whose seed is 32 bytes of 0x09 (never use it for funds).
+$('example').onclick = () => {
+  __sec.querySelector('[data-key="secret"]').click();
+  __sec.querySelector('[data-fmt="text"]').click();
+  $('secret').value = '0909090909090909090909090909090909090909090909090909090909090909';
+  $('msg').value = "sign me \u270d\ufe0f";
+  $('go').click();
+};
 </script>
 <script type="module">
 import { ed25519, parseBytes, hexToBytes, utf8 } from '../lib/ton.js';
@@ -162,6 +170,14 @@ $('go').onclick = () => {
     try { ok = ed25519.verify(sig, msg, pub); } catch { ok = false; }
     $('out').innerHTML = ok ? '<p class="ok">✓ Valid signature</p>' : '<p class="bad">✗ Invalid signature: the message, key or signature does not match</p>';
   } catch (e) { showError($('err'), e); }
+};
+// Example: the Sign tab's example message, signed by the test key with seed 0x09…09.
+$('example').onclick = () => {
+  __sec.querySelector('[data-fmt="text"]').click();
+  $('pub').value = 'fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618';
+  $('msg').value = "sign me \u270d\ufe0f";
+  $('sig').value = '40eda314158a4b728aee21d4db9fa4bca7b11dbe58b23bd21b3680b4afd082a3ba2bd0145a9ed54dd5025ed3769c0538cad6dd1c2f7789fb6fabaad71d73af0c';
+  $('go').click();
 };
 </script>
 </body>

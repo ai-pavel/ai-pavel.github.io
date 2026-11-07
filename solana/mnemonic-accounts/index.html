@@ -31,6 +31,7 @@
       <textarea id="mnemonic" class="wide" rows="3" spellcheck="false" autocomplete="off" placeholder="12 or 24 words"></textarea>
     </label>
     <div class="row" style="margin-top:12px">
+      <button type="button" id="example">Example</button>
       <button id="gen12">Generate 12 words</button>
       <button id="gen24">Generate 24 words</button>
     </div>
@@ -61,7 +62,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -110,6 +111,14 @@ const later = () => { clearTimeout(timer); timer = setTimeout(render, 150); };
 ['mnemonic', 'pass', 'custom', 'start', 'count'].forEach(id => $(id).oninput = later);
 $('reveal').onchange = render;
 $('scheme').onchange = () => { $('custom-wrap').hidden = $('scheme').value !== 'custom'; render(); };
+// Example: the standard BIP-39 test mnemonic with the Phantom/Solflare path.
+$('example').onclick = () => {
+  $('mnemonic').value = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+  $('pass').value = '';
+  $('scheme').value = "m/44'/501'/{i}'/0'"; $('custom-wrap').hidden = true;
+  $('start').value = '0'; $('count').value = '3';
+  render();
+};
 $('gen12').onclick = () => { $('mnemonic').value = generateMnemonic(wordlist, 128); render(); };
 $('gen24').onclick = () => { $('mnemonic').value = generateMnemonic(wordlist, 256); render(); };
 wireCopy();

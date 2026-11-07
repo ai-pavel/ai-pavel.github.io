@@ -21,6 +21,7 @@
   <!-- tool:start -->
   <div class="panel">
     <p class="note" id="keynote"></p>
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <label class="field">Secret (base32) or otpauth:// URI
       <input id="secret" class="mono" spellcheck="false" autocomplete="off" value="JBSWY3DPEHPK3PXP">
     </label>
@@ -51,7 +52,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -156,6 +157,13 @@ $('gen').onclick = async () => {
 for (const id of ['secret', 'type', 'algo', 'digits', 'period', 'counter']) $(id).addEventListener('input', render);
 wireCopy();
 render();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// RFC 6238 test secret ("12345678901234567890"), SHA-1, 8 digits.
+$('example').onclick = () => {
+  exSet('secret', 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'); exSet('type', 'totp'); exSet('algo', 'SHA-1');
+  exSet('digits', '8'); exSet('period', 30); render();
+};
 </script>
 <!-- script:end -->
 </body>

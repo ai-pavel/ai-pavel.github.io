@@ -20,6 +20,7 @@
   <p class="lead">Convert between hex and Base58, with or without the Base58Check checksum (the first 4 bytes of HASH256). Decoding verifies the checksum.</p>
 
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="seg" id="mode">
       <button data-mode="encode" aria-pressed="true">Hex → Base58</button>
       <button data-mode="decode" aria-pressed="false">Base58 → hex</button>
@@ -49,7 +50,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -108,6 +109,17 @@ run = live([$('version'), $('payload'), $('encoded')], () => {
     ]);
   }
 }, { errEl: $('err'), outEl: $('out') });
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// Satoshi's genesis address (Base58Check) and the Bitcoin wiki example (plain Base58).
+$('example').onclick = () => {
+  const check = cs() === 'check';
+  if (mode() === 'encode') {
+    exSet('preset', ''); exSet('version', check ? '00' : '');
+    exSet('payload', check ? '62e907b15cbf27d5425399ebf6f0fb50ebb88f18' : '00010966776006953D5567439E5E39F86A0D273BEED61967F6');
+  } else exSet('encoded', check ? '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' : '16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM');
+  run();
+};
 </script>
 </body>
 </html>

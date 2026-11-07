@@ -34,6 +34,7 @@
         </select>
       </label>
     </div>
+    <div class="row"><button type="button" id="example">Example: secp256k1 public key</button></div>
     <p class="error" id="err" hidden></p>
     <div id="out"></div>
   </div>
@@ -45,7 +46,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -75,6 +76,8 @@ function render() {
 }
 $('pk').oninput = render; $('chain').oninput = render; $('type').oninput = render;
 wireCopy(); render();
+// Example button(s)
+$('example').onclick = () => { $('pk').value = "Ak9OKtmcNNYLm6YoPJQxqEGK+GcyEpYfl6d7Y3f80Fti"; $('chain').value = 'cosmos'; $('type').value = 'auto'; render(); };
 </script>
 </body>
 </html>

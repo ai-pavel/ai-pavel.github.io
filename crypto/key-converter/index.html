@@ -21,6 +21,7 @@
   <!-- tool:start -->
   <div class="panel">
     <p class="note" id="keynote"></p>
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <label class="field">Key
       <textarea id="key" class="wide" rows="7" spellcheck="false" autocomplete="off" placeholder="-----BEGIN PRIVATE KEY----- …, a JWK, an OpenSSH public key, DER as hex/base64, or raw key bytes"></textarea>
     </label>
@@ -46,7 +47,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -77,6 +78,13 @@ try {
 } catch {}
 wireCopy();
 render();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// The RFC 8032 test 1 Ed25519 private key as PKCS#8 PEM.
+$('example').onclick = () => {
+  exSet('key', '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIJ1hsZ3v/VpguoRK9JLsLMREScVpezJpGXA7rAMcrn9g\n-----END PRIVATE KEY-----');
+  exSet('hint', ''); exSet('pubOnly', false); render();
+};
 </script>
 <!-- script:end -->
 </body>

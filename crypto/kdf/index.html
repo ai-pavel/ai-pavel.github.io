@@ -21,12 +21,13 @@
   <!-- tool:start -->
   <div class="panel">
     <p class="note" id="keynote"></p>
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="row">
       <div class="seg" id="kdf" role="group" aria-label="Function">
         <button data-v="pbkdf2" aria-pressed="true">PBKDF2</button>
         <button data-v="hkdf" aria-pressed="false">HKDF</button>
       </div>
-      <button id="bip39" style="margin-left:auto">BIP39 seed preset</button>
+      <button id="bip39" style="margin-left:auto">Example: BIP39 seed</button>
     </div>
     <div class="field-row">
       <label class="field" style="flex:3"><span id="pwLabel">Password</span>
@@ -64,7 +65,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -131,6 +132,20 @@ $('bip39').onclick = async () => {
 };
 wireCopy();
 compute();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// PBKDF2: RFC 6070 (SHA-1, 4096 iterations). HKDF: RFC 5869 test case 1.
+$('example').onclick = () => {
+  if (kdf === 'pbkdf2') {
+    exSet('pw', 'password'); exSet('pwEnc', 'utf8'); exSet('salt', 'salt'); exSet('saltEnc', 'utf8');
+    exSet('hash', 'SHA-1'); exSet('iter', 4096); exSet('len', 20);
+  } else {
+    exSet('pw', '0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b'); exSet('pwEnc', 'hex');
+    exSet('salt', '000102030405060708090a0b0c'); exSet('saltEnc', 'hex');
+    exSet('info', 'f0f1f2f3f4f5f6f7f8f9'); exSet('infoEnc', 'hex'); exSet('hash', 'SHA-256'); exSet('len', 42);
+  }
+  compute();
+};
 </script>
 <!-- script:end -->
 </body>

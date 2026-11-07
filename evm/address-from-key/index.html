@@ -25,13 +25,13 @@
       <label for="key" class="muted">Private key (32 bytes) or public key (33, 64 or 65 bytes)</label>
       <textarea id="key" class="mono" rows="2" spellcheck="false" autocomplete="off" placeholder="0x…"></textarea>
     </div>
-    <div class="row"><button id="random">Random private key</button></div>
+    <div class="row"><button type="button" id="example">Example</button><button id="random">Random private key</button></div>
     <p class="error" id="err" hidden></p>
     <div class="out" id="out"></div>
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -53,6 +53,12 @@ const run = live([$('key')], () => {
     { label: 'Public key (uncompressed)', value: bytesToHex(point.toRawBytes(false)) },
   ]);
 }, { errEl: $('err'), outEl: $('out') });
+
+// Example: Hardhat/Anvil test account #0 (a well-known public test key).
+$('example').onclick = () => {
+  $('key').value = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+  run();
+};
 
 $('random').onclick = () => {
   $('key').value = bytesToHex(secp256k1.utils.randomPrivateKey());

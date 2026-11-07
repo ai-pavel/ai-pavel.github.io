@@ -24,6 +24,7 @@
       <textarea id="mn" class="wide" rows="3" spellcheck="false" autocomplete="off" placeholder="12 or 24 words"></textarea>
     </label>
     <div class="row" style="margin-top:8px">
+      <button type="button" id="example">Example: test mnemonic</button>
       <button type="button" id="gen12">New 12 words</button>
       <button type="button" id="gen24">New 24 words</button>
     </div>
@@ -59,7 +60,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -119,6 +120,8 @@ $('gen24').onclick = () => { $('mn').value = generateMnemonic(wordlist, 256); re
 $('chain').oninput = () => { const c = CHAINS.find(x => x.prefix === $('chain').value); if (c) $('coin').value = String(c.coin); render(); };
 for (const id of ['mn', 'pass', 'coin', 'account', 'start', 'count', 'reveal']) $(id).oninput = render;
 wireCopy(); render();
+// Example button(s)
+$('example').onclick = () => { $('mn').value = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"; $('pass').value = ''; $('chain').value = 'cosmos'; $('coin').value = '118'; $('account').value = '0'; $('start').value = '0'; $('count').value = '3'; $('reveal').checked = false; render(); };
 </script>
 </body>
 </html>

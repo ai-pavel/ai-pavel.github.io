@@ -29,6 +29,7 @@
   <section id="tab-encode" class="mode-panel" data-tab-panel="encode">
 
   <div class="panel">
+    <div class="row" style="margin-bottom:14px"><button type="button" id="n-example">Example: ERC-20 transfer</button></div>
     <div class="field">
       <label for="n-sig" class="muted">Function signature, or a parameter list like <code>(address,uint256[])</code></label>
       <input id="n-sig" class="mono" spellcheck="false" autocomplete="off" value="transfer(address to, uint256 amount)">
@@ -46,6 +47,7 @@
   <section id="tab-decode" class="mode-panel" data-tab-panel="decode">
 
   <div class="panel">
+    <div class="row" style="margin-bottom:14px"><button type="button" id="d-example">Example: ERC-20 transfer</button></div>
     <div class="field">
       <label for="d-data" class="muted">Calldata</label>
       <textarea id="d-data" class="mono" rows="4" spellcheck="false" placeholder="0x…"></textarea>
@@ -65,7 +67,7 @@
   </section>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script>
@@ -173,6 +175,15 @@ $('params').addEventListener('input', render);
 parsed = parse(); buildFields();
 parsed.inputs.forEach((p, i) => { $('p' + i).value = EXAMPLE[p.type.kind] || ''; });
 render();
+
+// Example: send 25 USDC (6 decimals) to Hardhat/Anvil test account #0.
+$('example').onclick = () => {
+  $('sig').value = 'transfer(address to, uint256 amount)';
+  render();
+  $('p0').value = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+  $('p1').value = '25000000';
+  render();
+};
 </script>
 <script type="module">
 import { hexToBytes, bytesToHex, parseSignature, abiJsonParam, abiDecode, typeToString, selectorOf, toPlain, COMMON_SIGNATURES, InputError } from '../lib/evm.js';
@@ -257,6 +268,14 @@ for (const el of [$('data'), $('abi'), $('no-selector')]) el.addEventListener('i
 $('data').value = param('data') || '0xa9059cbb000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000de0b6b3a7640000';
 if (param('sig')) $('abi').value = param('sig');
 render();
+
+// Example: ERC-20 transfer of 25 USDC (6 decimals), decoded with its signature.
+$('example').onclick = () => {
+  $('data').value = '0xa9059cbb000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000017d7840';
+  $('abi').value = 'transfer(address to, uint256 amount)';
+  $('no-selector').checked = false;
+  render();
+};
 </script>
 </body>
 </html>

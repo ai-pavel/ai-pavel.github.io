@@ -26,11 +26,13 @@
       <button type="button" data-mode="dec" aria-pressed="false">Decode</button>
     </div>
     <div id="enc-box" style="margin-top:12px">
+      <div class="row" style="margin-bottom:8px"><button type="button" id="enc-example">Example</button></div>
       <label class="field"><span>Comment text</span><textarea id="text" rows="4" placeholder="Thanks for lunch!"></textarea></label>
       <p class="muted" id="enc-info"></p>
       <div class="kv" id="enc-out"></div>
     </div>
     <div id="dec-box" style="margin-top:12px" hidden>
+      <div class="row" style="margin-bottom:8px"><button type="button" id="dec-example">Example</button></div>
       <label class="field"><span>Body BOC (hex or base64)</span><textarea id="boc" rows="4" class="mono" spellcheck="false" autocomplete="off"></textarea></label>
       <div id="dec-out" style="margin-top:12px"></div>
     </div>
@@ -43,7 +45,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -90,6 +92,9 @@ function decode() {
 }
 $('text').addEventListener('input', encode);
 $('boc').addEventListener('input', decode);
+// Examples: a short comment, and the body BOC that encodes it.
+$('enc-example').onclick = () => { $('text').value = "Hello, TON! \ud83d\udc4b"; encode(); };
+$('dec-example').onclick = () => { $('boc').value = 'te6cckEBAQEAFgAAKAAAAABIZWxsbywgVE9OISDwn5GL+K/u8w=='; decode(); };
 </script>
 </body>
 </html>

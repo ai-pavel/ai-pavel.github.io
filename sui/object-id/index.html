@@ -50,12 +50,13 @@
       <p class="muted" id="field-help"></p>
     </div>
 
+    <div class="row"><button type="button" id="example-created">Example: created object</button><button type="button" id="example-field">Example: dynamic field</button><button type="button" id="example-derived">Example: derived object</button></div>
     <p class="error" id="err" hidden></p>
     <div id="out"></div>
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -128,6 +129,10 @@ for (const k of ['created', 'field', 'derived']) $('m-' + k).onclick = () => set
 for (const id of ['digest', 'index', 'count', 'parent', 'keytype', 'keyval', 'raw']) $(id).addEventListener('input', render);
 wireCopy();
 setMode('created');
+// Example button(s)
+$('example-created').onclick = () => { $('digest').value = "6wugsseErMNUqFfF9tCEkkKFvJMmQtRQATK7fpo6d4Cp"; $('index').value = '0'; $('count').value = '1'; setMode('created'); };
+$('example-field').onclick = () => { $('parent').value = "0xabababababababababababababababababababababababababababababababab"; $('keytype').value = "u64"; $('keyval').value = "7"; $('raw').checked = false; setMode('field'); };
+$('example-derived').onclick = () => { $('parent').value = "0xabababababababababababababababababababababababababababababababab"; $('keytype').value = "u64"; $('keyval').value = "42"; $('raw').checked = false; setMode('derived'); };
 </script>
 </body>
 </html>

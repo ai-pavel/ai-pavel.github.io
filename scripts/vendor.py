@@ -128,7 +128,7 @@ def vendor_all():
 def site_files(only=()):
     for d, dirs, files in os.walk(ROOT):
         rel = os.path.relpath(d, ROOT)
-        if rel.startswith((".git", "assets/vendor", "scripts")):
+        if rel.startswith((".git", "assets/vendor", "scripts", "tests")):
             dirs[:] = []
             continue
         if only and rel != "." and rel.split(os.sep)[0] not in only:

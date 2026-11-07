@@ -20,6 +20,7 @@
   <p class="lead">Modular inverse, power and GCD with big integers.</p>
   <!-- tool:start -->
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="field-row">
       <label class="field">Operation
         <select id="op">
@@ -62,7 +63,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -163,6 +164,14 @@ $('preset').oninput = () => { if ($('preset').value) $('n').value = $('preset').
 for (const id of ['op', 'a', 'b', 'n']) $(id).addEventListener('input', () => { if (id === 'n') $('preset').value = ''; render(); });
 wireCopy();
 render();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// Inverse of 3 modulo the secp256k1 group order.
+$('example').onclick = () => {
+  exSet('op', 'inv'); exSet('a', '3');
+  exSet('preset', '0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141');
+  exSet('n', '0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141'); render();
+};
 </script>
 <!-- script:end -->
 </body>

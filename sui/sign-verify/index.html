@@ -46,6 +46,7 @@
     <label class="field" id="s-enc-wrap">Message encoding
       <select id="s-enc"><option value="utf8">Text (UTF-8)</option><option value="hex">Hex</option><option value="base64">Base64</option></select>
     </label>
+    <div class="row"><button type="button" id="example-sign">Example: sign "hello sui"</button></div>
     <p class="error" id="s-err" hidden></p>
     <div id="s-out"></div>
   </div>
@@ -71,6 +72,7 @@
     <label class="field">Expected signer address (optional)
       <input id="v-expect" class="mono" autocomplete="off" spellcheck="false" placeholder="0x…">
     </label>
+    <div class="row"><button type="button" id="example-verify">Example: verify a signature</button></div>
     <p class="error" id="v-err" hidden></p>
     <div id="v-out"></div>
   </div>
@@ -80,7 +82,7 @@
   </section>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script>
@@ -190,6 +192,11 @@ if (h.get('s')) {
 for (const id of ['mode', 'msg', 'enc', 'sig', 'expect']) $(id).addEventListener('input', render);
 wireCopy();
 render();
+// Example button(s)
+const exSet = vals => { for (const [id, v] of Object.entries(vals)) { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; } };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+document.getElementById('example-sign').onclick = () => { exSet({ 's-key': "suiprivkey1qrwsjvr6gwaxmsvxk4cfun99ra8uwxg3c9pl0nhle7xxpe4s80y05ctazer", 's-scheme': '0', 's-mode': '3', 's-msg': 'hello sui', 's-enc': 'utf8' }); exFire('s-mode'); exFire('s-key'); };
+document.getElementById('example-verify').onclick = () => { exSet({ 'v-mode': '3', 'v-msg': 'hello sui', 'v-enc': 'utf8', 'v-sig': "AB25XGCSV3wyT/IUM8FlajNiTd31fKRYs6yhw2i+jHm9YZBVAvcCa7VqGmblJYUkKhuO8jdGhacRejZYckDtgw4iZH/u7zYwYL1CBaFnGhXxChI2dlkYsbX2ONgvM8/EaQ==", 'v-expect': "0xa2d14fad60c56049ecf75246a481934691214ce413e6a8ae2fe6834c173a6133" }); exFire('v-mode'); exFire('v-sig'); };
 </script>
 </body>
 </html>

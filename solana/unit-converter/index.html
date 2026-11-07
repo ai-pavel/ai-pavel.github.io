@@ -31,6 +31,7 @@
       <span class="pair"><input id="lamports" class="mono" inputmode="numeric" autocomplete="off"><button class="icon-btn" data-copy-from="lamports">Copy</button></span>
     </label>
     <p class="error" id="err" hidden></p>
+    <div class="row"><button type="button" id="example">Example: rent-exempt token account</button></div>
     <p class="muted">1 SOL = 1,000,000,000 lamports. Values are exact: no floating-point rounding.</p>
   </div>
 
@@ -46,7 +47,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -89,6 +90,8 @@ function fee() {
   } catch (e) { $('fee').innerHTML = `<p class="error">${e.message}</p>`; }
 }
 ['cu', 'price', 'sigs'].forEach(id => $(id).oninput = fee);
+// Example: the rent-exempt minimum for a 165-byte SPL token account.
+$('example').onclick = () => { $('lamports').value = '2039280'; $('lamports').oninput(); };
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-copy-from]');
   if (!b) return;

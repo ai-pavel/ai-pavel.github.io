@@ -39,6 +39,7 @@
       <textarea id="s-msg" class="wide" rows="3" spellcheck="false">Hello Polkadot</textarea>
     </label>
     <label class="check"><input type="checkbox" id="s-wrap" checked> Wrap in &lt;Bytes&gt;…&lt;/Bytes&gt; like wallet signRaw</label>
+    <div class="row"><button type="button" id="example-sign">Example: sign as //Alice</button></div>
     <p class="error" id="s-err" hidden></p>
     <div id="s-out"></div>
     <div class="note">Runs locally in your browser. Don't paste keys that hold real funds. The dev phrase above is public.</div>
@@ -57,6 +58,7 @@
     <label class="field">Signature (hex)
       <textarea id="v-sig" class="wide" rows="2" spellcheck="false"></textarea>
     </label>
+    <div class="row"><button type="button" id="example-verify">Example: verify a //Alice signature</button></div>
     <p class="error" id="v-err" hidden></p>
     <div id="v-out"></div>
     <p class="muted">Tries Sr25519, Ed25519 and ECDSA, with and without the &lt;Bytes&gt; wrapper, and accepts signatures that start with a MultiSignature type byte (00 Ed25519, 01 Sr25519, 02 ECDSA).</p>
@@ -121,11 +123,19 @@ const q = new URLSearchParams(location.search);
 for (const [k, id] of [['address', 'v-addr'], ['message', 'v-msg'], ['signature', 'v-sig']]) if (q.get(k)) $(id).value = q.get(k);
 show(q.get('mode') || 'sign');
 renderSign(); renderVerify();
+// Example button(s)
+const EX_DEV = 'bottom drive obey lake curtain smoke basket hold race lonely fit walk';
+$('example-sign').onclick = () => { $('s-phrase').value = EX_DEV; $('s-path').value = '//Alice'; $('s-type').value = 'sr25519'; $('s-enc').value = 'text'; $('s-msg').value = 'Hello Polkadot'; $('s-wrap').checked = true; renderSign(); };
+$('example-verify').onclick = () => {
+  const kp = keypairFromSuri('sr25519', EX_DEV + '//Alice'), msg = 'Hello Polkadot';
+  $('v-addr').value = ss58Encode(accountIdOf('sr25519', kp.publicKey), 42); $('v-enc').value = 'text'; $('v-msg').value = msg;
+  $('v-sig').value = toHex(sign(kp, wrapBytes(utf8(msg)))); renderVerify();
+};
 </script>
 <!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

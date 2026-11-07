@@ -31,6 +31,7 @@
           <option value="2">Secp256r1</option>
         </select>
       </label>
+      <button type="button" id="example" style="align-self:flex-end">Example</button>
       <button id="gen" style="align-self:flex-end">Generate new key</button>
     </div>
     <p class="error" id="err" hidden></p>
@@ -42,7 +43,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -75,6 +76,8 @@ $('key').oninput = render; $('scheme').oninput = render;
 $('gen').onclick = () => { const f = Number($('scheme').value); $('key').value = keyInfo(f, randomSecret(f)).suiprivkey; render(); };
 wireCopy();
 render();
+// Example button(s)
+$('example').onclick = () => { $('key').value = "suiprivkey1qrwsjvr6gwaxmsvxk4cfun99ra8uwxg3c9pl0nhle7xxpe4s80y05ctazer"; $('scheme').value = '0'; render(); };
 </script>
 </body>
 </html>

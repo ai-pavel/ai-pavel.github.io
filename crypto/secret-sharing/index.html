@@ -21,6 +21,7 @@
   <!-- tool:start -->
   <div class="panel">
     <p class="note" id="keynote"></p>
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="row">
       <div class="seg" id="mode" role="group" aria-label="Mode">
         <button data-v="split" aria-pressed="true">Split</button>
@@ -56,7 +57,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -154,6 +155,17 @@ $('mode').onclick = e => {
   $('out').innerHTML = ''; showError($('err'), '');
 };
 wireCopy();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// Split "hello" into 3 shares with threshold 2; combine shares #1 and #3.
+$('example').onclick = () => {
+  if (!$('splitUi').hidden) {
+    exSet('secret', 'hello'); exSet('secretEnc', 'utf8'); exSet('n', 3); exSet('k', 2); $('split').click();
+  } else {
+    const shares = split(new TextEncoder().encode('hello'), 3, 2).map(s => hex.encode(s));
+    exSet('shares', [shares[0], shares[2]].join('\n')); $('combine').click();
+  }
+};
 </script>
 <!-- script:end -->
 </body>

@@ -20,6 +20,7 @@
   <p class="lead">Work out the next difficulty target the way Bitcoin Core does every 2016 blocks: scale by the actual time taken, clamped to a factor of 4.</p>
 
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="field"><span>Current bits (0x-hex)</span><input id="bits" class="mono" value="0x1d00ffff"></div>
     <div class="seg" id="mode">
       <button data-mode="timestamps" aria-pressed="true">First and last block times</button>
@@ -35,7 +36,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -71,6 +72,15 @@ run = live([$('bits'), $('first'), $('last'), $('span')], () => {
     { label: 'Formula', value: 'new target = old target × actual timespan ÷ 1,209,600 s', copy: false, note: 'Bitcoin Core measures the timespan over 2015 intervals (first to last block of the period), a known off-by-one.' },
   ]);
 }, { errEl: $('err'), outEl: $('out') });
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// The first retarget period: blocks 0 to 2015.
+$('example').onclick = () => {
+  exSet('bits', '0x1d00ffff');
+  if (mode() === 'timestamps') { exSet('first', 1231006505); exSet('last', 1232103989); }
+  else exSet('span', 1097484);
+  run();
+};
 </script>
 </body>
 </html>

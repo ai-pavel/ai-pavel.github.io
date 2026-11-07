@@ -20,6 +20,7 @@
   <p class="lead">Build a raw transaction from inputs and outputs. Get the unsigned hex and a PSBT, or sign P2WPKH, P2TR (key path) and P2PKH inputs with one key.</p>
 
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="grid2">
       <div class="field"><span>Version</span><select id="version"><option value="2" selected>2 (needed for relative locktime)</option><option value="1">1</option></select></div>
       <div class="field"><span>Locktime</span><input id="locktime" class="mono" value="0" inputmode="numeric"></div>
@@ -43,7 +44,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -142,6 +143,16 @@ document.querySelector('main').addEventListener('input', run);
 addRow($('inputs'), 'in', SAMPLE_IN);
 addRow($('outputs'), 'out', SAMPLE_OUT);
 run();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// Spend 100,000 sats received by the BIP84 test wallet's first address to its second address (1,000 sat fee), unsigned.
+$('example').onclick = () => {
+  $('inputs').innerHTML = ''; $('outputs').innerHTML = '';
+  addRow($('inputs'), 'in', { txid: 'd74f11e0e7302e58c8a10f818ca54132d88be9b669984427326cf7f4a9eae639', vout: '0', seq: '0xfffffffd', amount: '100000' });
+  addRow($('outputs'), 'out', { to: 'bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g', amount: '99000' });
+  exSet('version', '2'); exSet('locktime', 0); exSet('net', 'mainnet'); exSet('key', ''); exSet('spend', 'p2wpkh');
+  run();
+};
 </script>
 </body>
 </html>

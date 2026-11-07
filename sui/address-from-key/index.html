@@ -30,6 +30,7 @@
         <option value="2">Secp256r1 (flag 0x02)</option>
       </select>
     </label>
+    <div class="row"><button type="button" id="example">Example: Ed25519 key</button></div>
     <p class="error" id="err" hidden></p>
     <div id="out"></div>
   </div>
@@ -40,7 +41,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -85,6 +86,8 @@ function render() {
 $('pk').oninput = render; $('scheme').oninput = render;
 wireCopy();
 render();
+// Example button(s)
+$('example').onclick = () => { $('pk').value = "ACJkf+7vNjBgvUIFoWcaFfEKEjZ2WRixtfY42C8zz8Rp"; $('scheme').value = 'auto'; render(); };
 </script>
 </body>
 </html>

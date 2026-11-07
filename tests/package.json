@@ -1,0 +1,14 @@
+{
+  "name": "ai-pavel-site-tests",
+  "private": true,
+  "description": "Browser tests for ai-pavel.github.io",
+  "scripts": {
+    "test": "playwright test",
+    "test:examples": "playwright test examples",
+    "test:site": "playwright test site",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

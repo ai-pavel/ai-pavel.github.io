@@ -28,11 +28,12 @@
     <label class="field">Addresses, one per line
       <textarea id="input" class="wide" rows="4" spellcheck="false" autocomplete="off" placeholder="11111111111111111111111111111111"></textarea>
     </label>
+    <div class="row" style="margin-top:12px"><button type="button" id="example">Example</button></div>
     <div id="out"></div>
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -67,6 +68,11 @@ function render() {
   }).join('');
 }
 $('input').oninput = render;
+// Example: a wallet (on the curve), the USDC mint, the Token program, a PDA (off the curve) and a typo.
+$('example').onclick = () => {
+  $('input').value = ['9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', 'FGETo8T8wMcN2wCjav8VK6eh3dLk63evNDPxzLSJra8B', '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWW0'].join('\n');
+  render();
+};
 </script>
 </body>
 </html>

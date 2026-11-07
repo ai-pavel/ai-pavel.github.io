@@ -20,6 +20,7 @@
   <p class="lead">Hash bytes with SHA-256 and then RIPEMD-160 (HASH160). Bitcoin uses it for public key hashes and script hashes in addresses.</p>
 
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="seg" id="mode">
       <button data-mode="hex" aria-pressed="true">Hex bytes</button>
       <button data-mode="text" aria-pressed="false">Text (UTF-8)</button>
@@ -32,7 +33,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -58,6 +59,12 @@ run = live([$('input')], () => {
     { label: 'Input size', value: `${bytes.length} bytes`, copy: false },
   ]);
 }, { errEl: $('err'), outEl: $('out') });
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// The public key behind bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu (BIP84 test vector).
+$('example').onclick = () => {
+  exSet('input', mode() === 'hex' ? '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c' : 'hello'); run();
+};
 </script>
 </body>
 </html>

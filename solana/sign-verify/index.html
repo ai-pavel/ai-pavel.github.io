@@ -34,7 +34,7 @@
     <label class="field">Secret key: base58, JSON byte array or hex (32-byte seed or 64-byte keypair)
       <textarea id="s-secret" class="wide" rows="3" spellcheck="false" autocomplete="off"></textarea>
     </label>
-    <div class="row" style="margin-top:8px"><button id="s-gen">Generate a test key</button></div>
+    <div class="row" style="margin-top:8px"><button type="button" id="s-example">Example</button><button id="s-gen">Generate a test key</button></div>
     <label class="field">Message
       <textarea id="s-msg" class="wide" rows="4" spellcheck="false">Hello, Solana!</textarea>
     </label>
@@ -49,6 +49,7 @@
   <section id="tab-verify" class="mode-panel" data-tab-panel="verify">
 
   <div class="panel">
+    <div class="row" style="margin-bottom:8px"><button type="button" id="v-example">Example</button></div>
     <label class="field">Public key (address)
       <input id="v-pub" class="mono" autocomplete="off" spellcheck="false">
     </label>
@@ -67,7 +68,7 @@
   </section>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script>
@@ -117,10 +118,16 @@ function render() {
 ['secret', 'msg'].forEach(id => $(id).oninput = render);
 $('enc').onchange = render;
 $('gen').onclick = () => { $('secret').value = base58.encode(keypairFromSeed(crypto.getRandomValues(new Uint8Array(32))).secretKey); render(); };
+// Example: a test key whose seed is the bytes 1…32 (never use it for funds).
+$('example').onclick = () => {
+  $('secret').value = base58.encode(keypairFromSeed(Uint8Array.from({ length: 32 }, (_, i) => i + 1)).secretKey);
+  $('msg').value = 'Hello, Solana!'; $('enc').value = 'utf8';
+  render();
+};
 wireCopy();
 </script>
 <script type="module">
-import { ed25519, decodePubkey, parseBytes, base58, base64, hex, showError } from '../lib/sol.js';
+import { ed25519, decodePubkey, parseBytes, base58, base64, hex, showError, keypairFromSeed } from '../lib/sol.js';
 const $ = id => document.getElementById('v-' + id);
 const __sec = document.getElementById('tab-verify');
 
@@ -150,6 +157,14 @@ function render() {
   } catch (e) { showError($('err'), e.message); }
 }
 ['pub', 'msg', 'sig'].forEach(id => $(id).oninput = render);
+// Example: "Hello, Solana!" signed by the test key with seed 1…32 (Ed25519 signatures are deterministic).
+$('example').onclick = () => {
+  const seed = Uint8Array.from({ length: 32 }, (_, i) => i + 1), msg = 'Hello, Solana!';
+  $('pub').value = base58.encode(keypairFromSeed(seed).publicKey);
+  $('msg').value = msg; $('enc').value = 'utf8';
+  $('sig').value = base58.encode(ed25519.sign(new TextEncoder().encode(msg), seed));
+  render();
+};
 $('enc').onchange = render;
 </script>
 </body>

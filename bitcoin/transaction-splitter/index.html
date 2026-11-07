@@ -20,6 +20,7 @@
   <p class="lead">Split a raw transaction into every field, with byte offsets and decoded values. Handles segwit marker, flag and witnesses.</p>
 
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="field"><span>Raw transaction (hex)</span><textarea id="tx" class="mono" rows="5" spellcheck="false"></textarea></div>
     <div class="field"><span>Network for addresses</span><select id="net"></select></div>
     <p class="error" id="err" hidden></p>
@@ -29,7 +30,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -79,6 +80,10 @@ live([$('tx'), $('net')], () => {
     return `${head}<tr><td class="range">${f.start}${f.end - f.start > 1 ? '–' + (f.end - 1) : ''}</td><td>${esc(f.name)}</td><td class="hexcell"><span class="c${color(f.group)}">${raw || '(empty)'}</span></td><td class="hexcell" style="white-space:pre-wrap">${esc(show(f, net))}</td></tr>`;
   }).join('');
 }, { errEl: $('err'), outEl: $('out') });
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// A signed P2WPKH transaction from the BIP84 test wallet.
+$('example').onclick = () => { exSet('net', 'mainnet'); exSet('tx', '0200000000010139e6eaa9f4f76c3227449869b6e98bd83241a58c810fa1c8582e30e7e0114fd70000000000fdffffff01b8820100000000001600149c90f934ea51fa0f6504177043e0908da692998302483045022100a67b86c175604af65871e8d7bd7433a2635f93fd3738a636162282a000107d4a02201950d3bb41b8b96d6f7add63e8f64c2ecd8d5166c91dde2801a9f6d0f64c922401210330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c00000000'); exFire('tx'); };
 </script>
 </body>
 </html>

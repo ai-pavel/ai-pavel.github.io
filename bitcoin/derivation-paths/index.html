@@ -21,6 +21,7 @@
 
   <div class="panel">
     <p class="warning">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="field"><span>Mnemonic or seed (hex)</span><textarea id="secret" class="mono" rows="3" spellcheck="false" placeholder="abandon abandon … about"></textarea></div>
     <div class="grid2">
       <div class="field"><span>Passphrase (mnemonic only)</span><input id="passphrase" class="mono" spellcheck="false" autocomplete="off"></div>
@@ -41,7 +42,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -105,6 +106,13 @@ async function run() {
 }
 for (const id of ['secret', 'passphrase', 'net', 'preset', 'account', 'change', 'start', 'count', 'custom', 'type', 'showPriv']) $(id).addEventListener('input', run);
 run();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// BIP84 test mnemonic.
+$('example').onclick = () => {
+  exSet('secret', 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'); exSet('passphrase', ''); exSet('net', 'mainnet'); exSet('preset', '84');
+  exSet('account', 0); exSet('change', '0'); exSet('start', 0); exSet('count', 5); exSet('showPriv', false); exFire('secret');
+};
 </script>
 </body>
 </html>

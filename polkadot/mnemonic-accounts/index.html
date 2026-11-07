@@ -26,7 +26,7 @@
     <div class="row">
       <button type="button" id="gen12">New 12 words</button>
       <button type="button" id="gen24">New 24 words</button>
-      <button type="button" id="dev">Dev phrase</button>
+      <button type="button" id="dev">Example: dev phrase //Alice</button>
     </div>
     <div class="grid2">
       <label class="field">Derivation path
@@ -99,11 +99,13 @@ $('gen24').onclick = () => { $('phrase').value = generateMnemonic(wordlist, 256)
 $('dev').onclick = () => { $('phrase').value = DEV; $('path').value = '//Alice'; render(); };
 ['phrase', 'path', 'pass', 'type', 'net', 'custom', 'list', 'count', 'reveal'].forEach(id => $(id).addEventListener('input', render));
 render();
+// Example button(s)
+$('dev').onclick = () => { $('phrase').value = DEV; $('path').value = '//Alice'; $('pass').value = ''; $('type').value = 'sr25519'; $('net').value = '2'; render(); };
 </script>
 <!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

@@ -20,6 +20,7 @@
   <p class="lead">Hash bytes twice with SHA-256 (HASH256). Bitcoin uses it for TXIDs, block hashes and Base58Check checksums.</p>
 
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="seg" id="mode">
       <button data-mode="hex" aria-pressed="true">Hex bytes</button>
       <button data-mode="text" aria-pressed="false">Text (UTF-8)</button>
@@ -32,7 +33,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -53,6 +54,12 @@ run = live([$('input')], () => {
     { label: 'Input size', value: `${bytes.length} bytes`, copy: false },
   ]);
 }, { errEl: $('err'), outEl: $('out') });
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// The genesis block header: HASH256 gives the genesis block hash.
+$('example').onclick = () => {
+  exSet('input', mode() === 'hex' ? '0100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c' : 'hello'); run();
+};
 </script>
 </body>
 </html>

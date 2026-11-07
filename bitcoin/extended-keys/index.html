@@ -21,6 +21,7 @@
 
   <div class="panel">
     <p class="warning">Runs locally in your browser. Don't paste keys that hold real funds.</p>
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="field"><span>Extended key</span><textarea id="key" class="mono" rows="3" spellcheck="false" placeholder="xpub6… / zpub… / xprv9…"></textarea></div>
     <div class="grid2">
       <div class="field"><span>Derive child (path from this key)</span><input id="path" class="mono" spellcheck="false" placeholder="m/0/1 or m/0'/5"></div>
@@ -31,7 +32,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -70,6 +71,13 @@ const run = live([$('key'), $('path'), $('as')], () => {
   }
   renderRows($('out'), rows);
 }, { errEl: $('err'), outEl: $('out') });
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// BIP32 test vector 1 master key, derive m/0'/1.
+$('example').onclick = () => {
+  exSet('key', 'xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi');
+  exSet('path', "m/0'/1"); run();
+};
 </script>
 </body>
 </html>

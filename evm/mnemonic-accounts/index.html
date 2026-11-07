@@ -35,6 +35,7 @@
       <textarea id="mnemonic" class="mono" rows="3" spellcheck="false" autocomplete="off">test test test test test test test test test test test junk</textarea>
     </div>
     <div class="row" style="margin-bottom:14px">
+      <button type="button" id="example">Example</button>
       <button id="gen12">New 12 words</button>
       <button id="gen24">New 24 words</button>
     </div>
@@ -72,7 +73,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -150,6 +151,16 @@ $('path').addEventListener('input', () => {
   render();
 });
 for (const el of [$('mnemonic'), $('passphrase'), $('start'), $('count'), $('show-keys')]) el.addEventListener('input', render);
+// Example: the public Hardhat/Anvil test mnemonic with the standard path.
+$('example').onclick = () => {
+  $('mnemonic').value = 'test test test test test test test test test test test junk';
+  $('passphrase').value = '';
+  $('preset').value = "m/44'/60'/0'/0/{i}";
+  $('path').value = "m/44'/60'/0'/0/{i}";
+  $('start').value = '0';
+  $('count').value = '5';
+  render();
+};
 $('gen12').onclick = () => { $('mnemonic').value = generateMnemonic(wordlist, 128); render(); };
 $('gen24').onclick = () => { $('mnemonic').value = generateMnemonic(wordlist, 256); render(); };
 render();

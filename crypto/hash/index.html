@@ -20,6 +20,7 @@
   <p class="lead">Hash text or files, and verify a download’s checksum. MD5, SHA-1/2/3, Keccak, BLAKE2/3 and RIPEMD-160.</p>
   <!-- tool:start -->
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="row">
       <div class="seg" id="mode" role="group" aria-label="Input">
         <button data-v="utf8" aria-pressed="true">Text</button>
@@ -61,7 +62,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -197,6 +198,14 @@ document.addEventListener('drop', e => {
 });
 wireCopy();
 compute();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// "abc" with its well-known SHA-256 as the expected checksum.
+$('example').onclick = () => {
+  exSet('expected', 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  if (mode === 'file') { setFile(new File(['abc'], 'example.txt', { type: 'text/plain' })); return; }
+  exSet('input', { utf8: 'abc', hex: '616263', base64: 'YWJj' }[mode]); recompute();
+};
 </script>
 <!-- script:end -->
 </body>

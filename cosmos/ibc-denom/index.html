@@ -23,6 +23,7 @@
       <input id="q" class="mono wide" spellcheck="false" autocomplete="off" placeholder="transfer/channel-0/uatom  or  ibc/27394FB0…">
     </label>
     <p class="muted" style="margin:6px 0 0">Multi-hop traces work too, e.g. <code>transfer/channel-141/transfer/channel-0/uatom</code>.</p>
+    <div class="row"><button type="button" id="example">Example: ATOM on Osmosis</button></div>
     <p class="error" id="err" hidden></p>
     <div id="out"></div>
   </div>
@@ -36,7 +37,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -92,6 +93,8 @@ function render() {
 }
 $('q').oninput = render;
 wireCopy(); render();
+// Example button(s)
+$('example').onclick = () => { $('q').value = 'transfer/channel-0/uatom'; render(); };
 </script>
 </body>
 </html>

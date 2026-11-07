@@ -20,6 +20,7 @@
   <p class="lead">Convert Bitcoin Script between hex and ASM, and recognise standard templates (P2PKH, P2SH, P2WPKH, P2WSH, P2TR, multisig, OP_RETURN).</p>
 
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="field"><span>Hex</span><textarea id="hex" class="mono" rows="3" spellcheck="false" placeholder="76a914…88ac"></textarea></div>
     <div class="field"><span>ASM (opcodes, decimal numbers, hex data)</span><textarea id="asm" class="mono" rows="3" spellcheck="false" placeholder="OP_DUP OP_HASH160 89abcdef… OP_EQUALVERIFY OP_CHECKSIG"></textarea></div>
     <p class="error" id="err" hidden></p>
@@ -29,7 +30,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -77,6 +78,10 @@ $('asm').addEventListener('input', () => {
     show(script);
   } catch (e) { clear(e); }
 });
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+// P2PKH script of Satoshi's genesis address.
+$('example').onclick = () => { exSet('hex', '76a91462e907b15cbf27d5425399ebf6f0fb50ebb88f1888ac'); exFire('hex'); };
 </script>
 </body>
 </html>

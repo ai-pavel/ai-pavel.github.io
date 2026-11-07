@@ -43,13 +43,13 @@
       <label class="field" style="flex:1 1 140px"><span>Wallet ID (v3/v4)</span><input id="wid" type="number" placeholder="698983191"></label>
       <label class="field" style="flex:1 1 140px"><span>Subwallet (v5)</span><input id="sub" type="number" min="0" max="32767" value="0"></label>
     </div>
-    <div class="row" style="margin-top:12px"><button class="primary" type="button" id="go">Derive addresses</button><span class="muted" id="status"></span></div>
+    <div class="row" style="margin-top:12px"><button type="button" id="example">Example</button><button class="primary" type="button" id="go">Derive addresses</button><span class="muted" id="status"></span></div>
     <p class="error" id="err" hidden></p>
     <div id="out"></div>
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -100,6 +100,13 @@ async function derive() {
   } catch (e) { $('status').textContent = ''; showError($('err'), e); }
 }
 $('go').onclick = derive;
+// Example: the public key of a TON test mnemonic (generated for testing; never funded), default settings.
+$('example').onclick = () => {
+  document.querySelector('[data-mode="pub"]').click();
+  $('pub').value = '4ccc0f23905323a49b2b64efe0ec35e8497a49f3532a4736b1f265f85280fb6d';
+  $('net').value = 'main'; $('wc').value = '0'; $('wc').onchange(); $('wid').value = ''; $('sub').value = '0';
+  derive();
+};
 $('pub').addEventListener('keydown', e => { if (e.key === 'Enter') derive(); });
 </script>
 </body>

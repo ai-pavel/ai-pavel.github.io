@@ -28,6 +28,7 @@
 }</textarea>
     </label>
     <p class="muted" style="margin:6px 0 0">Types: u8, u16, u32, u64, u128, u256, bool, string, address, vector&lt;T&gt;, option&lt;T&gt;, [T; N], (A, B), struct { name: T, … }, enum { A, B(T), C { x: T } }. Move names such as 0x1::string::String, 0x2::object::ID and 0x1::option::Option&lt;T&gt; also work.</p>
+    <div class="row"><button type="button" id="example">Example: struct with every type</button></div>
     <p class="error" id="schema-err" hidden></p>
   </div>
 
@@ -56,7 +57,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -94,6 +95,8 @@ $('schema').oninput = () => { readSchema(); enc(); dec(); };
 $('json').oninput = enc; $('bytes').oninput = dec;
 wireCopy();
 readSchema(); enc();
+// Example button(s)
+$('example').onclick = () => { $('schema').value = "struct {\n  amount: u64,\n  recipient: address,\n  memo: option<string>,\n  tags: vector<u8>,\n  big: u256,\n  e: enum { A, B(u16), C { x: bool } },\n  arr: [u32; 2]\n}"; $('json').value = "{\n  \"amount\": \"1000000000\",\n  \"recipient\": \"0x2\",\n  \"memo\": \"hello\",\n  \"tags\": [\n    1,\n    2\n  ],\n  \"big\": \"115792089237316195423570985008687907853269984665640564039457584007913129639935\",\n  \"e\": {\n    \"C\": {\n      \"x\": true\n    }\n  },\n  \"arr\": [\n    1,\n    4294967295\n  ]\n}"; $('bytes').value = "0x00ca9a3b000000000000000000000000000000000000000000000000000000000000000000000002010568656c6c6f020102ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff020101000000ffffffff"; $('schema').oninput(); };
 </script>
 </body>
 </html>

@@ -46,6 +46,7 @@
         <input id="custom" class="mono" inputmode="numeric" value="42">
       </label>
     </div>
+    <div class="row"><button type="button" id="example">Example: pure proxy of //Alice</button></div>
     <p class="error" id="err" hidden></p>
     <div id="out"></div>
     <div class="note">Proxy type indexes are defined by each runtime and have changed over time (for example when IdentityJudgement was removed). The list above is for the Polkadot and Kusama relay chains; Asset Hub and other parachains have their own <code>ProxyType</code> enum — pick “Other index…” and check your chain's metadata if the address doesn't match.</div>
@@ -76,11 +77,13 @@ function render() {
 }
 ['who', 'ptype', 'pcustom', 'idx', 'height', 'ext', 'net', 'custom'].forEach(id => $(id).addEventListener('input', render));
 render();
+// Example button(s)
+$('example').onclick = () => { $('who').value = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'; $('ptype').value = '0'; $('idx').value = '0'; $('height').value = '22000000'; $('ext').value = '2'; $('net').value = '0'; render(); };
 </script>
 <!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>

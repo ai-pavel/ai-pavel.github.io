@@ -24,6 +24,10 @@
       <button data-mode="create" aria-pressed="true">CREATE</button>
       <button data-mode="create2" aria-pressed="false">CREATE2</button>
     </div>
+    <div class="row" style="margin-bottom:14px">
+      <button type="button" id="example-create">Example: CREATE</button>
+      <button type="button" id="example-create2">Example: CREATE2</button>
+    </div>
     <div class="field">
       <label for="deployer" class="muted">Deployer address</label>
       <input id="deployer" class="mono" spellcheck="false" autocomplete="off" placeholder="0x…" value="0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0">
@@ -52,7 +56,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -103,6 +107,20 @@ run = live([$('deployer'), $('nonce'), $('salt'), $('code')], () => {
     ]);
   }
 }, { errEl: $('err'), outEl: $('out') });
+
+// Examples: a deployer's second contract (nonce 1), and example 4 from EIP-1014.
+$('example-create').onclick = () => {
+  $('deployer').value = '0x6ac7ea33f8831ea9dcc53393aaa88b25a785dbf0';
+  $('nonce').value = '1';
+  $('mode').querySelector('[data-mode="create"]').click();
+};
+$('example-create2').onclick = () => {
+  $('deployer').value = '0xdeadbeef00000000000000000000000000000000';
+  $('salt').value = '0x000000000000000000000000feed000000000000000000000000000000000000';
+  $('code').value = '0x00';
+  $('code-mode').querySelector('[data-mode="code"]').click();
+  $('mode').querySelector('[data-mode="create2"]').click();
+};
 </script>
 </body>
 </html>

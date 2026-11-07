@@ -36,7 +36,8 @@
       <label class="field">Data encoding
         <select id="s-enc"><option value="text">Text (UTF-8)</option><option value="base64">Base64 bytes</option><option value="hex">Hex bytes</option></select>
       </label>
-      <p class="error" id="s-err" hidden></p>
+      <div class="row"><button type="button" id="example-sign">Example: sign in to example.com</button></div>
+    <p class="error" id="s-err" hidden></p>
       <div id="s-out"></div>
     </div>
   </section>
@@ -57,7 +58,8 @@
       <label class="field">Public key (base64 or hex) — not needed if the JSON above includes it
         <input id="v-pub" class="mono wide" spellcheck="false" autocomplete="off">
       </label>
-      <p class="error" id="v-err" hidden></p>
+      <div class="row"><button type="button" id="example-verify">Example: verify a Keplr signature</button></div>
+    <p class="error" id="v-err" hidden></p>
       <div id="v-out"></div>
     </div>
   </section>
@@ -68,7 +70,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -192,6 +194,9 @@ function verify() {
 }
 for (const id of ['v-addr', 'v-data', 'v-enc', 'v-sig', 'v-pub']) $(id).oninput = verify;
 wireCopy(); sign(); verify();
+// Example button(s)
+$('example-sign').onclick = () => { $('s-key').value = "c4a48e2fce1481cd3294b4490f6678090ea98d3d0e5cd984558ab0968741b104"; $('s-chain').value = 'cosmos'; $('s-data').value = "Sign in to example.com"; $('s-enc').value = 'text'; $('s-key').oninput(); };
+$('example-verify').onclick = () => { $('v-addr').value = "cosmos19rl4cm2hmr8afy4kldpxz3fka4jguq0auqdal4"; $('v-data').value = "Sign in to example.com"; $('v-enc').value = 'text'; $('v-sig').value = "k1TCYs+EWgHI1ZEc8eYdJZbHB8o+VPYzEGUr7PBbeaxbbmyy/5goYer/WBoViMwwQUO8oYci7I4V5VAU1QKLNw=="; $('v-pub').value = "Ak9OKtmcNNYLm6YoPJQxqEGK+GcyEpYfl6d7Y3f80Fti"; $('v-sig').oninput(); };
 </script>
 </body>
 </html>

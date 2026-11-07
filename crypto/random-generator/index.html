@@ -20,6 +20,7 @@
   <p class="lead">Generate random bytes, passwords and passphrases.</p>
   <!-- tool:start -->
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="row">
       <div class="seg" id="kind" role="group" aria-label="Kind">
         <button data-v="password" aria-pressed="true">Password</button>
@@ -70,7 +71,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -140,6 +141,14 @@ $('go').onclick = go;
 for (const id of ['len', 'count', 'lower', 'upper', 'digits', 'symbols', 'ambiguous', 'words', 'sep', 'ppCount', 'cap', 'num', 'nbytes', 'fmt']) $(id).addEventListener('input', go);
 wireCopy();
 go();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+$('example').onclick = () => {
+  if (kind === 'password') { exSet('len', 20); exSet('count', 5); for (const id of ['lower', 'upper', 'digits', 'symbols', 'ambiguous']) exSet(id, true); }
+  else if (kind === 'passphrase') { exSet('words', 6); exSet('sep', '-'); exSet('ppCount', 5); exSet('cap', true); exSet('num', false); }
+  else { exSet('nbytes', 32); exSet('fmt', 'hex'); }
+  go();
+};
 </script>
 <!-- script:end -->
 </body>

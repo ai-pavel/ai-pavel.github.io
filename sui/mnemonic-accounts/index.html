@@ -28,6 +28,7 @@
       <textarea id="mn" class="wide" rows="3" spellcheck="false" autocomplete="off" placeholder="12 or 24 words"></textarea>
     </label>
     <div class="row" style="margin-top:8px">
+      <button type="button" id="example">Example: test mnemonic</button>
       <button id="gen12">New 12 words</button>
       <button id="gen24">New 24 words</button>
     </div>
@@ -56,7 +57,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -115,6 +116,8 @@ for (const id of ['mn', 'path', 'start', 'count', 'reveal']) $(id).addEventListe
 $('gen12').onclick = () => { $('mn').value = generateMnemonic(wordlist, 128); render(); };
 $('gen24').onclick = () => { $('mn').value = generateMnemonic(wordlist, 256); render(); };
 wireCopy();
+// Example button(s)
+$('example').onclick = () => { $('mn').value = "film crazy soon outside stand loop subway crumble thrive popular green nuclear struggle pistol arm wife phrase warfare march wheat nephew ask sunny firm"; $('scheme').value = '0'; $('start').value = '0'; $('count').value = '3'; $('scheme').oninput(); };
 </script>
 </body>
 </html>

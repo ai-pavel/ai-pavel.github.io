@@ -20,12 +20,13 @@
   <p class="lead">Convert between wei, gwei, ether and other units. Conversions are exact, with no rounding.</p>
 
   <div class="panel">
+    <div class="row"><button type="button" id="example">Example: gas for a transfer</button></div>
     <div id="units"></div>
     <p class="error" id="err" hidden></p>
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -63,6 +64,12 @@ function update(from) {
 UNITS.forEach(([u]) => $('u-' + u).addEventListener('input', () => update(u)));
 $('u-ether').value = '1';
 update('ether');
+
+// Example: a plain ETH transfer uses 21,000 gas; at 30 gwei that is 630,000 gwei.
+$('example').onclick = () => {
+  $('u-gwei').value = String(21000 * 30);
+  update('gwei');
+};
 </script>
 </body>
 </html>

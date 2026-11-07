@@ -25,6 +25,7 @@
     <label class="field"><span>Mnemonic (24 words)</span><textarea id="mn" rows="4" class="mono" spellcheck="false" autocomplete="off"></textarea></label>
     <label class="field" style="margin-top:8px"><span>Password (optional)</span><input id="pw" type="password" autocomplete="off"></label>
     <div class="row" style="margin-top:12px">
+      <button type="button" id="example">Example</button>
       <button class="primary" type="button" id="check">Check and derive</button>
       <button type="button" id="gen">Generate new</button>
       <span class="muted" id="status"></span>
@@ -41,7 +42,7 @@
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -66,6 +67,8 @@ async function check() {
   $('status').textContent = '';
 }
 $('check').onclick = check;
+// Example: a valid 24-word TON test mnemonic without a password (generated for testing; never funded).
+$('example').onclick = () => { $('mn').value = 'voice fortune fox tiny force rookie give wear promote depth dawn whip life october supreme excite green unveil hunt unable struggle dream wool wrap'; $('pw').value = ''; check(); };
 $('gen').onclick = async () => {
   $('status').textContent = 'Generating…'; $('gen').disabled = true;
   try { $('mn').value = (await generateMnemonic(24, $('pw').value)).join(' '); await check(); }

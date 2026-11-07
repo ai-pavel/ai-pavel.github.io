@@ -27,12 +27,13 @@
     <div class="field">
       <textarea id="input" class="mono" rows="4" spellcheck="false" placeholder="Type or paste input"></textarea>
     </div>
+    <div class="row"><button type="button" id="example">Example: transfer(address,uint256)</button></div>
     <p class="error" id="err" hidden></p>
     <div class="out" id="out"></div>
   </div>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script type="module">
@@ -52,6 +53,13 @@ run = live([$('input')], () => {
     { label: 'Input size', value: `${bytes.length} bytes`, copy: false },
   ]);
 }, { errEl: $('err'), outEl: $('out') });
+
+// Example: the ERC-20 transfer signature; its hash starts with the selector a9059cbb.
+$('example').onclick = () => {
+  $('mode').querySelector('[data-mode="text"]').click();
+  $('input').value = 'transfer(address,uint256)';
+  run();
+};
 </script>
 </body>
 </html>

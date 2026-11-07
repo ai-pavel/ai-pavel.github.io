@@ -20,6 +20,7 @@
   <p class="lead">Convert a signature between raw (r, s) and DER.</p>
   <!-- tool:start -->
   <div class="panel">
+    <div class="row example-row"><button type="button" id="example">Example</button></div>
     <div class="row">
       <div class="seg" id="dir" role="group" aria-label="Direction">
         <button data-v="toRaw" aria-pressed="true">DER → r, s</button>
@@ -61,7 +62,7 @@
   <!-- tool:end -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <!-- script:start -->
@@ -176,6 +177,18 @@ $('dir').onclick = e => {
 for (const id of ['der', 'sighash', 'curve', 'rs', 'r', 's', 'appendHash']) $(id).addEventListener('input', render);
 wireCopy();
 render();
+const exSet = (id, v) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+const exFire = id => document.getElementById(id).dispatchEvent(new Event('input', { bubbles: true }));
+$('example').onclick = () => {
+  exSet('curve', 'secp256k1');
+  if (dir === 'toRaw') {
+    exSet('der', '3045022100c12a7d54972f26d14cb311339b5122f8c187417dde1e8efb6841f55c34220ae0022066632c5cd4161efa3a2837764eee9eb84975dd54c2de2865e9752585c53e7cce01');
+    exSet('sighash', true); exFire('der');
+  } else {
+    exSet('rs', ''); exSet('r', 'c12a7d54972f26d14cb311339b5122f8c187417dde1e8efb6841f55c34220ae0');
+    exSet('s', '66632c5cd4161efa3a2837764eee9eb84975dd54c2de2865e9752585c53e7cce'); exSet('appendHash', '01'); exFire('r');
+  }
+};
 </script>
 <!-- script:end -->
 </body>

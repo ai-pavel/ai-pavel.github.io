@@ -29,6 +29,7 @@
   <section id="tab-function" class="mode-panel" data-tab-panel="function">
 
   <div class="panel">
+    <div class="row" style="margin-bottom:14px"><button type="button" id="f-example">Example: ERC-20</button></div>
     <div class="field">
       <textarea id="f-input" class="mono" rows="4" spellcheck="false" placeholder="transfer(address,uint256)">function transfer(address to, uint256 amount) external returns (bool);
 approve(address spender, uint amount)</textarea>
@@ -39,6 +40,7 @@ approve(address spender, uint amount)</textarea>
   <section id="tab-event" class="mode-panel" data-tab-panel="event">
 
   <div class="panel">
+    <div class="row" style="margin-bottom:14px"><button type="button" id="e-example">Example: ERC-20</button></div>
     <div class="field">
       <textarea id="e-input" class="mono" rows="4" spellcheck="false" placeholder="Transfer(address,address,uint256)">event Transfer(address indexed from, address indexed to, uint256 value);
 event Approval(address indexed owner, address indexed spender, uint256 value)</textarea>
@@ -48,7 +50,7 @@ event Approval(address indexed owner, address indexed spender, uint256 value)</t
   </section>
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 <script>
@@ -100,6 +102,8 @@ function render() {
 }
 $('input').addEventListener('input', render);
 render();
+// Example: ERC-20 functions; transfer's selector is 0xa9059cbb.
+$('example').onclick = () => { $('input').value = "function transfer(address to, uint256 amount) external returns (bool);\napprove(address spender, uint amount)"; render(); };
 </script>
 <script type="module">
 import { parseSignature, keccakHex, utf8, InputError } from '../lib/evm.js';
@@ -138,6 +142,8 @@ function render() {
 }
 $('input').addEventListener('input', render);
 render();
+// Example: ERC-20 events; Transfer's topic is 0xddf252ad….
+$('example').onclick = () => { $('input').value = "event Transfer(address indexed from, address indexed to, uint256 value);\nevent Approval(address indexed owner, address indexed spender, uint256 value)"; render(); };
 </script>
 </body>
 </html>

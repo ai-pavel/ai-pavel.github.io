@@ -31,3 +31,18 @@ The site is an installable app (PWA) and works offline once it has been opened.
 - Third-party libraries are vendored in `assets/vendor/` (see `assets/vendor/VENDOR.md`). To add or upgrade one, edit the list in `scripts/vendor.py` and run `python3 scripts/vendor.py`; it downloads the files and points pages at the local copies.
 - `sw.js` is the service worker. It is generated from `scripts/sw.template.js` by `generate.py`, which precaches every site file and bumps the cache version whenever a file changes. Heavy assets loaded on demand (the ffmpeg core, the OCR engine and its language data) are cached on first use.
 - There is no build step on deploy: push to `master` and GitHub Pages serves the files as-is.
+
+## Tests
+
+Browser tests live in `tests/` and use [Playwright](https://playwright.dev/) with the Google Chrome already installed on the machine.
+
+```sh
+cd tests
+npm install          # once
+npm test             # everything
+npm run test:examples   # every Example button on every crypto tool
+npm run test:site       # home page and search, all pages exist, no third-party code, offline mode
+npm run report          # open the HTML report of the last run
+```
+
+The tests start a local server for the site on port 4173 by themselves. Run a single tool with e.g. `npx playwright test -g "bitcoin/psbt-decoder"`.

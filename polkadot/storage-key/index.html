@@ -34,6 +34,7 @@
     <p class="error" id="err" hidden></p>
     <div id="out"></div>
     <p class="section-title">Split a storage key</p>
+    <div class="row"><button type="button" id="example-split">Example: split a System.Account key</button></div>
     <label class="field">Storage key (hex) — uses the pallet, item and key types above
       <textarea id="raw" class="wide" rows="3" spellcheck="false"></textarea>
     </label>
@@ -70,7 +71,7 @@ const PRESETS = [
   ['Paras.Heads', 'Paras', 'Heads', [['Twox64Concat', 'u32', '1000']]],
   ['Assets.Account', 'Assets', 'Account', [['Blake2_128Concat', 'u32', '1984'], ['Blake2_128Concat', 'AccountId32', '15oF4uVJwmo4TdGW7VfQxNLavjCXviqxT9S1MgbjMNHr6Sp5']]],
 ];
-$('presets').innerHTML = PRESETS.map(([n], i) => `<button type="button" data-i="${i}">${esc(n)}</button>`).join('');
+$('presets').innerHTML = PRESETS.map(([n], i) => `<button type="button" data-i="${i}">Example: ${esc(n)}</button>`).join('');
 let keys = PRESETS[0][3].map(k => [...k]);
 function drawKeys() {
   $('keys').innerHTML = keys.map(([h, t, v], i) => `
@@ -128,11 +129,13 @@ $('add').onclick = () => { keys.push(['Blake2_128Concat', 'AccountId32', '']); d
 $('presets').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (!b) return; const [, p, it, ks] = PRESETS[+b.dataset.i]; $('pallet').value = p; $('item').value = it; keys = ks.map(k => [...k]); drawKeys(); render(); });
 ['pallet', 'item', 'raw'].forEach(id => $(id).addEventListener('input', render));
 drawKeys(); render();
+// Example button(s)
+$('example-split').onclick = () => { document.querySelector('#presets [data-i="0"]').click(); $('raw').value = toHex(concat(prefix(), ...keys.map(([h, t, v]) => HASHERS[h].hash(TYPES[t].enc(v))))); render(); };
 </script>
 <!-- /tool -->
 </main>
 <footer class="site-footer">
-  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.2 MB</span></span>
+  <span>Runs entirely in your browser and works offline · <span title="Not counting the video converter and OCR engines, which download on first use.">Whole site: 4.3 MB</span></span>
   <a href="https://github.com/ai-pavel/ai-pavel.github.io">Source on GitHub</a>
 </footer>
 </body>
